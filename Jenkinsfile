@@ -3,7 +3,7 @@ working_branch = 'master'
 
 pipeline {
     agent {
-        label 'LINUX_BUILD'
+        label 'DOCKER_V18'
     }
     triggers {
         pollSCM 'H/10 * * * *'
