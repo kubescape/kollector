@@ -32,7 +32,7 @@ func main() {
 	}()
 
 	go func() {
-		wh.ServiceWatch()
+		wh.ServiceWatch("")
 	}()
 
 	signalChan := make(chan os.Signal, 1)
