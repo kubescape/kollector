@@ -33,9 +33,6 @@ type jsonFormat struct {
 	Pods          ObjectData `json:"pod"`
 }
 
-//var newdataarrive chan int = make(chan int, 1)
-
-//var jsonReport jsonFormat = jsonFormat{Nodes: ObjectData{Created: make(map[string][]interface{}), Deleted: make(map[string][]interface{}), Updated: make(map[string][]interface{})}, Services: ObjectData{Created: make(map[string][]interface{}), Deleted: make(map[string][]interface{}), Updated: make(map[string][]interface{})}, MicroServices: ObjectData{Created: make(map[string][]interface{}), Deleted: make(map[string][]interface{}), Updated: make(map[string][]interface{})}, Pods: ObjectData{Created: make(map[string][]interface{}), Deleted: make(map[string][]interface{}), Updated: make(map[string][]interface{})}}
 func (obj *ObjectData) AddToJsonFormatByState(NewData interface{}, stype StateType) {
 	switch stype {
 	case CREATED:
@@ -46,6 +43,7 @@ func (obj *ObjectData) AddToJsonFormatByState(NewData interface{}, stype StateTy
 		obj.Created = append(obj.Created, NewData)
 	}
 }
+
 func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, stype StateType) {
 	switch jtype {
 	case NODE:
@@ -61,10 +59,14 @@ func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, 
 }
 
 func PrepareDataToSend(wh *WatchHandler) []byte {
-	jsonReport := wh.jsonReport
-	jsonReportToSend, _ := json.Marshal(jsonReport)
+	if len(wh.jsonReport.Nodes.Created) != 0 || len(wh.jsonReport.Nodes.Updated) != 0 || len(wh.jsonReport.Nodes.Deleted) != 0 || len(wh.jsonReport.MicroServices.Created) != 0 || len(wh.jsonReport.MicroServices.Updated) != 0 || len(wh.jsonReport.MicroServices.Deleted) != 0 || len(wh.jsonReport.Pods.Created) != 0 || len(wh.jsonReport.Pods.Updated) != 0 || len(wh.jsonReport.Pods.Deleted) != 0 || len(wh.jsonReport.Services.Created) != 0 || len(wh.jsonReport.Services.Updated) != 0 || len(wh.jsonReport.Services.Deleted) != 0 {
+		jsonReport := wh.jsonReport
+		jsonReportToSend, _ := json.Marshal(jsonReport)
 
-	return jsonReportToSend
+		return jsonReportToSend
+	}
+
+	return nil
 }
 
 func deleteObjecData(l *[]interface{}) {

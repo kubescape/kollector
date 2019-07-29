@@ -12,14 +12,21 @@ import (
 const TIME int = 20
 
 func main() {
+	var time_from_last_report time.Time = time.Now()
 	wh := watch.CreateWatchHandler()
 
 	go func() {
 		for {
-			time.Sleep(20 * time.Second)
-			fmt.Printf("%s\n", string(watch.PrepareDataToSend(&wh)))
-			wh.SendMessageToWebSocket()
-			watch.DeleteJsonData(&wh)
+			if delta_time := time.Now().Sub(time_from_last_report); delta_time < 20*time.Second {
+				time.Sleep(20*time.Second - delta_time)
+			}
+			jsonData := watch.PrepareDataToSend(&wh)
+			if jsonData != nil {
+				fmt.Printf("%s\n", string(jsonData))
+				wh.SendMessageToWebSocket()
+				watch.DeleteJsonData(&wh)
+				time_from_last_report = time.Now()
+			}
 		}
 	}()
 
