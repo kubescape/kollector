@@ -28,20 +28,16 @@ pipeline {
         }
         stage('Build') {
             steps {
-                step {
-                    sh '''
+                sh '''
                         docker build -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER .
-                    '''
-                }                
+                '''
             }
         }
         stage('Upload') {
             steps {
-                step {
-                    sh '''
+                sh '''
                         docker push dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER
-                    '''
-                }
+                '''
             }
         }
 
