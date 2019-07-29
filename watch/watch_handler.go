@@ -39,7 +39,7 @@ func CreateWatchHandler() WatchHandler {
 		cn = "123"
 	}
 	//start websocket
-	//result.WebSocketHandle.StartWebSokcetClient("10.42.4.52:7555", "k8s/cluster-reports", cn, "123" /*customer guid*/)
+	result.WebSocketHandle.StartWebSokcetClient("10.42.4.52:7555", "k8s/cluster-reports", cn, "123" /*customer guid*/)
 	return result
 }
 

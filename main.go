@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"main/watch"
+	"k8s-ca-dashboard-aggregator/watch"
 	"os"
 	"os/signal"
 	"syscall"
@@ -18,18 +18,18 @@ func main() {
 		for {
 			time.Sleep(20 * time.Second)
 			fmt.Printf("%s\n", string(watch.PrepareDataToSend(&wh)))
-			//wh.SendMessageToWebSocket()
+			wh.SendMessageToWebSocket()
 			watch.DeleteJsonData(&wh)
 		}
 	}()
 
-	/*go func() {
+	go func() {
 		wh.PodWatch()
 	}()
 
 	go func() {
 		wh.NodeWatch()
-	}()*/
+	}()
 
 	go func() {
 		wh.ServiceWatch()
