@@ -1,0 +1,79 @@
+
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  labels:
+    app: dashboard-aggregator
+  name: dashboard-aggregator-service-account
+  namespace: cyberarmor-system
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: dashboard-aggregator-roles
+  labels:
+    app: dashboard-aggregator
+rules:
+- apiGroups: ["*"]
+  resources: ["deployments"]
+  verbs: ["get", "watch", "list"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: dashboard-aggregator-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dashboard-aggregator-roles
+subjects:
+- kind: ServiceAccount
+  name: dashboard-aggregator-service-account
+  namespace: cyberarmor-system
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: dashboard-aggregator
+  name: dashboard-aggregator-service
+  namespace: cyberarmor-system
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: dashboard-aggregator
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard-aggregator
+  namespace: cyberarmor-system
+  labels:
+    app:  dashboard-aggregator
+spec:
+  selector:
+    matchLabels:
+      app:  dashboard-aggregator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app:  dashboard-aggregator
+    spec:
+      containers:
+        - name: go-aggregator
+          image: dreg.eust0.cyberarmorsoft.com:443/k8s/dashboard-aggregator:v5
+          args:
+            - -configtype=1
+          ports:
+          - containerPort: 8080
+            name: aggregator-port
+      imagePullSecrets:
+        - name: caregcred
+      serviceAccountName: dashboard-aggregator-service-account
