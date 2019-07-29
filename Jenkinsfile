@@ -27,23 +27,24 @@ pipeline {
             }
         }
         stage('Build') {
-            agent { 
-                label 'LINUX_BUILD'
-            }
             steps {
-                step('Build') {
+                step {
                     sh '''
                         docker build -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER .
                     '''
-                }
-                step('Upload') {
+                }                
+            }
+        }
+        stage('Upload') {
+            steps {
+                step {
                     sh '''
                         docker push dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER
                     '''
                 }
-                
             }
         }
+
         
    } // stages
 
