@@ -16,7 +16,7 @@ metadata:
     app: dashboard-aggregator
 rules:
 - apiGroups: ["*"]
-  resources: ["deployments"]
+  resources: ["*.*"]
   verbs: ["get", "watch", "list"]
 
 ---

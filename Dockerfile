@@ -9,4 +9,4 @@ RUN cd src/k8s-ca-dashboard-aggregator && cp main /main
 FROM scratch
 COPY --from=builder /main /app/
 WORKDIR /app
-CMD ["./main"]
+ENTRYPOINT ["./main"]

@@ -122,7 +122,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 					od.Name = item.OwnerReferences[0].Name
 					od.Kind = item.OwnerReferences[0].Kind
 					//meanwhile owner refferance must be in the same namespce, so owner refferance dont have namespace field(may be changed in the future)
-					od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Name, pod.ObjectMeta.Namespace, wh)
+					od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
 					return od
 				} else {
 					depInt := wh.RestAPIClient.AppsV1beta1().Deployments(pod.ObjectMeta.Namespace)
@@ -139,7 +139,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 						} else {
 							od.Name = item.ObjectMeta.Name
 							od.Kind = item.Kind
-							od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Name, pod.ObjectMeta.Namespace, wh)
+							od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
 							return od
 						}
 					}
@@ -149,7 +149,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 		default:
 			od.Name = pod.OwnerReferences[0].Name
 			od.Kind = pod.OwnerReferences[0].Kind
-			od.OwnerData = GetOwnerData(pod.OwnerReferences[0].Name, pod.OwnerReferences[0].Name, pod.ObjectMeta.Namespace, wh)
+			od.OwnerData = GetOwnerData(pod.OwnerReferences[0].Name, pod.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
 			return od
 		}
 	}
@@ -207,10 +207,9 @@ func RemovePod(pod *core.Pod, pdm map[int]*list.List) string {
 // StayUpadted starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
 	for {
-		log.Printf("Watching over pods starting")
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(metav1.ListOptions{Watch: true})
 		if err != nil {
-			log.Printf("Cannot wathching over pods. %v", err)
+			log.Printf("Cannot watch over pods. %v", err)
 			time.Sleep(time.Duration(10) * time.Second)
 			continue
 		}

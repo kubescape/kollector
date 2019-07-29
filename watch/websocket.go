@@ -31,7 +31,7 @@ func CreateWebSocketHandler() *WebSocketHandler {
 
 func (wsh *WebSocketHandler) StartWebSokcetClient(urlWS string, path string, cluster_name string, customer_guid string) {
 
-	u := url.URL{Scheme: "ws", Host: urlWS, Path: path, ForceQuery: true}
+	u := url.URL{Scheme: "wss", Host: urlWS, Path: path, ForceQuery: true}
 	q := u.Query()
 	q.Add("customerGUID", customer_guid)
 	q.Add("clusterName", cluster_name)
