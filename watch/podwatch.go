@@ -205,6 +205,7 @@ func RemovePod(pod *core.Pod, pdm map[int]*list.List) string {
 
 // StayUpadted starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
+	log.Printf("Watching over pods starting")
 	for {
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(metav1.ListOptions{Watch: true})
 		if err != nil {
