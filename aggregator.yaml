@@ -16,7 +16,7 @@ metadata:
     app: dashboard-aggregator
 rules:
 - apiGroups: ["*"]
-  resources: ["*.*"]
+  resources: ["*"]
   verbs: ["get", "watch", "list"]
 
 ---
@@ -68,7 +68,7 @@ spec:
     spec:
       containers:
         - name: go-aggregator
-          image: dreg.eust0.cyberarmorsoft.com:443/k8s/dashboard-aggregator:v5
+          image: dreg.eust0.cyberarmorsoft.com:443/k8s/dashboard-aggregator:v16
           args:
             - -configtype=1
           ports:

@@ -66,13 +66,13 @@ func (wh *WatchHandler) NodeWatch() {
 					}
 					nd := NodeData{Node: node}
 					wh.ndm[id].PushBack(nd)
-					wh.jsonReport.AddToJsonFormat(node, NODE, CREATED)
+					wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
 				case "MODIFY":
-					UpdateNode(node, wh.ndm)
-					wh.jsonReport.AddToJsonFormat(node, NODE, UPDATED)
+					name := UpdateNode(node, wh.ndm)
+					wh.jsonReport.AddToJsonFormat(name, NODE, UPDATED)
 				case "DELETED":
-					RemoveNode(node, wh.ndm)
-					wh.jsonReport.AddToJsonFormat(node, NODE, DELETED)
+					name := RemoveNode(node, wh.ndm)
+					wh.jsonReport.AddToJsonFormat(name, NODE, DELETED)
 				}
 			} else {
 				log.Printf("Got unexpected pod from chan: %t, %v", event.Object, event.Object)

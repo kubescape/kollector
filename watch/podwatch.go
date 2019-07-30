@@ -26,12 +26,11 @@ type MicroServiceData struct {
 }
 
 type PodDataForExistMicroService struct {
-	PodName            string      `json:"podName"`
-	NumberOfRunnigPods int         `json:"numberOfRunnigPods"`
-	NodeName           string      `json:"nodeName"`
-	PodIP              string      `json:"podIP"`
-	OwnerData          interface{} `json:"ownerData, omitempty"`
-	Namespace          string      `json:"namespace, omitempty"`
+	PodName            string `json:"podName"`
+	NumberOfRunnigPods int    `json:"numberOfRunnigPods"`
+	NodeName           string `json:"nodeName"`
+	PodIP              string `json:"podIP"`
+	Namespace          string `json:"namespace, omitempty"`
 }
 
 func IsPodExist(pod *core.Pod, pdm map[int]*list.List) bool {
@@ -234,7 +233,7 @@ func (wh *WatchHandler) PodWatch() {
 					} else {
 						podName = pod.ObjectMeta.Name
 					}
-					np := PodDataForExistMicroService{PodName: podName, NumberOfRunnigPods: runnigPodNum, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, OwnerData: od, Namespace: pod.ObjectMeta.Namespace}
+					np := PodDataForExistMicroService{PodName: podName, NumberOfRunnigPods: runnigPodNum, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace}
 					wh.pdm[id].PushBack(np)
 					wh.jsonReport.AddToJsonFormat(np, PODS, CREATED)
 				case "MODIFY":
