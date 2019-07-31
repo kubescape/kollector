@@ -11,7 +11,7 @@ import (
 )
 
 type ServiceData struct {
-	Service *core.Service `json:"data"`
+	Service *core.Service `json:",inline"`
 }
 
 func UpdateService(service *core.Service, sdm map[int]*list.List) string {

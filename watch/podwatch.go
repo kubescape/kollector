@@ -20,7 +20,7 @@ type OwnerDet struct {
 }
 
 type MicroServiceData struct {
-	Pod       *core.Pod `json:"data"`
+	Pod       *core.Pod `json:",inline"`
 	Owner     OwnerDet  `json:"uptreeOwner"`
 	PodSpecId int       `json:"podSpecId"`
 }
