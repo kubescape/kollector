@@ -2,6 +2,7 @@ package watch
 
 import (
 	"encoding/json"
+	"log"
 )
 
 type JsonType int
@@ -61,7 +62,10 @@ func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, 
 func PrepareDataToSend(wh *WatchHandler) []byte {
 	if len(wh.jsonReport.Nodes.Created) != 0 || len(wh.jsonReport.Nodes.Updated) != 0 || len(wh.jsonReport.Nodes.Deleted) != 0 || len(wh.jsonReport.MicroServices.Created) != 0 || len(wh.jsonReport.MicroServices.Updated) != 0 || len(wh.jsonReport.MicroServices.Deleted) != 0 || len(wh.jsonReport.Pods.Created) != 0 || len(wh.jsonReport.Pods.Updated) != 0 || len(wh.jsonReport.Pods.Deleted) != 0 || len(wh.jsonReport.Services.Created) != 0 || len(wh.jsonReport.Services.Updated) != 0 || len(wh.jsonReport.Services.Deleted) != 0 {
 		jsonReport := wh.jsonReport
-		jsonReportToSend, _ := json.Marshal(jsonReport)
+		jsonReportToSend, err := json.Marshal(jsonReport)
+		if nil != err {
+			log.Printf("json.Marshal %v", err)
+		}
 
 		return jsonReportToSend
 	}

@@ -11,51 +11,40 @@ import (
 )
 
 type NodeData struct {
-	name                    string             `json:"name"`
-	machineID               string             `json:"machineID"`
-	kernelVersion           string             `json:"kernelVersion"`
-	osImage                 string             `json:"osImage"`
-	containerRuntimeVersion string             `json:"containerRuntimeVersion"`
-	operatingSystem         string             `json:"operatingSystem"`
-	architecture            string             `json:"architecture"`
-	nodeAddr                []core.NodeAddress `json:"addresses"`
-}
-
-func CreateNewNodeData(node *core.Node) NodeData {
-	return NodeData{node.ObjectMeta.Name,
-		node.Status.NodeInfo.MachineID,
-		node.Status.NodeInfo.KernelVersion,
-		node.Status.NodeInfo.OSImage,
-		node.Status.NodeInfo.ContainerRuntimeVersion,
-		node.Status.NodeInfo.OperatingSystem,
-		node.Status.NodeInfo.Architecture,
-		node.Status.Addresses}
+	Name                    string             `json:"name"`
+	MachineID               string             `json:"machineID"`
+	KernelVersion           string             `json:"kernelVersion"`
+	OsImage                 string             `json:"osImage"`
+	ContainerRuntimeVersion string             `json:"containerRuntimeVersion"`
+	OperatingSystem         string             `json:"operatingSystem"`
+	Architecture            string             `json:"architecture"`
+	Addresses               []core.NodeAddress `json:"addresses"`
 }
 
 func (updateNode *NodeData) UpdateNodeData(node *core.Node) {
-	updateNode.name = node.ObjectMeta.Name
-	updateNode.machineID = node.Status.NodeInfo.MachineID
-	updateNode.kernelVersion = node.Status.NodeInfo.KernelVersion
-	updateNode.osImage = node.Status.NodeInfo.OSImage
-	updateNode.containerRuntimeVersion = node.Status.NodeInfo.ContainerRuntimeVersion
-	updateNode.operatingSystem = node.Status.NodeInfo.OperatingSystem
-	updateNode.architecture = node.Status.NodeInfo.Architecture
-	updateNode.nodeAddr = node.Status.Addresses
+	updateNode.Name = node.ObjectMeta.Name
+	updateNode.MachineID = node.Status.NodeInfo.MachineID
+	updateNode.KernelVersion = node.Status.NodeInfo.KernelVersion
+	updateNode.OsImage = node.Status.NodeInfo.OSImage
+	updateNode.ContainerRuntimeVersion = node.Status.NodeInfo.ContainerRuntimeVersion
+	updateNode.OperatingSystem = node.Status.NodeInfo.OperatingSystem
+	updateNode.Architecture = node.Status.NodeInfo.Architecture
+	updateNode.NodeAddr = node.Status.Addresses
 }
 
 func UpdateNode(node *core.Node, ndm map[int]*list.List) NodeData {
 
 	var nd NodeData
 	for _, v := range ndm {
-		if strings.Compare(v.Front().Value.(NodeData).name, node.ObjectMeta.Name) == 0 {
+		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.Name) == 0 {
 			v.Front().Value.(*NodeData).UpdateNodeData(node)
-			log.Printf("node %s updated", v.Front().Value.(NodeData).name)
+			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)
 			nd = v.Front().Value.(NodeData)
 			break
 		}
-		if strings.Compare(v.Front().Value.(NodeData).name, node.ObjectMeta.GenerateName) == 0 {
+		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.GenerateName) == 0 {
 			v.Front().Value.(*NodeData).UpdateNodeData(node)
-			log.Printf("node %s updated", v.Front().Value.(NodeData).name)
+			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)
 			nd = v.Front().Value.(NodeData)
 			break
 		}
@@ -67,16 +56,16 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 
 	var nodeName string
 	for _, v := range ndm {
-		if strings.Compare(v.Front().Value.(NodeData).name, node.ObjectMeta.Name) == 0 {
+		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.Name) == 0 {
 			v.Remove(v.Front())
-			log.Printf("node %s updated", v.Front().Value.(NodeData).name)
-			nodeName = v.Front().Value.(NodeData).name
+			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)
+			nodeName = v.Front().Value.(NodeData).Name
 			break
 		}
-		if strings.Compare(v.Front().Value.(NodeData).name, node.ObjectMeta.GenerateName) == 0 {
+		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.GenerateName) == 0 {
 			v.Remove(v.Front())
-			log.Printf("node %s updated", v.Front().Value.(NodeData).name)
-			nodeName = v.Front().Value.(NodeData).name
+			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)
+			nodeName = v.Front().Value.(NodeData).Name
 			break
 		}
 	}
@@ -101,7 +90,14 @@ func (wh *WatchHandler) NodeWatch() {
 					if wh.ndm[id] == nil {
 						wh.ndm[id] = list.New()
 					}
-					nd := CreateNewNodeData(node)
+					nd := &NodeData{Name: node.ObjectMeta.Name,
+						MachineID:               node.Status.NodeInfo.MachineID,
+						KernelVersion:           node.Status.NodeInfo.KernelVersion,
+						OsImage:                 node.Status.NodeInfo.OSImage,
+						ContainerRuntimeVersion: node.Status.NodeInfo.ContainerRuntimeVersion,
+						OperatingSystem:         node.Status.NodeInfo.OperatingSystem,
+						Architecture:            node.Status.NodeInfo.Architecture,
+						NodeAddr:                node.Status.Addresses}
 					wh.ndm[id].PushBack(nd)
 					wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
 				case "MODIFY":
