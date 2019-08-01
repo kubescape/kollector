@@ -36,7 +36,7 @@ func CreateWatchHandler() WatchHandler {
 
 	var cn string
 	if cn = os.Getenv("CA_CLUSTER_NAME"); cn == "" {
-		cn = "123"
+		cn = "superCluster"
 	}
 	//start websocket
 	result.WebSocketHandle.StartWebSokcetClient("report.eudev2.cyberarmorsoft.com", "k8s/cluster-reports", cn, "1e3a88bf-92ce-44f8-914e-cbe71830d566" /*customer guid*/)
