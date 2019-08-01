@@ -29,7 +29,7 @@ func (updateNode *NodeData) UpdateNodeData(node *core.Node) {
 	updateNode.ContainerRuntimeVersion = node.Status.NodeInfo.ContainerRuntimeVersion
 	updateNode.OperatingSystem = node.Status.NodeInfo.OperatingSystem
 	updateNode.Architecture = node.Status.NodeInfo.Architecture
-	updateNode.NodeAddr = node.Status.Addresses
+	updateNode.Addresses = node.Status.Addresses
 }
 
 func UpdateNode(node *core.Node, ndm map[int]*list.List) NodeData {
@@ -97,7 +97,7 @@ func (wh *WatchHandler) NodeWatch() {
 						ContainerRuntimeVersion: node.Status.NodeInfo.ContainerRuntimeVersion,
 						OperatingSystem:         node.Status.NodeInfo.OperatingSystem,
 						Architecture:            node.Status.NodeInfo.Architecture,
-						NodeAddr:                node.Status.Addresses}
+						Addresses:               node.Status.Addresses}
 					wh.ndm[id].PushBack(nd)
 					wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
 				case "MODIFY":

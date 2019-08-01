@@ -19,6 +19,11 @@ type OwnerDet struct {
 	OwnerData interface{} `json:"ownerData, omitempty"`
 }
 
+type OwnerDetNameAndKindOnly struct {
+	Name string `json:"name"`
+	Kind string `json:"kind"`
+}
+
 type MicroServiceData struct {
 	*core.Pod `json:",inline"`
 	Owner     OwnerDet `json:"uptreeOwner"`
@@ -26,11 +31,12 @@ type MicroServiceData struct {
 }
 
 type PodDataForExistMicroService struct {
-	PodName            string `json:"podName"`
-	NumberOfRunnigPods int    `json:"numberOfRunnigPods"`
-	NodeName           string `json:"nodeName"`
-	PodIP              string `json:"podIP"`
-	Namespace          string `json:"namespace, omitempty"`
+	PodName            string                  `json:"podName"`
+	NumberOfRunnigPods int                     `json:"numberOfRunnigPods"`
+	NodeName           string                  `json:"nodeName"`
+	PodIP              string                  `json:"podIP"`
+	Namespace          string                  `json:"namespace, omitempty"`
+	Owner              OwnerDetNameAndKindOnly `json:"uptreeOwner"`
 }
 
 func IsPodExist(pod *core.Pod, pdm map[int]*list.List) bool {
@@ -114,37 +120,34 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 	if pod.OwnerReferences != nil {
 		switch pod.OwnerReferences[0].Kind {
 		case "ReplicaSet":
-			repInt := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace)
-			repList, _ := repInt.List(metav1.ListOptions{})
-			for _, item := range repList.Items {
-				if item.OwnerReferences != nil {
-					od.Name = item.OwnerReferences[0].Name
-					od.Kind = item.OwnerReferences[0].Kind
-					//meanwhile owner refferance must be in the same namespce, so owner refferance dont have namespace field(may be changed in the future)
-					od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
-					return od
-				} else {
-					depInt := wh.RestAPIClient.AppsV1beta1().Deployments(pod.ObjectMeta.Namespace)
-					selector, err := metav1.LabelSelectorAsSelector(item.Spec.Selector)
-					if err != nil {
-						log.Printf("LabelSelectorAsSelector err %v\n", err)
-					}
-
-					options := metav1.ListOptions{}
-					depList, _ := depInt.List(options)
-					for _, item := range depList.Items {
-						if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
-							continue
-						} else {
-							od.Name = item.ObjectMeta.Name
-							od.Kind = item.Kind
-							od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
-							return od
-						}
-					}
+			repItem, _ := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace).Get(pod.OwnerReferences[0].Name, metav1.GetOptions{})
+			if repItem.OwnerReferences != nil {
+				od.Name = repItem.OwnerReferences[0].Name
+				od.Kind = repItem.OwnerReferences[0].Kind
+				//meanwhile owner refferance must be in the same namespce, so owner refferance dont have namespace field(may be changed in the future)
+				od.OwnerData = GetOwnerData(repItem.OwnerReferences[0].Name, repItem.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
+				return od
+			} else {
+				depInt := wh.RestAPIClient.AppsV1beta1().Deployments(pod.ObjectMeta.Namespace)
+				selector, err := metav1.LabelSelectorAsSelector(repItem.Spec.Selector)
+				if err != nil {
+					log.Printf("LabelSelectorAsSelector err %v\n", err)
 				}
 
+				options := metav1.ListOptions{}
+				depList, _ := depInt.List(options)
+				for _, item := range depList.Items {
+					if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
+						continue
+					} else {
+						od.Name = item.ObjectMeta.Name
+						od.Kind = item.Kind
+						od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
+						return od
+					}
+				}
 			}
+
 		default:
 			od.Name = pod.OwnerReferences[0].Name
 			od.Kind = pod.OwnerReferences[0].Kind
@@ -234,7 +237,7 @@ func (wh *WatchHandler) PodWatch() {
 					} else {
 						podName = pod.ObjectMeta.Name
 					}
-					np := PodDataForExistMicroService{PodName: podName, NumberOfRunnigPods: runnigPodNum, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace}
+					np := PodDataForExistMicroService{PodName: podName, NumberOfRunnigPods: runnigPodNum, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}}
 					wh.pdm[id].PushBack(np)
 					wh.jsonReport.AddToJsonFormat(np, PODS, CREATED)
 				case "MODIFY":
