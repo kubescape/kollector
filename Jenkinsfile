@@ -29,14 +29,14 @@ pipeline {
         stage('Build') {
             steps {
                 sh '''
-                        docker build -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER .
+                        docker build -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:latest .
                 '''
             }
         }
         stage('Upload') {
             steps {
                 sh '''
-                        docker push dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER
+                        docker push dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:latest
                 '''
             }
         }
