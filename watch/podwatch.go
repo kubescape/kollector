@@ -67,7 +67,7 @@ func IsPodSpecAlreadyExist(pod *core.Pod, pdm map[int]*list.List) (int, int) {
 	return CreateID(), 0
 }
 
-func GetOwnerData(name string, kind string, namespace string, wh *WatchHandler) interface{} {
+func GetOwnerData(name string, kind string, apiVersion string, namespace string, wh *WatchHandler) interface{} {
 	switch kind {
 	case "Deployment":
 		var options v1.GetOptions = v1.GetOptions{}
@@ -76,6 +76,8 @@ func GetOwnerData(name string, kind string, namespace string, wh *WatchHandler) 
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
 		}
+		depDet.TypeMeta.Kind = kind
+		depDet.TypeMeta.APIVersion = apiVersion
 		return depDet
 	case "DeamonSet":
 		var options v1.GetOptions = v1.GetOptions{}
@@ -84,6 +86,8 @@ func GetOwnerData(name string, kind string, namespace string, wh *WatchHandler) 
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
 		}
+		daemSetDet.TypeMeta.Kind = kind
+		daemSetDet.TypeMeta.APIVersion = apiVersion
 		return daemSetDet
 	case "StatefulSets":
 		var options v1.GetOptions = v1.GetOptions{}
@@ -92,6 +96,8 @@ func GetOwnerData(name string, kind string, namespace string, wh *WatchHandler) 
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
 		}
+		statSetDet.TypeMeta.Kind = kind
+		statSetDet.TypeMeta.APIVersion = apiVersion
 		return statSetDet
 	case "Job":
 		var options v1.GetOptions = v1.GetOptions{}
@@ -100,6 +106,8 @@ func GetOwnerData(name string, kind string, namespace string, wh *WatchHandler) 
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
 		}
+		jobDet.TypeMeta.Kind = kind
+		jobDet.TypeMeta.APIVersion = apiVersion
 		return jobDet
 	case "CronJob":
 		var options v1.GetOptions = v1.GetOptions{}
@@ -108,6 +116,8 @@ func GetOwnerData(name string, kind string, namespace string, wh *WatchHandler) 
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
 		}
+		cronJobDet.TypeMeta.Kind = kind
+		cronJobDet.TypeMeta.APIVersion = apiVersion
 		return cronJobDet
 	}
 
@@ -125,7 +135,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 				od.Name = repItem.OwnerReferences[0].Name
 				od.Kind = repItem.OwnerReferences[0].Kind
 				//meanwhile owner refferance must be in the same namespce, so owner refferance dont have namespace field(may be changed in the future)
-				od.OwnerData = GetOwnerData(repItem.OwnerReferences[0].Name, repItem.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
+				od.OwnerData = GetOwnerData(repItem.OwnerReferences[0].Name, repItem.OwnerReferences[0].Kind, repItem.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
 				return od
 			} else {
 				depInt := wh.RestAPIClient.AppsV1beta1().Deployments(pod.ObjectMeta.Namespace)
@@ -142,7 +152,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 					} else {
 						od.Name = item.ObjectMeta.Name
 						od.Kind = item.Kind
-						od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
+						od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Kind, item.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
 						return od
 					}
 				}
@@ -151,7 +161,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 		default:
 			od.Name = pod.OwnerReferences[0].Name
 			od.Kind = pod.OwnerReferences[0].Kind
-			od.OwnerData = GetOwnerData(pod.OwnerReferences[0].Name, pod.OwnerReferences[0].Kind, pod.ObjectMeta.Namespace, wh)
+			od.OwnerData = GetOwnerData(pod.OwnerReferences[0].Name, pod.OwnerReferences[0].Kind, pod.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
 			return od
 		}
 	}
