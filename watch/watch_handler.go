@@ -34,12 +34,6 @@ func CreateWatchHandler() WatchHandler {
 
 	result := WatchHandler{RestAPIClient: clientset, WebSocketHandle: CreateWebSocketHandler(), pdm: make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List), jsonReport: jsonFormat{Nodes: ObjectData{}, Services: ObjectData{}, MicroServices: ObjectData{}, Pods: ObjectData{}}}
 
-	var cn string
-	if cn = os.Getenv("CA_CLUSTER_NAME"); cn == "" {
-		cn = "superCluster"
-	}
-	//start websocket
-	result.WebSocketHandle.StartWebSokcetClient("report.eudev2.cyberarmorsoft.com", "k8s/cluster-reports", cn, "1e3a88bf-92ce-44f8-914e-cbe71830d566" /*customer guid*/)
 	return result
 }
 

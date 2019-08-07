@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"k8s-ca-dashboard-aggregator/watch"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,20 +13,28 @@ import (
 const TIME int = 20
 
 func main() {
-	var time_from_last_report time.Time = time.Now()
+	var timeFromLastReport time.Time = time.Now()
 	wh := watch.CreateWatchHandler()
+	var cn string
+	if cn = os.Getenv("CA_CLUSTER_NAME"); cn == "" {
+		log.Println("there is no cluster name")
+		cn = "superCluster"
+		//return
+	}
+	//start websocket
+	wh.WebSocketHandle.StartWebSokcetClient("report.eudev2.cyberarmorsoft.com", "k8s/cluster-reports", cn, "1e3a88bf-92ce-44f8-914e-cbe71830d566" /*customer guid*/)
 
 	go func() {
 		for {
-			if delta_time := time.Now().Sub(time_from_last_report); delta_time < 20*time.Second {
-				time.Sleep(20*time.Second - delta_time)
+			if deltaTime := time.Now().Sub(timeFromLastReport); deltaTime < 20*time.Second {
+				time.Sleep(20*time.Second - deltaTime)
 			}
 			jsonData := watch.PrepareDataToSend(&wh)
 			if jsonData != nil {
 				fmt.Printf("%s\n", string(jsonData))
 				wh.SendMessageToWebSocket()
 				watch.DeleteJsonData(&wh)
-				time_from_last_report = time.Now()
+				timeFromLastReport = time.Now()
 			}
 		}
 	}()
