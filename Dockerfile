@@ -4,3 +4,4 @@ COPY ./dist /.
 COPY ./build_tag.txt /
 
 CMD /k8s-ca-dashboard-aggregator
+ENTRYPOINT ["/k8s-ca-dashboard-aggregator"]
