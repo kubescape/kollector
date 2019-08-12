@@ -1,9 +1,6 @@
 package watch
 
 import (
-	"fmt"
-	"log"
-	"os/exec"
 	"testing"
 )
 
@@ -14,15 +11,15 @@ func TestGetDeploymentNameFromPod(test *testing.T) {
 }
 
 func TestWatch(test *testing.T) {
-	wh := CreateWatchHandler()
+	// wh := CreateWatchHandler()
 
-	cmd := exec.Command("sh", "-c", "kubectl get pod --all-namespaces")
-	stdoutStderr, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s\n", stdoutStderr)
-	wh.PodWatch()
+	// cmd := exec.Command("sh", "-c", "kubectl get pod --all-namespaces")
+	// stdoutStderr, err := cmd.CombinedOutput()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Printf("%s\n", stdoutStderr)
+	// wh.PodWatch()
 	// test.Errorf("123")
 
 }

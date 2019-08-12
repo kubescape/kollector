@@ -1,8 +1,6 @@
 package watch
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
 )
 
@@ -20,10 +18,10 @@ type abc struct {
 }
 
 func TestJson1(test *testing.T) {
-	var q abc = abc{A: 1}
+	// var q abc = abc{A: 1}
 
-	fmt.Printf("123456 %d\n", q.A)
-	w, _ := json.Marshal(q)
-	fmt.Printf("123456 %s\n", string(w))
+	// fmt.Printf("123456 %d\n", q.A)
+	// w, _ := json.Marshal(q)
+	// fmt.Printf("123456 %s\n", string(w))
 	// test.Errorf("123")
 }
