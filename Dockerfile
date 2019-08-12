@@ -1,6 +1,5 @@
 FROM alpine:3.5
-EXPOSE 7666
-
+RUN apk update && apk add ca-certificates
 COPY ./dist /.
 COPY ./build_tag.txt /
 
