@@ -25,5 +25,5 @@ func TestJson1(test *testing.T) {
 	fmt.Printf("123456 %d\n", q.A)
 	w, _ := json.Marshal(q)
 	fmt.Printf("123456 %s\n", string(w))
-	test.Errorf("123")
+	// test.Errorf("123")
 }
