@@ -29,7 +29,7 @@ pipeline {
         stage('Build') {
             steps {
                 sh '''
-                        docker build -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:latest .
+                        docker build -f ./Dockerfile.old -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v$BUILD_NUMBER -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:latest .
                 '''
             }
         }
