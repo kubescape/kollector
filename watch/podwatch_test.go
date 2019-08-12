@@ -9,7 +9,7 @@ import (
 
 func TestGetDeploymentNameFromPod(test *testing.T) {
 
-	test.Errorf("123")
+	// test.Errorf("123")
 
 }
 
@@ -23,6 +23,6 @@ func TestWatch(test *testing.T) {
 	}
 	fmt.Printf("%s\n", stdoutStderr)
 	wh.PodWatch()
-	test.Errorf("123")
+	// test.Errorf("123")
 
 }
