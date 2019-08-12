@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-func TestJson(test *testing.T) {
-	AddToJsonFormat([]byte("12343589thfgnvdfklbnvklbnmdfk'lbgfbhs"), NODE, CREATED)
-	AddToJsonFormat([]byte("12343589thfgnvdfklbnvklbnmdfk'lbgfbhs"), SERVICES, DELETED)
-	AddToJsonFormat([]byte("12343589thfgnvdfklbnvklbnmdfk'lbgfbhs"), PODS, UPDATED)
+// func TestJson(test *testing.T) {
+// 	AddToJsonFormat([]byte("12343589thfgnvdfklbnvklbnmdfk'lbgfbhs"), NODE, CREATED)
+// 	AddToJsonFormat([]byte("12343589thfgnvdfklbnvklbnmdfk'lbgfbhs"), SERVICES, DELETED)
+// 	AddToJsonFormat([]byte("12343589thfgnvdfklbnvklbnmdfk'lbgfbhs"), PODS, UPDATED)
 
-	fmt.Printf("json %s\n", string(PrepareDataToSend()))
-	test.Errorf("123")
-}
+// 	fmt.Printf("json %s\n", string(PrepareDataToSend()))
+// 	test.Errorf("123")
+// }
 
 type abc struct {
 	A int `json:"a"`
