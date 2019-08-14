@@ -18,5 +18,5 @@ func TestIdsManagment1(test *testing.T) {
 	fmt.Printf("%d\n", s)
 	s = CreateID()
 	fmt.Printf("%d\n", s)
-	test.Errorf("123")
+	//test.Errorf("123")
 }
