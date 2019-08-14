@@ -43,6 +43,7 @@ func homeDir() string {
 	}
 	return os.Getenv("USERPROFILE") // windows
 }
+
 func parseArgument() *restclient.Config {
 	var kubeconfigpath *string
 	var config *restclient.Config
@@ -50,6 +51,7 @@ func parseArgument() *restclient.Config {
 
 	home := homeDir()
 	configtype := flag.Int("configtype", 0, "newForConfig = 0, inClusterConfig = 1")
+
 	if len(os.Args) < 3 && home != "" {
 		kubeconfigpath = flag.String("kubeconfigpath", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 	} else {
