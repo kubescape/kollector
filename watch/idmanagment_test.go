@@ -1,11 +1,11 @@
 package watch
 
 import (
-	"fmt"
 	"testing"
 )
 
 func TestIdsManagment1(test *testing.T) {
+<<<<<<< HEAD
 	s0 := CreateID()
 	fmt.Printf("%d\n", s0)
 	s1 := CreateID()
@@ -21,4 +21,19 @@ func TestIdsManagment1(test *testing.T) {
 	if s2 == s1 {
 		test.Errorf("s2 s1 ids equal")
 	}
+=======
+	// s := CreateID()
+	// fmt.Printf("%d\n", s)
+	// s = CreateID()
+	// fmt.Printf("%d\n", s)
+	// s = CreateID()
+	// fmt.Printf("%d\n", s)
+	// s = CreateID()
+	// fmt.Printf("%d\n", s)
+	// s = CreateID()
+	// fmt.Printf("%d\n", s)
+	// s = CreateID()
+	// fmt.Printf("%d\n", s)
+	// test.Errorf("123")
+>>>>>>> 4585080cdfe5a3fd4568c5d02ff0ca7782f593a6
 }
