@@ -182,12 +182,17 @@ func UpdatePod(pod *core.Pod, pdm map[int]*list.List) string {
 			log.Printf("microservice %s updated\n", v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name)
 			return v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name
 		}
-		for e := ids.Ids.Front().Next(); e != nil; e = e.Next() {
-			if strings.Compare(e.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
-				*e.Value.(MicroServiceData).Pod = *pod
-				log.Printf("pod %s updated\n", v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name)
-				return e.Value.(MicroServiceData).Pod.ObjectMeta.Name
+		element := v.Front().Next()
+		for element != nil {
+			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
+				log.Printf("pod %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+				return element.Value.(PodDataForExistMicroService).PodName
 			}
+			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
+				log.Printf("pod %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+				return element.Value.(PodDataForExistMicroService).PodName
+			}
+			element = element.Next()
 		}
 	}
 	return ""
@@ -196,21 +201,32 @@ func UpdatePod(pod *core.Pod, pdm map[int]*list.List) string {
 func RemovePod(pod *core.Pod, pdm map[int]*list.List) string {
 	for _, v := range pdm {
 		if strings.Compare(v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name, pod.ObjectMeta.Name) == 0 {
-			v.Remove(v.Front())
 			log.Printf("microservice %s removed\n", v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name)
-			return v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name
+			name := v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name
+			v.Remove(v.Front())
+			return name
 		}
 		if strings.Compare(v.Front().Value.(MicroServiceData).Pod.ObjectMeta.GenerateName, pod.ObjectMeta.Name) == 0 {
-			v.Remove(v.Front())
 			log.Printf("microservice %s removed\n", v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name)
-			return v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name
+			name := v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name
+			v.Remove(v.Front())
+			return name
 		}
-		for e := ids.Ids.Front().Next(); e != nil; e = e.Next() {
-			if strings.Compare(e.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
-				v.Remove(e)
-				log.Printf("pod %s removed\n", v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name)
-				return e.Value.(MicroServiceData).Pod.ObjectMeta.Name
+		element := v.Front().Next()
+		for element != nil {
+			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
+				log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+				name := element.Value.(PodDataForExistMicroService).PodName
+				v.Remove(element)
+				return name
 			}
+			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
+				log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+				name := element.Value.(PodDataForExistMicroService).PodName
+				v.Remove(element)
+				return name
+			}
+			element = element.Next()
 		}
 	}
 	return ""
