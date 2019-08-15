@@ -1,0 +1,10 @@
+commit 1157ea8cddf389307a7c23b3c042bb7efd242dc5
+Author: Raziel Cohen <rcohen@cyberarmor.io>
+Date:   Thu Aug 15 13:08:35 2019 +0300
+
+    mark logs
+commit 1157ea8cddf389307a7c23b3c042bb7efd242dc5
+Author: Raziel Cohen <rcohen@cyberarmor.io>
+Date:   Thu Aug 15 13:08:35 2019 +0300
+
+    mark logs
