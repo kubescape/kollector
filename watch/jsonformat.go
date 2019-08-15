@@ -39,9 +39,9 @@ func (obj *ObjectData) AddToJsonFormatByState(NewData interface{}, stype StateTy
 	case CREATED:
 		obj.Created = append(obj.Created, NewData)
 	case DELETED:
-		obj.Created = append(obj.Created, NewData)
+		obj.Deleted = append(obj.Created, NewData)
 	case UPDATED:
-		obj.Created = append(obj.Created, NewData)
+		obj.Updated = append(obj.Created, NewData)
 	}
 }
 
