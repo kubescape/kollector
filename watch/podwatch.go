@@ -170,48 +170,41 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 	return od
 }
 
-func UpdatePod(pod *core.Pod, pdm map[int]*list.List) string {
+func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List) (int, PodDataForExistMicroService) {
+	id := -1
+	podDataForExistMicroService := PodDataForExistMicroService{}
 	for _, v := range pdm {
-		if strings.Compare(v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name, pod.ObjectMeta.Name) == 0 {
-			*v.Front().Value.(MicroServiceData).Pod = *pod
-			log.Printf("microservice %s updated\n", v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name)
-			return v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name
-		}
-		if strings.Compare(v.Front().Value.(MicroServiceData).Pod.ObjectMeta.GenerateName, pod.ObjectMeta.Name) == 0 {
-			*v.Front().Value.(MicroServiceData).Pod = *pod
-			log.Printf("microservice %s updated\n", v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name)
-			return v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name
-		}
 		element := v.Front().Next()
 		for element != nil {
 			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
-				//log.Printf("pod %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-				return element.Value.(PodDataForExistMicroService).PodName
-			}
-			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
-				//log.Printf("pod %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-				return element.Value.(PodDataForExistMicroService).PodName
+				newOwner := GetAncestorOfPod(pod, wh)
+				if reflect.DeepEqual(*v.Front().Value.(MicroServiceData).Pod, *pod) {
+					err := DeepCopy(*pod, *v.Front().Value.(MicroServiceData).Pod)
+					if err != nil {
+						log.Printf("error in DeepCopy in UpdatePod")
+					}
+					err = DeepCopy(newOwner, v.Front().Value.(MicroServiceData).Owner)
+					if err != nil {
+						log.Printf("error in DeepCopy in UpdatePod")
+					}
+					id = v.Front().Value.(MicroServiceData).PodSpecId
+				}
+				podDataForExistMicroService = PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NumberOfRunnigPods: element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: newOwner.Name, Kind: newOwner.Kind}}
+
+				err := DeepCopy(podDataForExistMicroService, element.Value.(PodDataForExistMicroService))
+				if err != nil {
+					log.Printf("error in DeepCopy in UpdatePod")
+				}
+				break
 			}
 			element = element.Next()
 		}
 	}
-	return ""
+	return id, podDataForExistMicroService
 }
 
 func RemovePod(pod *core.Pod, pdm map[int]*list.List) string {
 	for _, v := range pdm {
-		if strings.Compare(v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name, pod.ObjectMeta.Name) == 0 {
-			log.Printf("microservice %s removed\n", v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name)
-			name := v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name
-			v.Remove(v.Front())
-			return name
-		}
-		if strings.Compare(v.Front().Value.(MicroServiceData).Pod.ObjectMeta.GenerateName, pod.ObjectMeta.Name) == 0 {
-			log.Printf("microservice %s removed\n", v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name)
-			name := v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name
-			v.Remove(v.Front())
-			return name
-		}
 		element := v.Front().Next()
 		for element != nil {
 			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
@@ -243,6 +236,7 @@ func (wh *WatchHandler) PodWatch() {
 			continue
 		}
 		podsChan := podsWatcher.ResultChan()
+		log.Printf("Watching over pods started")
 		for event := range podsChan {
 			if pod, ok := event.Object.(*core.Pod); ok {
 				switch event.Type {
@@ -267,16 +261,24 @@ func (wh *WatchHandler) PodWatch() {
 					wh.pdm[id].PushBack(np)
 					wh.jsonReport.AddToJsonFormat(np, PODS, CREATED)
 				case "MODIFY":
-					name := UpdatePod(pod, wh.pdm)
-					wh.jsonReport.AddToJsonFormat(name, PODS, UPDATED)
+					podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm)
+					wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
+					if podSpecID != -1 {
+						wh.jsonReport.AddToJsonFormat(wh.pdm[podSpecID].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
+					}
 				case "DELETED":
 					name := RemovePod(pod, wh.pdm)
 					wh.jsonReport.AddToJsonFormat(name, PODS, DELETED)
+				case "BOOKMARK": //only the resource version is changed but it's the same workload
+					continue
+				case "ERROR":
+					log.Printf("while watching over pods we got an error: ")
 				}
 			} else {
 				log.Printf("Got unexpected pod from chan: %t, %v", event.Object, event.Object)
 			}
 		}
-		log.Printf("Wathching over pods ended")
+		log.Printf("Watching over pods ended - since we got timeout")
 	}
+	log.Printf("Wathching over pods ending")
 }

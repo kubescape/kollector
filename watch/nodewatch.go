@@ -82,6 +82,7 @@ func (wh *WatchHandler) NodeWatch() {
 			continue
 		}
 		podsChan := podsWatcher.ResultChan()
+		log.Printf("Watching over nodes started")
 		for event := range podsChan {
 			if node, ok := event.Object.(*core.Node); ok {
 				switch event.Type {
@@ -106,11 +107,16 @@ func (wh *WatchHandler) NodeWatch() {
 				case "DELETED":
 					name := RemoveNode(node, wh.ndm)
 					wh.jsonReport.AddToJsonFormat(name, NODE, DELETED)
+				case "BOOKMARK": //only the resource version is changed but it's the same workload
+					continue
+				case "ERROR":
+					log.Printf("while watching over nodes we got an error")
 				}
 			} else {
 				log.Printf("Got unexpected pod from chan: %t, %v", event.Object, event.Object)
 			}
 		}
-		log.Printf("Wathching over pods ended")
+		log.Printf("Wathching over nodes ended - since we got timeout")
 	}
+	log.Printf("Wathching over nodes ended")
 }

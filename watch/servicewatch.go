@@ -56,6 +56,7 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 			continue
 		}
 		podsChan := podsWatcher.ResultChan()
+		log.Printf("Watching over services started")
 		for event := range podsChan {
 			if service, ok := event.Object.(*core.Service); ok {
 				switch event.Type {
@@ -73,11 +74,16 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 				case "DELETED":
 					RemoveService(service, wh.sdm)
 					wh.jsonReport.AddToJsonFormat(service, SERVICES, DELETED)
+				case "BOOKMARK": //only the resource version is changed but it's the same workload
+					continue
+				case "ERROR":
+					log.Printf("while watching over services we got an error: ")
 				}
 			} else {
 				log.Printf("Got unexpected pod from chan: %t, %v", event.Object, event.Object)
 			}
 		}
-		log.Printf("Wathching over services ended")
+		log.Printf("Wathching over services ended - since we got timeout")
 	}
+	log.Printf("Wathching over services ending")
 }
