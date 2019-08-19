@@ -225,7 +225,31 @@ func RemovePod(pod *core.Pod, pdm map[int]*list.List) string {
 	return ""
 }
 
-// StayUpadted starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
+func (wh *WatchHandler) podEnterDesiredState(pod *core.Pod) (*core.Pod, bool) {
+	begin := time.Now()
+	log.Printf("waiting for pod %v enter desired state\n", pod.ObjectMeta.Name)
+	for {
+		desiredStatePod, err := wh.RestAPIClient.CoreV1().Pods(pod.ObjectMeta.Namespace).Get(pod.ObjectMeta.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Printf("podEnterDesiredState fail while we Get the pod %v\n", pod.ObjectMeta.Name)
+			continue
+		}
+		if strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodRunning)) == 0 || strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodSucceeded)) == 0 {
+			log.Printf("pod %v enter desired state\n", pod.ObjectMeta.Name)
+			return desiredStatePod, true
+		} else if strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodFailed)) == 0 || strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodUnknown)) == 0 {
+			log.Printf("pod %v State is %v\n", pod.ObjectMeta.Name, pod.Status.Phase)
+			return nil, false
+		} else {
+			if time.Now().Sub(begin) > 5*60*time.Second {
+				log.Printf("we wait for 5 nimutes pod %v to change his state to desired state and it's too long\n", pod.ObjectMeta.Name)
+				return nil, false
+			}
+		}
+	}
+}
+
+// PodWatch - StayUpadted starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
 	log.Printf("Watching over pods starting")
 	for {
@@ -260,7 +284,20 @@ func (wh *WatchHandler) PodWatch() {
 					np := PodDataForExistMicroService{PodName: podName, NumberOfRunnigPods: runnigPodNum, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}}
 					wh.pdm[id].PushBack(np)
 					wh.jsonReport.AddToJsonFormat(np, PODS, CREATED)
+					if strings.Compare(string(pod.Status.Phase), string(core.PodPending)) == 0 {
+						go func() {
+							if podInDesiredState, yes := wh.podEnterDesiredState(pod); yes {
+								err := DeepCopy(podInDesiredState, wh.pdm[id].Front().Value.(MicroServiceData).Pod)
+								if err != nil {
+									log.Printf("error while updating the microservice to desired state")
+								} else {
+									wh.jsonReport.AddToJsonFormat(wh.pdm[id].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
+								}
+							}
+						}()
+					}
 				case "MODIFY":
+					log.Printf("pod %s modify", pod.ObjectMeta.Name)
 					podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm)
 					wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
 					if podSpecID != -1 {
@@ -270,6 +307,7 @@ func (wh *WatchHandler) PodWatch() {
 					name := RemovePod(pod, wh.pdm)
 					wh.jsonReport.AddToJsonFormat(name, PODS, DELETED)
 				case "BOOKMARK": //only the resource version is changed but it's the same workload
+					log.Printf("BOOKMARK: pod %s modify", pod.ObjectMeta.Name)
 					continue
 				case "ERROR":
 					log.Printf("while watching over pods we got an error: ")
