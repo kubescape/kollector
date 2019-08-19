@@ -268,11 +268,11 @@ func (wh *WatchHandler) PodWatch() {
 					od := GetAncestorOfPod(pod, wh)
 					var id int
 					var runnigPodNum int
+					var nms MicroServiceData
 					if id, runnigPodNum = IsPodSpecAlreadyExist(pod, wh.pdm); runnigPodNum == 0 {
 						wh.pdm[id] = list.New()
-						nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
+						nms = MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 						wh.pdm[id].PushBack(nms)
-						wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
 						runnigPodNum = 1
 					}
 					var podName string
@@ -295,6 +295,8 @@ func (wh *WatchHandler) PodWatch() {
 								}
 							}
 						}()
+					} else {
+						wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
 					}
 				case "MODIFY":
 					log.Printf("pod %s modify", pod.ObjectMeta.Name)
