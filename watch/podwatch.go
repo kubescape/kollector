@@ -203,26 +203,30 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List) (int, P
 	return id, podDataForExistMicroService
 }
 
-func RemovePod(pod *core.Pod, pdm map[int]*list.List) string {
+func RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool) {
 	for _, v := range pdm {
 		element := v.Front().Next()
 		for element != nil {
 			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
 				//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-				name := element.Value.(PodDataForExistMicroService).PodName
 				v.Remove(element)
-				return name
+				if v.Len() == 1 {
+					return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, true
+				}
+				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, false
 			}
-			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
+			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.GenerateName) == 0 {
 				//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-				name := element.Value.(PodDataForExistMicroService).PodName
 				v.Remove(element)
-				return name
+				if v.Len() == 1 {
+					return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, true
+				}
+				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, false
 			}
 			element = element.Next()
 		}
 	}
-	return ""
+	return 0, 0, false
 }
 
 func (wh *WatchHandler) podEnterDesiredState(pod *core.Pod) (*core.Pod, bool) {
@@ -232,14 +236,14 @@ func (wh *WatchHandler) podEnterDesiredState(pod *core.Pod) (*core.Pod, bool) {
 		desiredStatePod, err := wh.RestAPIClient.CoreV1().Pods(pod.ObjectMeta.Namespace).Get(pod.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			log.Printf("podEnterDesiredState fail while we Get the pod %v\n", pod.ObjectMeta.Name)
-			continue
+			return nil, false
 		}
 		if strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodRunning)) == 0 || strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodSucceeded)) == 0 {
 			log.Printf("pod %v enter desired state\n", pod.ObjectMeta.Name)
 			return desiredStatePod, true
 		} else if strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodFailed)) == 0 || strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodUnknown)) == 0 {
 			log.Printf("pod %v State is %v\n", pod.ObjectMeta.Name, pod.Status.Phase)
-			return nil, false
+			return desiredStatePod, true
 		} else {
 			if time.Now().Sub(begin) > 5*60*time.Second {
 				log.Printf("we wait for 5 nimutes pod %v to change his state to desired state and it's too long\n", pod.ObjectMeta.Name)
@@ -268,11 +272,11 @@ func (wh *WatchHandler) PodWatch() {
 					od := GetAncestorOfPod(pod, wh)
 					var id int
 					var runnigPodNum int
-					var nms MicroServiceData
 					if id, runnigPodNum = IsPodSpecAlreadyExist(pod, wh.pdm); runnigPodNum == 0 {
 						wh.pdm[id] = list.New()
-						nms = MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
+						nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 						wh.pdm[id].PushBack(nms)
+						wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
 						runnigPodNum = 1
 					}
 					var podName string
@@ -284,19 +288,23 @@ func (wh *WatchHandler) PodWatch() {
 					np := PodDataForExistMicroService{PodName: podName, NumberOfRunnigPods: runnigPodNum, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}}
 					wh.pdm[id].PushBack(np)
 					wh.jsonReport.AddToJsonFormat(np, PODS, CREATED)
+					informNewDataArrive(wh)
 					if strings.Compare(string(pod.Status.Phase), string(core.PodPending)) == 0 {
 						go func() {
 							if podInDesiredState, yes := wh.podEnterDesiredState(pod); yes {
 								err := DeepCopy(podInDesiredState, wh.pdm[id].Front().Value.(MicroServiceData).Pod)
 								if err != nil {
-									log.Printf("error while updating the microservice to desired state")
-								} else {
-									wh.jsonReport.AddToJsonFormat(wh.pdm[id].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
+									log.Printf("error while updating the microservice to desired state %v", err)
+									return
 								}
+								od = GetAncestorOfPod(podInDesiredState, wh)
+								od.Kind = wh.pdm[id].Front().Value.(MicroServiceData).Owner.Kind
+								od.Name = wh.pdm[id].Front().Value.(MicroServiceData).Owner.Name
+								od.OwnerData = wh.pdm[id].Front().Value.(MicroServiceData).Owner.OwnerData
+								wh.jsonReport.AddToJsonFormat(wh.pdm[id].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
+								informNewDataArrive(wh)
 							}
 						}()
-					} else {
-						wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
 					}
 				case "MODIFY":
 					log.Printf("pod %s modify", pod.ObjectMeta.Name)
@@ -305,9 +313,18 @@ func (wh *WatchHandler) PodWatch() {
 					if podSpecID != -1 {
 						wh.jsonReport.AddToJsonFormat(wh.pdm[podSpecID].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
 					}
+					informNewDataArrive(wh)
 				case "DELETED":
-					name := RemovePod(pod, wh.pdm)
-					wh.jsonReport.AddToJsonFormat(name, PODS, DELETED)
+					log.Printf("pod %v deleted\n", pod.ObjectMeta.Name)
+					podSpecID, numberOfRunningPods, removeMicroServiceAsWell := RemovePod(pod, wh.pdm)
+					od := GetAncestorOfPod(pod, wh)
+					np := PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NumberOfRunnigPods: numberOfRunningPods - 1, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}}
+					wh.jsonReport.AddToJsonFormat(np, PODS, DELETED)
+					if removeMicroServiceAsWell {
+						nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: podSpecID}
+						wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, DELETED)
+					}
+					informNewDataArrive(wh)
 				case "BOOKMARK": //only the resource version is changed but it's the same workload
 					log.Printf("BOOKMARK: pod %s modify", pod.ObjectMeta.Name)
 					continue

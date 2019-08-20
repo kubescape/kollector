@@ -14,14 +14,17 @@ import (
 )
 
 type WatchHandler struct {
-	RestAPIClient   kubernetes.Interface
-	WebSocketHandle *WebSocketHandler
-	pdm             map[int]*list.List
-	ndm             map[int]*list.List
-	sdm             map[int]*list.List
-	jsonReport      jsonFormat
+	RestAPIClient          kubernetes.Interface
+	WebSocketHandle        *WebSocketHandler
+	pdm                    map[int]*list.List
+	ndm                    map[int]*list.List
+	sdm                    map[int]*list.List
+	jsonReport             jsonFormat
+	informNewDataChannel   chan int
+	aggregateFirstDataFlag bool
 }
 
+//CreateWatchHandler -
 func CreateWatchHandler() WatchHandler {
 
 	config := parseArgument()
@@ -32,7 +35,7 @@ func CreateWatchHandler() WatchHandler {
 		panic(err.Error())
 	}
 
-	result := WatchHandler{RestAPIClient: clientset, WebSocketHandle: CreateWebSocketHandler(), pdm: make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List), jsonReport: jsonFormat{Nodes: ObjectData{}, Services: ObjectData{}, MicroServices: ObjectData{}, Pods: ObjectData{}}}
+	result := WatchHandler{RestAPIClient: clientset, WebSocketHandle: CreateWebSocketHandler(), pdm: make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List), jsonReport: jsonFormat{Nodes: ObjectData{}, Services: ObjectData{}, MicroServices: ObjectData{}, Pods: ObjectData{}}, informNewDataChannel: make(chan int), aggregateFirstDataFlag: true}
 
 	return result
 }

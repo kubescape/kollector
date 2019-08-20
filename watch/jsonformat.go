@@ -59,25 +59,36 @@ func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, 
 
 }
 
+//PrepareDataToSend -
 func PrepareDataToSend(wh *WatchHandler) []byte {
-	if len(wh.jsonReport.Nodes.Created) != 0 || len(wh.jsonReport.Nodes.Updated) != 0 || len(wh.jsonReport.Nodes.Deleted) != 0 || len(wh.jsonReport.MicroServices.Created) != 0 || len(wh.jsonReport.MicroServices.Updated) != 0 || len(wh.jsonReport.MicroServices.Deleted) != 0 || len(wh.jsonReport.Pods.Created) != 0 || len(wh.jsonReport.Pods.Updated) != 0 || len(wh.jsonReport.Pods.Deleted) != 0 || len(wh.jsonReport.Services.Created) != 0 || len(wh.jsonReport.Services.Updated) != 0 || len(wh.jsonReport.Services.Deleted) != 0 {
-		jsonReport := wh.jsonReport
-		jsonReportToSend, err := json.Marshal(jsonReport)
-		if nil != err {
-			log.Printf("json.Marshal %v", err)
-		}
-
-		return jsonReportToSend
+	jsonReport := wh.jsonReport
+	jsonReportToSend, err := json.Marshal(jsonReport)
+	if nil != err {
+		log.Printf("json.Marshal %v", err)
+		return nil
 	}
+	deleteJsonData(wh)
+	wh.aggregateFirstDataFlag = false
+	return jsonReportToSend
+}
 
-	return nil
+//WaitTillNewDataArrived -
+func WaitTillNewDataArrived(wh *WatchHandler) bool {
+	<-wh.informNewDataChannel
+	return true
+}
+
+func informNewDataArrive(wh *WatchHandler) {
+	if !wh.aggregateFirstDataFlag {
+		wh.informNewDataChannel <- 1
+	}
 }
 
 func deleteObjecData(l *[]interface{}) {
 	*l = []interface{}{}
 }
 
-func DeleteJsonData(wh *WatchHandler) {
+func deleteJsonData(wh *WatchHandler) {
 	jsonReport := &wh.jsonReport
 	deleteObjecData(&jsonReport.Nodes.Created)
 	deleteObjecData(&jsonReport.Nodes.Deleted)

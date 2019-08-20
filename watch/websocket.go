@@ -53,6 +53,22 @@ func (wsh *WebSocketHandler) StartWebSokcetClient(urlWS string, path string, clu
 				err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 				if err != nil {
 					log.Println("WriteMessage to websocket:", err)
+					i := 0
+					for i < 3 {
+						log.Println("reconnect")
+						conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+						if err != nil {
+							log.Fatal("dial:", err)
+						}
+						err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
+						if err != nil {
+							log.Println("WriteMessage to websocket:", err)
+						} else {
+							log.Println("resending: message.")
+							break
+						}
+						i++
+					}
 				}
 			case EXIT:
 				log.Printf("web socket client got exit with message: %s\n", data.message)
@@ -70,7 +86,7 @@ func (wsh *WebSocketHandler) StartWebSokcetClient(urlWS string, path string, clu
 				break
 			}
 
-			msgType, bytes, err := conn.ReadMessage()
+			msgType, _, err := conn.ReadMessage()
 			if err != nil {
 				log.Println("WebSocket closed.")
 				data := DataSocket{message: "WebSocket closed", RType: EXIT}
@@ -78,7 +94,7 @@ func (wsh *WebSocketHandler) StartWebSokcetClient(urlWS string, path string, clu
 				return
 			}
 			// We don't recognize any message that is not "pong".
-			if msg := string(bytes[:]); msgType != websocket.TextMessage && msg != "pong" {
+			if msgType != websocket.PongMessage {
 				log.Println("Unrecognized message received.")
 				time.Sleep(40 * time.Second)
 				continue
@@ -90,8 +106,9 @@ func (wsh *WebSocketHandler) StartWebSokcetClient(urlWS string, path string, clu
 	}(conn)
 }
 
-func (wh *WatchHandler) SendMessageToWebSocket() {
-	data := DataSocket{message: string(PrepareDataToSend(wh)), RType: MESSAGE}
+//SendMessageToWebSocket -
+func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
+	data := DataSocket{message: string(jsonData), RType: MESSAGE}
 
 	wh.WebSocketHandle.data <- data
 }

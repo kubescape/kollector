@@ -67,12 +67,15 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 					}
 					sd := ServiceData{Service: service}
 					wh.sdm[id].PushBack(sd)
+					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(service, SERVICES, CREATED)
 				case "MODIFY":
 					UpdateService(service, wh.sdm)
+					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(service, SERVICES, UPDATED)
 				case "DELETED":
 					RemoveService(service, wh.sdm)
+					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(service, SERVICES, DELETED)
 				case "BOOKMARK": //only the resource version is changed but it's the same workload
 					continue

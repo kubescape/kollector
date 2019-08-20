@@ -100,12 +100,15 @@ func (wh *WatchHandler) NodeWatch() {
 						Architecture:            node.Status.NodeInfo.Architecture,
 						Addresses:               node.Status.Addresses}
 					wh.ndm[id].PushBack(nd)
+					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
 				case "MODIFY":
 					updateNode := UpdateNode(node, wh.ndm)
+					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(updateNode, NODE, UPDATED)
 				case "DELETED":
 					name := RemoveNode(node, wh.ndm)
+					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(name, NODE, DELETED)
 				case "BOOKMARK": //only the resource version is changed but it's the same workload
 					continue

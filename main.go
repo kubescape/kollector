@@ -13,7 +13,6 @@ import (
 const TIME int = 20
 
 func main() {
-	var timeFromLastReport time.Time = time.Now()
 	wh := watch.CreateWatchHandler()
 	var cn string
 	if cn = os.Getenv("CA_CLUSTER_NAME"); cn == "" {
@@ -25,16 +24,17 @@ func main() {
 	wh.WebSocketHandle.StartWebSokcetClient("report.eudev2.cyberarmorsoft.com", "k8s/cluster-reports", cn, "1e3a88bf-92ce-44f8-914e-cbe71830d566" /*customer guid*/)
 
 	go func() {
+		//in the first time we wait till all the data will arrive from the cluster and the we will inform on every change
+		log.Printf("wait 40 seconds for aggragate the first data from the cluster\n")
+		time.Sleep(40 * time.Second)
 		for {
-			if deltaTime := time.Now().Sub(timeFromLastReport); deltaTime < 20*time.Second {
-				time.Sleep(20*time.Second - deltaTime)
-			}
 			jsonData := watch.PrepareDataToSend(&wh)
 			if jsonData != nil {
 				fmt.Printf("%s\n", string(jsonData))
-				wh.SendMessageToWebSocket()
-				watch.DeleteJsonData(&wh)
-				timeFromLastReport = time.Now()
+				wh.SendMessageToWebSocket(jsonData)
+			}
+			if watch.WaitTillNewDataArrived(&wh) {
+				continue
 			}
 		}
 	}()
