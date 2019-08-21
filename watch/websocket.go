@@ -55,7 +55,7 @@ func (wsh *WebSocketHandler) StartWebSokcetClient(urlWS string, path string, clu
 					log.Println("WriteMessage to websocket:", err)
 					i := 0
 					for i < 3 {
-						log.Println("reconnect")
+						log.Printf("reconnect try number %d of 3\n", i+1)
 						conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
 						if err != nil {
 							log.Fatal("dial:", err)
@@ -68,6 +68,11 @@ func (wsh *WebSocketHandler) StartWebSokcetClient(urlWS string, path string, clu
 							break
 						}
 						i++
+					}
+					if i < 3 {
+						continue
+					} else {
+						log.Printf("reconnection failed fo 3 times, exiting\n")
 					}
 				}
 			case EXIT:
@@ -91,6 +96,20 @@ func (wsh *WebSocketHandler) StartWebSokcetClient(urlWS string, path string, clu
 				log.Println("WebSocket closed.")
 				data := DataSocket{message: "WebSocket closed", RType: EXIT}
 				wsh.data <- data
+				i := 0
+				for i < 3 {
+					log.Printf("reconnect try number %d of 3", i+1)
+					conn, _, err = websocket.DefaultDialer.Dial(u.String(), nil)
+					if err != nil {
+						log.Fatal("dial:", err)
+					}
+					i++
+				}
+				if i < 3 {
+					continue
+				} else {
+					log.Printf("reconnection failed fo 3 times, exiting\n")
+				}
 				return
 			}
 			// We don't recognize any message that is not "pong".
