@@ -7,7 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/api/apps/v1beta1"
+	"k8s.io/api/apps/v1beta2"
+	batchv1 "k8s.io/api/batch/v1"
+	v2alpha1 "k8s.io/api/batch/v2alpha1"
 	core "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -203,7 +208,53 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List) (int, P
 	return id, podDataForExistMicroService
 }
 
-func RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool) {
+func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kind, namespace string) bool {
+	delete := false
+
+	switch kind {
+	case "Deployment":
+		options := v1.GetOptions{}
+		name := ownerData.(*v1beta1.Deployment).ObjectMeta.Name
+		_, err := wh.RestAPIClient.AppsV1beta1().Deployments(namespace).Get(name, options)
+		if errors.IsNotFound(err) {
+			delete = true
+		}
+
+	case "DeamonSet":
+		options := v1.GetOptions{}
+		name := ownerData.(*v1beta2.DaemonSet).ObjectMeta.Name
+		_, err := wh.RestAPIClient.AppsV1beta2().DaemonSets(namespace).Get(name, options)
+		if errors.IsNotFound(err) {
+			delete = true
+		}
+
+	case "StatefulSets":
+		options := v1.GetOptions{}
+		name := ownerData.(*v1beta1.StatefulSet).ObjectMeta.Name
+		_, err := wh.RestAPIClient.AppsV1beta1().StatefulSets(namespace).Get(name, options)
+		if errors.IsNotFound(err) {
+			delete = true
+		}
+	case "Job":
+		options := v1.GetOptions{}
+		name := ownerData.(*batchv1.Job).ObjectMeta.Name
+		_, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(name, options)
+		if errors.IsNotFound(err) {
+			delete = true
+		}
+	case "CronJob":
+		options := v1.GetOptions{}
+		name := ownerData.(*v2alpha1.CronJob).ObjectMeta.Name
+		_, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(name, options)
+		if errors.IsNotFound(err) {
+			delete = true
+		}
+	}
+
+	return delete
+}
+
+func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool) {
 	for _, v := range pdm {
 		element := v.Front().Next()
 		for element != nil {
@@ -211,7 +262,9 @@ func RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool) {
 				//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
 				v.Remove(element)
 				if v.Len() == 1 {
-					return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, true
+					msd := v.Front().Value.(MicroServiceData)
+					removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
+					return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, removed
 				}
 				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, false
 			}
@@ -219,7 +272,9 @@ func RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool) {
 				//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
 				v.Remove(element)
 				if v.Len() == 1 {
-					return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, true
+					msd := v.Front().Value.(MicroServiceData)
+					removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
+					return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, removed
 				}
 				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, false
 			}
@@ -316,11 +371,12 @@ func (wh *WatchHandler) PodWatch() {
 					informNewDataArrive(wh)
 				case "DELETED":
 					log.Printf("pod %v deleted\n", pod.ObjectMeta.Name)
-					podSpecID, numberOfRunningPods, removeMicroServiceAsWell := RemovePod(pod, wh.pdm)
+					podSpecID, numberOfRunningPods, removeMicroServiceAsWell := wh.RemovePod(pod, wh.pdm)
 					od := GetAncestorOfPod(pod, wh)
 					np := PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NumberOfRunnigPods: numberOfRunningPods - 1, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}}
 					wh.jsonReport.AddToJsonFormat(np, PODS, DELETED)
 					if removeMicroServiceAsWell {
+						log.Printf("remove MicroService as well")
 						nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: podSpecID}
 						wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, DELETED)
 					}
