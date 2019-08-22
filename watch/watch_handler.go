@@ -25,7 +25,7 @@ type WatchHandler struct {
 }
 
 //CreateWatchHandler -
-func CreateWatchHandler() WatchHandler {
+func CreateWatchHandler() *WatchHandler {
 
 	config := parseArgument()
 	// create the clientset
@@ -35,9 +35,30 @@ func CreateWatchHandler() WatchHandler {
 		panic(err.Error())
 	}
 
-	result := WatchHandler{RestAPIClient: clientset, WebSocketHandle: CreateWebSocketHandler(), pdm: make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List), jsonReport: jsonFormat{Nodes: ObjectData{}, Services: ObjectData{}, MicroServices: ObjectData{}, Pods: ObjectData{}}, informNewDataChannel: make(chan int), aggregateFirstDataFlag: true}
+	var clusterName string
+	if clusterName = os.Getenv("CA_CLUSTER_NAME"); clusterName == "" {
+		log.Println("there is no cluster name environment variable, envKey:CA_CLUSTER_NAME")
+		//clusterName = "superCluster"
+		return nil
+	}
 
-	return result
+	var reportURL string
+	if reportURL = os.Getenv("CA_K8S_REPORT_URL"); reportURL == "" {
+		log.Println("there is no report url environment variable, envKey:CA_K8S_REPORT_URL")
+		//reportURL = "report.eudev2.cyberarmorsoft.com"
+		return nil
+	}
+
+	var cusGUID string
+	if cusGUID = os.Getenv("CA_CUSTOMER_GUID"); cusGUID == "" {
+		log.Println("there is no customer guid environment variable, envKey:CA_CUSTOMER_GUID")
+		//cusGUID = "1e3a88bf-92ce-44f8-914e-cbe71830d566"
+		return nil
+	}
+
+	result := WatchHandler{RestAPIClient: clientset, WebSocketHandle: createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, cusGUID), pdm: make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List), jsonReport: jsonFormat{Nodes: ObjectData{}, Services: ObjectData{}, MicroServices: ObjectData{}, Pods: ObjectData{}}, informNewDataChannel: make(chan int), aggregateFirstDataFlag: true}
+
+	return &result
 }
 
 func homeDir() string {

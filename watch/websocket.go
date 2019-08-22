@@ -3,6 +3,7 @@ package watch
 import (
 	"log"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -30,8 +31,15 @@ type WebSocketHandler struct {
 	keepAliveCounter int
 }
 
-func CreateWebSocketHandler() *WebSocketHandler {
-	return &WebSocketHandler{data: make(chan DataSocket), keepAliveCounter: 0}
+func createWebSocketHandler(urlWS, path, clusterName, customerGuid string) *WebSocketHandler {
+	scheme := strings.Split(urlWS, "://")[0]
+	host := strings.Split(urlWS, "://")[1]
+	wsh := WebSocketHandler{data: make(chan DataSocket), keepAliveCounter: 0, u: url.URL{Scheme: scheme, Host: host, Path: path, ForceQuery: true}}
+	q := wsh.u.Query()
+	q.Add("customerGUID", customerGuid)
+	q.Add("clusterName", clusterName)
+	wsh.u.RawQuery = q.Encode()
+	return &wsh
 }
 
 func (wsh *WebSocketHandler) reconnectToWebSocket() {
@@ -48,10 +56,12 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() {
 		wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil)
 	}
 	wsh.conn.SetPongHandler(func(string) error {
-		log.Printf("in PongHandler")
+		log.Printf("pong recieved")
 		wsh.keepAliveCounter = 0
 		return nil
 	})
+
+	//this go function must created in order to get the pong
 	go func() {
 		for {
 			wsh.conn.ReadMessage()
@@ -59,59 +69,62 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() {
 	}()
 }
 
-//StartWebSokcetClient -
-func (wsh *WebSocketHandler) StartWebSokcetClient(urlWS string, path string, cluster_name string, customer_guid string) {
+func (wsh *WebSocketHandler) sendReportRoutine() {
+	for {
+		data := <-wsh.data
+		switch data.RType {
+		case MESSAGE:
+			log.Println("Sending: message.")
+			err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
+			if err != nil {
+				log.Println("WriteMessage to websocket:", err)
+				wsh.reconnectToWebSocket()
+				err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
+				if err != nil {
+					log.Println("WriteMessage to websocket:", err)
+				} else {
+					log.Println("resending: message.")
+					break
+				}
+			}
+		case EXIT:
+			log.Printf("web socket client got exit with message: %s\n", data.message)
+			return
+		}
+	}
+}
 
-	wsh.u = url.URL{Scheme: "wss", Host: urlWS, Path: path, ForceQuery: true}
-	q := wsh.u.Query()
-	q.Add("customerGUID", customer_guid)
-	q.Add("clusterName", cluster_name)
-	wsh.u.RawQuery = q.Encode()
+func (wsh *WebSocketHandler) pingPongRoutine() {
+	for {
+		time.Sleep(40 * time.Second)
+		log.Println("Sending: ping.")
+		err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second))
+		if err != nil {
+			log.Println("Write Error: ", err)
+		}
+		wsh.keepAliveCounter++
+
+		if wsh.keepAliveCounter == MAXPINGMESSAGE {
+			wsh.conn.Close()
+			wsh.reconnectToWebSocket()
+		}
+	}
+}
+
+//StartWebSokcetClient -
+func (wsh *WebSocketHandler) StartWebSokcetClient() {
+
 	log.Printf("connecting to %s", wsh.u.String())
 	wsh.reconnectToWebSocket()
 
 	//defer conn.Close()
 
 	go func() {
-		for {
-			data := <-wsh.data
-			switch data.RType {
-			case MESSAGE:
-				log.Println("Sending: message.")
-				err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
-				if err != nil {
-					log.Println("WriteMessage to websocket:", err)
-					wsh.reconnectToWebSocket()
-					err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
-					if err != nil {
-						log.Println("WriteMessage to websocket:", err)
-					} else {
-						log.Println("resending: message.")
-						break
-					}
-				}
-			case EXIT:
-				log.Printf("web socket client got exit with message: %s\n", data.message)
-				return
-			}
-		}
+		wsh.sendReportRoutine()
 	}()
 
 	go func() {
-		for {
-			time.Sleep(40 * time.Second)
-			log.Println("Sending: ping.")
-			err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second))
-			if err != nil {
-				log.Println("Write Error: ", err)
-			}
-			wsh.keepAliveCounter++
-
-			if wsh.keepAliveCounter == MAXPINGMESSAGE {
-				wsh.conn.Close()
-				wsh.reconnectToWebSocket()
-			}
-		}
+		wsh.pingPongRoutine()
 	}()
 }
 
