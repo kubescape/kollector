@@ -11,6 +11,11 @@ import (
 )
 
 func main() {
+
+	if aggImageVersion := os.Getenv("CA_AGGREGATOR_IMAGE_VERSION"); aggImageVersion != "" {
+		log.Printf("aggregator image version: %v\n", aggImageVersion)
+	}
+
 	wh := watch.CreateWatchHandler()
 
 	if wh == nil {
