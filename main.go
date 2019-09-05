@@ -12,9 +12,7 @@ import (
 
 func main() {
 
-	if aggImageVersion := os.Getenv("CA_AGGREGATOR_IMAGE_VERSION"); aggImageVersion != "" {
-		log.Printf("aggregator image version: %v\n", aggImageVersion)
-	}
+    displayBuildTag()
 
 	wh := watch.CreateWatchHandler()
 
@@ -57,3 +55,14 @@ func main() {
 	<-signalChan
 
 }
+
+
+func displayBuildTag() {
+	imageVersion := "UNKNOWN"
+	dat, err := ioutil.ReadFile("./build_tag.txt")
+	if err == nil {
+		imageVersion = string(dat)
+	}
+	fmt.Println("Image version: %s", imageVersion)
+}
+
