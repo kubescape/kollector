@@ -1,4 +1,3 @@
-
 kind: ServiceAccount
 apiVersion: v1
 metadata:
@@ -38,7 +37,7 @@ kind: Service
 apiVersion: v1
 metadata:
   labels:
-    app: dashboard-aggregator
+    app: ca-dashboard-aggregator
   name: dashboard-aggregator-service
   namespace: cyberarmor-system
 spec:
@@ -46,25 +45,25 @@ spec:
     - port: 8080
       targetPort: 8080
   selector:
-    app: dashboard-aggregator
+    app: ca-dashboard-aggregator
 ---
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dashboard-aggregator
+  name: ca-dashboard-aggregator
   namespace: cyberarmor-system
   labels:
-    app:  dashboard-aggregator
+    app: ca-dashboard-aggregator
 spec:
   selector:
     matchLabels:
-      app:  dashboard-aggregator
+      app: ca-dashboard-aggregator
   replicas: 1
   template:
     metadata:
       labels:
-        app:  dashboard-aggregator
+        app: ca-dashboard-aggregator
     spec:
       containers:
         - name: go-aggregator
