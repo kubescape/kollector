@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
 	"log"
 	"os"
@@ -12,7 +13,7 @@ import (
 
 func main() {
 
-    displayBuildTag()
+	displayBuildTag()
 
 	wh := watch.CreateWatchHandler()
 
@@ -56,7 +57,6 @@ func main() {
 
 }
 
-
 func displayBuildTag() {
 	imageVersion := "UNKNOWN"
 	dat, err := ioutil.ReadFile("./build_tag.txt")
@@ -65,4 +65,3 @@ func displayBuildTag() {
 	}
 	fmt.Println("Image version: %s", imageVersion)
 }
-

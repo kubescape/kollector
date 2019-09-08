@@ -157,7 +157,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 					} else {
 						od.Name = item.ObjectMeta.Name
 						od.Kind = item.Kind
-						od.OwnerData = GetOwnerData(item.OwnerReferences[0].Name, item.OwnerReferences[0].Kind, item.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
+						od.OwnerData = GetOwnerData(od.Name, od.Kind, item.TypeMeta.APIVersion, pod.ObjectMeta.Namespace, wh)
 						return od
 					}
 				}
