@@ -59,7 +59,7 @@ func main() {
 
 func displayBuildTag() {
 	imageVersion := "UNKNOWN"
-	dat, err := ioutil.ReadFile("./build_tag.txt")
+	dat, err := ioutil.ReadFile("./build_number.txt")
 	if err == nil {
 		imageVersion = string(dat)
 	}
