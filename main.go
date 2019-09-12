@@ -27,11 +27,15 @@ func main() {
 		//in the first time we wait till all the data will arrive from the cluster and the we will inform on every change
 		log.Printf("wait 40 seconds for aggragate the first data from the cluster\n")
 		time.Sleep(40 * time.Second)
+		wh.SetFirstReportFlag(true)
 		for {
 			jsonData := watch.PrepareDataToSend(wh)
 			if jsonData != nil {
 				fmt.Printf("%s\n", string(jsonData))
 				wh.SendMessageToWebSocket(jsonData)
+			}
+			if wh.GetFirstReportFlag() {
+				wh.SetFirstReportFlag(false)
 			}
 			if watch.WaitTillNewDataArrived(wh) {
 				continue

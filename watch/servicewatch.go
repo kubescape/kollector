@@ -30,17 +30,20 @@ func UpdateService(service *core.Service, sdm map[int]*list.List) string {
 	return ""
 }
 
+// RemoveService update websocket when service is removed
 func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 	for _, v := range sdm {
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
+			name := v.Front().Value.(ServiceData).Service.ObjectMeta.Name
 			v.Remove(v.Front())
 			log.Printf("service %s removed", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
-			return v.Front().Value.(ServiceData).Service.ObjectMeta.Name
+			return name
 		}
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
+			gName := v.Front().Value.(ServiceData).Service.ObjectMeta.Name
 			v.Remove(v.Front())
 			log.Printf("service %s removed", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
-			return v.Front().Value.(ServiceData).Service.ObjectMeta.Name
+			return gName
 		}
 	}
 	return ""

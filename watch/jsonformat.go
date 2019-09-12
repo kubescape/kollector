@@ -28,6 +28,7 @@ type ObjectData struct {
 }
 
 type jsonFormat struct {
+	FirstReport   bool       `json:"firstReport"`
 	Nodes         ObjectData `json:"node"`
 	Services      ObjectData `json:"service"`
 	MicroServices ObjectData `json:"microservice"`

@@ -98,3 +98,13 @@ func parseArgument() *restclient.Config {
 
 	return config
 }
+
+// SetFirstReportFlag set first report flag
+func (wh *WatchHandler) SetFirstReportFlag(first bool) {
+	wh.jsonReport.FirstReport = first
+}
+
+// GetFirstReportFlag get first report flag
+func (wh *WatchHandler) GetFirstReportFlag() bool {
+	return wh.jsonReport.FirstReport
+}
