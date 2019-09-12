@@ -43,6 +43,7 @@ func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 			log.Printf("dwertent - delete servcie name %s", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
 		} else {
 			log.Printf("dwertent - Error, cant parse from local db. received name: %s", service.ObjectMeta.Name)
+			log.Printf("dwertent - Error, front: %#v", v.Front())
 			continue
 		}
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
