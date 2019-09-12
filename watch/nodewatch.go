@@ -36,6 +36,9 @@ func UpdateNode(node *core.Node, ndm map[int]*list.List) NodeData {
 
 	var nd NodeData
 	for _, v := range ndm {
+		if v == nil || v.Len() == 0 {
+			continue
+		}
 		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.Name) == 0 {
 			v.Front().Value.(*NodeData).UpdateNodeData(node)
 			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)
@@ -56,6 +59,9 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 
 	var nodeName string
 	for _, v := range ndm {
+		if v == nil || v.Len() == 0 {
+			continue
+		}
 		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.Name) == 0 {
 			v.Remove(v.Front())
 			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)

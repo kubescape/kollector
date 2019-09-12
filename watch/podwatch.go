@@ -46,6 +46,9 @@ type PodDataForExistMicroService struct {
 
 func IsPodExist(pod *core.Pod, pdm map[int]*list.List) bool {
 	for _, v := range pdm {
+		if v == nil || v.Len() == 0 {
+			continue
+		}
 		if strings.Compare(v.Front().Value.(MicroServiceData).Pod.ObjectMeta.Name, pod.ObjectMeta.Name) == 0 {
 			return true
 		}
@@ -63,6 +66,9 @@ func IsPodExist(pod *core.Pod, pdm map[int]*list.List) bool {
 
 func IsPodSpecAlreadyExist(pod *core.Pod, pdm map[int]*list.List) (int, int) {
 	for _, v := range pdm {
+		if v == nil || v.Len() == 0 {
+			continue
+		}
 		p := v.Front().Value.(MicroServiceData)
 		if reflect.DeepEqual(pod.Spec.Containers, p.Pod.Spec.Containers) {
 			return v.Front().Value.(MicroServiceData).PodSpecId, v.Len()
