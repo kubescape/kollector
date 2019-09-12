@@ -16,6 +16,9 @@ type ServiceData struct {
 
 func UpdateService(service *core.Service, sdm map[int]*list.List) string {
 	for _, v := range sdm {
+		if v == nil || v.Len() == 0 {
+			continue
+		}
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
 			*v.Front().Value.(ServiceData).Service = *service
 			log.Printf("service %s updated", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
@@ -33,6 +36,15 @@ func UpdateService(service *core.Service, sdm map[int]*list.List) string {
 // RemoveService update websocket when service is removed
 func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 	for _, v := range sdm {
+		if v == nil || v.Len() == 0 {
+			continue
+		}
+		if _, k := v.Front().Value.(ServiceData); k {
+			log.Printf("dwertent - delete servcie name %s", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
+		} else {
+			log.Printf("dwertent - Error, cant parse from local db. received name: %s", service.ObjectMeta.Name)
+			continue
+		}
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
 			name := v.Front().Value.(ServiceData).Service.ObjectMeta.Name
 			v.Remove(v.Front())
@@ -91,5 +103,4 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 		}
 		log.Printf("Wathching over services ended - since we got timeout")
 	}
-	log.Printf("Wathching over services ending")
 }
