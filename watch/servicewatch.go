@@ -36,13 +36,13 @@ func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
 			name := v.Front().Value.(ServiceData).Service.ObjectMeta.Name
 			v.Remove(v.Front())
-			log.Printf("service %s removed", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
+			log.Printf("service %s removed", name)
 			return name
 		}
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
 			gName := v.Front().Value.(ServiceData).Service.ObjectMeta.Name
 			v.Remove(v.Front())
-			log.Printf("service %s removed", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
+			log.Printf("service %s removed", gName)
 			return gName
 		}
 	}

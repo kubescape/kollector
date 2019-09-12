@@ -67,5 +67,5 @@ func displayBuildTag() {
 	if err == nil {
 		imageVersion = string(dat)
 	}
-	fmt.Println("Image version: %s", imageVersion)
+	fmt.Printf("Image version: %s", imageVersion)
 }
