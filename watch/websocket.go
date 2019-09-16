@@ -56,7 +56,7 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() {
 		wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil)
 	}
 	wsh.conn.SetPongHandler(func(string) error {
-		log.Printf("pong recieved")
+		// log.Printf("pong recieved")
 		wsh.keepAliveCounter = 0
 		return nil
 	})
@@ -97,7 +97,7 @@ func (wsh *WebSocketHandler) sendReportRoutine() {
 func (wsh *WebSocketHandler) pingPongRoutine() {
 	for {
 		time.Sleep(40 * time.Second)
-		log.Println("Sending: ping.")
+		// log.Println("Sending: ping.")
 		err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second))
 		if err != nil {
 			log.Println("Write Error: ", err)
