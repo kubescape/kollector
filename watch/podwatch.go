@@ -275,6 +275,9 @@ func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, i
 				if v.Len() == 1 {
 					msd := v.Front().Value.(MicroServiceData)
 					removed = wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
+					podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
+					v.Remove(v.Front())
+					return podSpecID, 0, removed, owner
 				}
 				// remove before testing len?
 				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, removed, owner
@@ -286,7 +289,9 @@ func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, i
 				if v.Len() == 1 {
 					msd := v.Front().Value.(MicroServiceData)
 					removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
-					return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, removed, owner
+					podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
+					v.Remove(v.Front())
+					return podSpecID, 0, removed, owner
 				}
 				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, false, owner
 			}
@@ -390,6 +395,7 @@ func (wh *WatchHandler) PodWatch() {
 						log.Printf("remove MicroService as well")
 						nms := MicroServiceData{Pod: pod, Owner: owner, PodSpecId: podSpecID}
 						wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, DELETED)
+
 					}
 					informNewDataArrive(wh)
 				case "BOOKMARK": //only the resource version is changed but it's the same workload
