@@ -265,7 +265,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool, OwnerDet) {
 	var owner OwnerDet
 	for _, v := range pdm {
-		if v.Front() {
+		if v.Front() != nil {
 			element := v.Front().Next()
 			for element != nil {
 				if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
