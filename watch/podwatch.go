@@ -265,43 +265,46 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool, OwnerDet) {
 	var owner OwnerDet
 	for _, v := range pdm {
-		element := v.Front().Next()
-		for element != nil {
-			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
-				//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-				owner = v.Front().Value.(MicroServiceData).Owner
-				v.Remove(element)
-				removed := false
-				if v.Len() == 1 {
-					msd := v.Front().Value.(MicroServiceData)
-					removed = wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
-					podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
-					numberOfRunningPods := element.Value.(PodDataForExistMicroService).NumberOfRunnigPods
-					if removed {
-						v.Remove(v.Front())
+		if v.Front() != nil {
+			element := v.Front().Next()
+			for element != nil {
+				if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
+					//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+					owner = v.Front().Value.(MicroServiceData).Owner
+					v.Remove(element)
+					removed := false
+					if v.Len() == 1 {
+						msd := v.Front().Value.(MicroServiceData)
+						removed = wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
+						podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
+						numberOfRunningPods := element.Value.(PodDataForExistMicroService).NumberOfRunnigPods
+						if removed {
+							v.Remove(v.Front())
+						}
+						return podSpecID, numberOfRunningPods, removed, owner
 					}
-					return podSpecID, numberOfRunningPods, removed, owner
+					// remove before testing len?
+					return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, removed, owner
 				}
-				// remove before testing len?
-				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, removed, owner
-			}
-			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.GenerateName) == 0 {
-				//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-				owner = v.Front().Value.(MicroServiceData).Owner
-				v.Remove(element)
-				if v.Len() == 1 {
-					msd := v.Front().Value.(MicroServiceData)
-					removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
-					podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
-					numberOfRunningPods := element.Value.(PodDataForExistMicroService).NumberOfRunnigPods
-					if removed {
-						v.Remove(v.Front())
+				if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.GenerateName) == 0 {
+					//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+					owner = v.Front().Value.(MicroServiceData).Owner
+					removed := false
+					v.Remove(element)
+					if v.Len() == 1 {
+						msd := v.Front().Value.(MicroServiceData)
+						removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
+						podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
+						numberOfRunningPods := element.Value.(PodDataForExistMicroService).NumberOfRunnigPods
+						if removed {
+							v.Remove(v.Front())
+						}
+						return podSpecID, numberOfRunningPods, removed, owner
 					}
-					return podSpecID, numberOfRunningPods, removed, owner
+					return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, removed, owner
 				}
-				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, false, owner
+				element = element.Next()
 			}
-			element = element.Next()
 		}
 	}
 	return 0, 0, false, owner
