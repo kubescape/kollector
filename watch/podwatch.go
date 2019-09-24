@@ -276,8 +276,11 @@ func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, i
 					msd := v.Front().Value.(MicroServiceData)
 					removed = wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
 					podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
-					v.Remove(v.Front())
-					return podSpecID, 0, removed, owner
+					numberOfRunningPods := element.Value.(PodDataForExistMicroService).NumberOfRunnigPods
+					if removed {
+						v.Remove(v.Front())
+					}
+					return podSpecID, numberOfRunningPods, removed, owner
 				}
 				// remove before testing len?
 				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, removed, owner
@@ -290,8 +293,11 @@ func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, i
 					msd := v.Front().Value.(MicroServiceData)
 					removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
 					podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
-					v.Remove(v.Front())
-					return podSpecID, 0, removed, owner
+					numberOfRunningPods := element.Value.(PodDataForExistMicroService).NumberOfRunnigPods
+					if removed {
+						v.Remove(v.Front())
+					}
+					return podSpecID, numberOfRunningPods, removed, owner
 				}
 				return v.Front().Value.(MicroServiceData).PodSpecId, element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, false, owner
 			}
