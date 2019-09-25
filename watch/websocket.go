@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"fmt"
 	"log"
 	"net/url"
 	"strings"
@@ -48,6 +49,9 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() {
 	wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil)
 
 	for err != nil {
+		if reconnectionCounter == 5 {
+			panic("cant connect to wbsocket")
+		}
 		log.Printf("dial: %v", err)
 		reconnectionCounter++
 		log.Printf("wait 5 seconds before tring to reconnect")
@@ -63,13 +67,14 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() {
 
 	//this go function must created in order to get the pong
 	go func() {
+		defer log.Print(recover())
 		for {
 			wsh.conn.ReadMessage()
 		}
 	}()
 }
 
-func (wsh *WebSocketHandler) sendReportRoutine() {
+func (wsh *WebSocketHandler) sendReportRoutine() string {
 	for {
 		data := <-wsh.data
 		switch data.RType {
@@ -81,15 +86,13 @@ func (wsh *WebSocketHandler) sendReportRoutine() {
 				wsh.reconnectToWebSocket()
 				err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 				if err != nil {
-					log.Println("WriteMessage to websocket:", err)
-				} else {
-					log.Println("resending: message.")
-					break
+					return fmt.Sprintf("WriteMessage to websocket: %v", err)
 				}
+				log.Println("resending: message.")
+				break
 			}
 		case EXIT:
-			log.Printf("web socket client got exit with message: %s\n", data.message)
-			return
+			return fmt.Sprintf("web socket client got exit with message: %s\n", data.message)
 		}
 	}
 }
@@ -120,7 +123,7 @@ func (wsh *WebSocketHandler) StartWebSokcetClient() {
 	//defer conn.Close()
 
 	go func() {
-		wsh.sendReportRoutine()
+		log.Fatal(wsh.sendReportRoutine())
 	}()
 
 	go func() {

@@ -216,15 +216,13 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List) (int, P
 }
 
 func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kind, namespace string) bool {
-	delete := false
-
 	switch kind {
 	case "Deployment":
 		options := v1.GetOptions{}
 		name := ownerData.(*v1beta1.Deployment).ObjectMeta.Name
 		_, err := wh.RestAPIClient.AppsV1beta1().Deployments(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
-			delete = true
+			return true
 		}
 
 	case "DeamonSet":
@@ -232,7 +230,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		name := ownerData.(*v1beta2.DaemonSet).ObjectMeta.Name
 		_, err := wh.RestAPIClient.AppsV1beta2().DaemonSets(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
-			delete = true
+			return true
 		}
 
 	case "StatefulSets":
@@ -240,25 +238,25 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		name := ownerData.(*v1beta1.StatefulSet).ObjectMeta.Name
 		_, err := wh.RestAPIClient.AppsV1beta1().StatefulSets(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
-			delete = true
+			return true
 		}
 	case "Job":
 		options := v1.GetOptions{}
 		name := ownerData.(*batchv1.Job).ObjectMeta.Name
 		_, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
-			delete = true
+			return true
 		}
 	case "CronJob":
 		options := v1.GetOptions{}
 		name := ownerData.(*v2alpha1.CronJob).ObjectMeta.Name
 		_, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
-			delete = true
+			return true
 		}
 	}
 
-	return delete
+	return false
 }
 
 // RemovePod remove pod and check if has parents
@@ -336,6 +334,8 @@ func (wh *WatchHandler) podEnterDesiredState(pod *core.Pod) (*core.Pod, bool) {
 
 // PodWatch - StayUpadted starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
+	defer log.Print(recover())
+
 	log.Printf("Watching over pods starting")
 	for {
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(metav1.ListOptions{Watch: true})
@@ -371,7 +371,7 @@ func (wh *WatchHandler) PodWatch() {
 					informNewDataArrive(wh)
 					if strings.Compare(string(pod.Status.Phase), string(core.PodPending)) == 0 {
 						go func() {
-							if podInDesiredState, yes := wh.podEnterDesiredState(pod); yes {
+							if podInDesiredState, ok := wh.podEnterDesiredState(pod); ok {
 								err := DeepCopy(podInDesiredState, wh.pdm[id].Front().Value.(MicroServiceData).Pod)
 								if err != nil {
 									log.Printf("error while updating the microservice to desired state %v", err)

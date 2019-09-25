@@ -79,11 +79,13 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 }
 
 func (wh *WatchHandler) NodeWatch() {
+	defer log.Print(recover())
+
 	for {
 		log.Printf("Watching over nodes starting")
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(metav1.ListOptions{Watch: true})
 		if err != nil {
-			log.Printf("Cannot wathching over pods. %v", err)
+			log.Printf("Cannot wathch over pods. %v", err)
 			time.Sleep(time.Duration(10) * time.Second)
 			continue
 		}
