@@ -2,6 +2,7 @@ package watch
 
 import (
 	"container/list"
+	"encoding/json"
 	"log"
 	"reflect"
 	"strings"
@@ -220,40 +221,50 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	case "Deployment":
 		options := v1.GetOptions{}
 		name := ownerData.(*v1beta1.Deployment).ObjectMeta.Name
-		_, err := wh.RestAPIClient.AppsV1beta1().Deployments(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.AppsV1beta1().Deployments(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
+		v, _ := json.Marshal(mic)
+		log.Printf("Removing pod but not microservice, microservice found:\n%s", string(v))
 
 	case "DeamonSet":
 		options := v1.GetOptions{}
 		name := ownerData.(*v1beta2.DaemonSet).ObjectMeta.Name
-		_, err := wh.RestAPIClient.AppsV1beta2().DaemonSets(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.AppsV1beta2().DaemonSets(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
+		v, _ := json.Marshal(mic)
+		log.Printf("Removing pod but not microservice, microservice found:\n%s", string(v))
 
 	case "StatefulSets":
 		options := v1.GetOptions{}
 		name := ownerData.(*v1beta1.StatefulSet).ObjectMeta.Name
-		_, err := wh.RestAPIClient.AppsV1beta1().StatefulSets(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.AppsV1beta1().StatefulSets(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
+		v, _ := json.Marshal(mic)
+		log.Printf("Removing pod but not microservice, microservice found:\n%s", string(v))
 	case "Job":
 		options := v1.GetOptions{}
 		name := ownerData.(*batchv1.Job).ObjectMeta.Name
-		_, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
+		v, _ := json.Marshal(mic)
+		log.Printf("Removing pod but not microservice, microservice found:\n%s", string(v))
 	case "CronJob":
 		options := v1.GetOptions{}
 		name := ownerData.(*v2alpha1.CronJob).ObjectMeta.Name
-		_, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
+		v, _ := json.Marshal(mic)
+		log.Printf("Removing pod but not microservice, microservice found:\n%s", string(v))
 	}
 
 	return false
