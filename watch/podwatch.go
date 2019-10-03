@@ -361,21 +361,35 @@ func (wh *WatchHandler) PodWatch() {
 			if pod, ok := event.Object.(*core.Pod); ok {
 				switch event.Type {
 				case "ADDED":
+					podName := pod.ObjectMeta.Name
+					if podName == "" {
+						podName = pod.ObjectMeta.GenerateName
+					}
+
 					od := GetAncestorOfPod(pod, wh)
 					var id int
 					var runnigPodNum int
+					first := true
 					if id, runnigPodNum = IsPodSpecAlreadyExist(pod, wh.pdm); runnigPodNum == 0 {
 						wh.pdm[id] = list.New()
 						nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 						wh.pdm[id].PushBack(nms)
 						wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
 						runnigPodNum = 1
+					} else { // Check if pod is already reported
+						if wh.pdm[id].Front() != nil {
+							element := wh.pdm[id].Front().Next()
+							for element != nil {
+								if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, podName) == 0 {
+									first = false
+								}
+								element = element.Next()
+							}
+						}
 					}
-					podName := pod.ObjectMeta.Name
-					if podName == "" {
-						podName = pod.ObjectMeta.GenerateName
+					if !first {
+						continue
 					}
-
 					np := PodDataForExistMicroService{PodName: podName, NumberOfRunnigPods: runnigPodNum, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}}
 					wh.pdm[id].PushBack(np)
 					wh.jsonReport.AddToJsonFormat(np, PODS, CREATED)
@@ -415,7 +429,6 @@ func (wh *WatchHandler) PodWatch() {
 						log.Printf("remove MicroService as well")
 						nms := MicroServiceData{Pod: pod, Owner: owner, PodSpecId: podSpecID}
 						wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, DELETED)
-
 					}
 					informNewDataArrive(wh)
 				case "BOOKMARK": //only the resource version is changed but it's the same workload
