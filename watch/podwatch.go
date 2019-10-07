@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/api/apps/v1beta1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/apps/v1beta2"
 	batchv1 "k8s.io/api/batch/v1"
 	v2alpha1 "k8s.io/api/batch/v2alpha1"
@@ -79,11 +79,12 @@ func IsPodSpecAlreadyExist(pod *core.Pod, pdm map[int]*list.List) (int, int) {
 	return CreateID(), 0
 }
 
+// GetOwnerData - get the data of pod owner
 func GetOwnerData(name string, kind string, apiVersion string, namespace string, wh *WatchHandler) interface{} {
 	switch kind {
 	case "Deployment":
-		var options v1.GetOptions = v1.GetOptions{}
-		depDet, err := wh.RestAPIClient.AppsV1beta1().Deployments(namespace).Get(name, options)
+		options := v1.GetOptions{}
+		depDet, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
@@ -92,8 +93,8 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		depDet.TypeMeta.APIVersion = apiVersion
 		return depDet
 	case "DeamonSet":
-		var options v1.GetOptions = v1.GetOptions{}
-		daemSetDet, err := wh.RestAPIClient.AppsV1beta2().DaemonSets(namespace).Get(name, options)
+		options := v1.GetOptions{}
+		daemSetDet, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
@@ -102,8 +103,8 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		daemSetDet.TypeMeta.APIVersion = apiVersion
 		return daemSetDet
 	case "StatefulSets":
-		var options v1.GetOptions = v1.GetOptions{}
-		statSetDet, err := wh.RestAPIClient.AppsV1beta1().StatefulSets(namespace).Get(name, options)
+		options := v1.GetOptions{}
+		statSetDet, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
@@ -112,7 +113,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		statSetDet.TypeMeta.APIVersion = apiVersion
 		return statSetDet
 	case "Job":
-		var options v1.GetOptions = v1.GetOptions{}
+		options := v1.GetOptions{}
 		jobDet, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
@@ -122,7 +123,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		jobDet.TypeMeta.APIVersion = apiVersion
 		return jobDet
 	case "CronJob":
-		var options v1.GetOptions = v1.GetOptions{}
+		options := v1.GetOptions{}
 		cronJobDet, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
@@ -151,7 +152,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 				od.OwnerData = GetOwnerData(repItem.OwnerReferences[0].Name, repItem.OwnerReferences[0].Kind, repItem.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
 				return od
 			} else {
-				depInt := wh.RestAPIClient.AppsV1beta1().Deployments(pod.ObjectMeta.Namespace)
+				depInt := wh.RestAPIClient.AppsV1().Deployments(pod.ObjectMeta.Namespace)
 				selector, err := metav1.LabelSelectorAsSelector(repItem.Spec.Selector)
 				if err != nil {
 					log.Printf("LabelSelectorAsSelector err %v\n", err)
@@ -220,8 +221,8 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	switch kind {
 	case "Deployment":
 		options := v1.GetOptions{}
-		name := ownerData.(*v1beta1.Deployment).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.AppsV1beta1().Deployments(namespace).Get(name, options)
+		name := ownerData.(*appsv1.Deployment).ObjectMeta.Name
+		mic, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
@@ -240,8 +241,8 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 
 	case "StatefulSets":
 		options := v1.GetOptions{}
-		name := ownerData.(*v1beta1.StatefulSet).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.AppsV1beta1().StatefulSets(namespace).Get(name, options)
+		name := ownerData.(*appsv1.StatefulSet).ObjectMeta.Name
+		mic, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
