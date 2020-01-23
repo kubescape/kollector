@@ -102,7 +102,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		daemSetDet.TypeMeta.Kind = kind
 		daemSetDet.TypeMeta.APIVersion = apiVersion
 		return daemSetDet
-	case "StatefulSets":
+	case "StatefulSet":
 		options := v1.GetOptions{}
 		statSetDet, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(name, options)
 		if err != nil {
