@@ -50,7 +50,8 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() {
 
 	for err != nil {
 		if reconnectionCounter == 5 {
-			panic("cant connect to wbsocket")
+			log.Printf("ERROR: cant connect to wbsocket")
+			return
 		}
 		log.Printf("dial: %v", err)
 		reconnectionCounter++

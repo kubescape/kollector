@@ -32,7 +32,8 @@ func CreateWatchHandler() *WatchHandler {
 	clientset, err := kubernetes.NewForConfig(config)
 
 	if err != nil {
-		panic(err.Error())
+		log.Print(err.Error())
+		return nil
 	}
 
 	var clusterName string
@@ -87,12 +88,14 @@ func parseArgument() *restclient.Config {
 		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfigpath)
 		if err != nil {
 			log.Printf("kubeconfig path is %s\n", *kubeconfigpath)
-			panic(err.Error())
+			log.Print(err.Error())
+			return nil
 		}
 	case 1:
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			panic(err.Error())
+			log.Print(err.Error())
+			return nil
 		}
 	}
 
