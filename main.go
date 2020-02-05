@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,7 +19,10 @@ func main() {
 		return
 	}
 	//start websocket
-	wh.WebSocketHandle.StartWebSokcetClient()
+	if err := wh.WebSocketHandle.StartWebSokcetClient(); err != nil {
+		log.Print(err)
+		return
+	}
 
 	go func() {
 		wh.ListnerAndSender()
@@ -49,5 +52,5 @@ func displayBuildTag() {
 	if err == nil {
 		imageVersion = string(dat)
 	}
-	fmt.Printf("Image version: %s", imageVersion)
+	log.Printf("Image version: %s", imageVersion)
 }

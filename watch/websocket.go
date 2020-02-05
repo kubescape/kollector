@@ -43,24 +43,25 @@ func createWebSocketHandler(urlWS, path, clusterName, customerGuid string) *WebS
 	return &wsh
 }
 
-func (wsh *WebSocketHandler) reconnectToWebSocket() {
+func (wsh *WebSocketHandler) reconnectToWebSocket() error {
+
 	reconnectionCounter := 0
 	var err error
-	wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil)
-	defer wsh.conn.Close()
 
-	for err != nil {
-		if reconnectionCounter == 5 {
-			log.Printf("ERROR: cant connect to wbsocket")
-			return
+	for reconnectionCounter < 5 {
+		log.Printf("connect try: %d", reconnectionCounter+1)
+		if wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
+			break
 		}
 		log.Printf("dial: %v", err)
 		reconnectionCounter++
-		log.Printf("wait 5 seconds before tring to reconnect")
+		log.Printf("wait 5 seconds before reconnecting")
 		time.Sleep(time.Second * 5)
-		log.Printf("reconnect try number %d", reconnectionCounter+1)
-		wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil)
 	}
+	if reconnectionCounter == 5 {
+		return fmt.Errorf("ERROR: reconnectToWebSocket, cant connect to wbsocket")
+	}
+
 	wsh.conn.SetPongHandler(func(string) error {
 		// log.Printf("pong recieved")
 		wsh.keepAliveCounter = 0
@@ -70,12 +71,22 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() {
 	//this go function must created in order to get the pong
 	go func() {
 		for {
-			wsh.conn.ReadMessage()
+			if _, _, err := wsh.conn.ReadMessage(); err != nil {
+				log.Print(err.Error())
+			}
 		}
 	}()
+	return nil
 }
 
-func (wsh *WebSocketHandler) sendReportRoutine() string {
+func (wsh *WebSocketHandler) sendReportRoutine() error {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("RECOVER sendReportRoutine. error: %v", err)
+			wsh.conn.Close()
+		}
+	}()
+
 	for {
 		data := <-wsh.data
 		switch data.RType {
@@ -84,56 +95,72 @@ func (wsh *WebSocketHandler) sendReportRoutine() string {
 			err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
 				log.Println("ERROR in sendReportRoutine, WriteMessage to websocket:", err)
-				wsh.reconnectToWebSocket()
+				if err := wsh.reconnectToWebSocket(); err != nil {
+					log.Printf(err.Error())
+					continue
+				}
 				err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 				if err != nil {
-					return fmt.Sprintf("WriteMessage to websocket: %v", err)
+					log.Printf("WriteMessage to websocket: %v", err)
+					continue
 				}
 				log.Println("resending: message.")
-				break
 			}
 		case EXIT:
-			return fmt.Sprintf("web socket client got exit with message: %s\n", data.message)
+			wsh.conn.Close()
+			log.Printf("web socket client got exit with message: %s", data.message)
+			return nil
 		}
 	}
 }
 
-func (wsh *WebSocketHandler) pingPongRoutine() {
+func (wsh *WebSocketHandler) pingPongRoutine() error {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("RECOVER pingPongRoutine. error: %v", err)
+			wsh.conn.Close()
+		}
+	}()
 	for {
 		time.Sleep(40 * time.Second)
-		// log.Println("Sending: ping.")
 		err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second))
 		if err != nil {
 			log.Println("Write Error: ", err)
-			return
 		}
 		wsh.keepAliveCounter++
 
 		if wsh.keepAliveCounter == MAXPINGMESSAGE {
+			wsh.keepAliveCounter = 0
+			log.Printf("sent %d pings without receiving any pongs. restaring connection", MAXPINGMESSAGE)
 			wsh.conn.Close()
-			wsh.reconnectToWebSocket()
+			if err := wsh.reconnectToWebSocket(); err != nil {
+				return err
+			}
 		}
 	}
 }
 
 //StartWebSokcetClient -
-func (wsh *WebSocketHandler) StartWebSokcetClient() {
+func (wsh *WebSocketHandler) StartWebSokcetClient() error {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("RECOVER StartWebSokcetClient. error: %v", err)
+			log.Printf("RECOVER StartWebSokcetClient. error: %v", err)
+			wsh.conn.Close()
 		}
 	}()
-
 	log.Printf("connecting to %s", wsh.u.String())
-	wsh.reconnectToWebSocket()
+	if err := wsh.reconnectToWebSocket(); err != nil {
+		return err
+	}
 
 	go func() {
 		log.Print(wsh.sendReportRoutine())
 	}()
 
 	go func() {
-		wsh.pingPongRoutine()
+		log.Print(wsh.pingPongRoutine())
 	}()
+	return nil
 }
 
 //SendMessageToWebSocket -
@@ -147,7 +174,7 @@ func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
 func (wh *WatchHandler) ListnerAndSender() {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("RECOVER ListnerAndSender. error: %v", err)
+			log.Printf("RECOVER ListnerAndSender. error: %v", err)
 		}
 	}()
 	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
@@ -157,7 +184,7 @@ func (wh *WatchHandler) ListnerAndSender() {
 	for {
 		jsonData := PrepareDataToSend(wh)
 		if jsonData != nil {
-			fmt.Printf("%s\n", string(jsonData))
+			log.Printf("%s\n", string(jsonData))
 			wh.SendMessageToWebSocket(jsonData)
 		}
 		if wh.GetFirstReportFlag() {
