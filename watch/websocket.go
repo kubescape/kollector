@@ -170,13 +170,14 @@ func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
 	wh.WebSocketHandle.data <- data
 }
 
-// ListnerAndSender listen for changes in cluster and send reports to websocket
-func (wh *WatchHandler) ListnerAndSender() {
+// ListenerAndSender listen for changes in cluster and send reports to websocket
+func (wh *WatchHandler) ListenerAndSender() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Printf("RECOVER ListnerAndSender. error: %v", err)
 		}
 	}()
+
 	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
 	log.Printf("wait 40 seconds for aggragate the first data from the cluster\n")
 	time.Sleep(40 * time.Second)

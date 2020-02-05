@@ -366,6 +366,7 @@ func (wh *WatchHandler) PodWatch() {
 			if pod, ok := event.Object.(*core.Pod); ok {
 				switch event.Type {
 				case "ADDED":
+					log.Printf("pod %s added", pod.ObjectMeta.Name)
 					podName := pod.ObjectMeta.Name
 					if podName == "" {
 						podName = pod.ObjectMeta.GenerateName

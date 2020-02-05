@@ -25,7 +25,7 @@ func main() {
 	}
 
 	go func() {
-		wh.ListnerAndSender()
+		wh.ListenerAndSender()
 	}()
 
 	go func() {
