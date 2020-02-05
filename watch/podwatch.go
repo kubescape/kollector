@@ -346,7 +346,11 @@ func (wh *WatchHandler) podEnterDesiredState(pod *core.Pod) (*core.Pod, bool) {
 
 // PodWatch - StayUpadted starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
-	defer log.Print(recover())
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("RECOVER PodWatch. error: %v", err)
+		}
+	}()
 
 	log.Printf("Watching over pods starting")
 	for {

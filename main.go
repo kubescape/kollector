@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 func main() {
@@ -24,38 +22,18 @@ func main() {
 	wh.WebSocketHandle.StartWebSokcetClient()
 
 	go func() {
-		defer log.Print(recover())
-		//in the first time we wait till all the data will arrive from the cluster and the we will inform on every change
-		log.Printf("wait 40 seconds for aggragate the first data from the cluster\n")
-		time.Sleep(40 * time.Second)
-		wh.SetFirstReportFlag(true)
-		for {
-			jsonData := watch.PrepareDataToSend(wh)
-			if jsonData != nil {
-				fmt.Printf("%s\n", string(jsonData))
-				wh.SendMessageToWebSocket(jsonData)
-			}
-			if wh.GetFirstReportFlag() {
-				wh.SetFirstReportFlag(false)
-			}
-			if watch.WaitTillNewDataArrived(wh) {
-				continue
-			}
-		}
+		wh.ListnerAndSender()
 	}()
 
 	go func() {
-		defer log.Print(recover())
 		wh.PodWatch()
 	}()
 
 	go func() {
-		defer log.Print(recover())
 		wh.NodeWatch()
 	}()
 
 	go func() {
-		defer log.Print(recover())
 		wh.ServiceWatch("")
 	}()
 

@@ -55,9 +55,13 @@ func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 	return ""
 }
 
+// ServiceWatch watch over servises
 func (wh *WatchHandler) ServiceWatch(namespace string) {
-	defer log.Print(recover())
-
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("RECOVER ServiceWatch. error: %v", err)
+		}
+	}()
 	log.Printf("Watching over services starting")
 	for {
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Services(namespace).Watch(metav1.ListOptions{Watch: true})

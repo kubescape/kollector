@@ -47,6 +47,7 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() {
 	reconnectionCounter := 0
 	var err error
 	wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil)
+	defer wsh.conn.Close()
 
 	for err != nil {
 		if reconnectionCounter == 5 {
@@ -68,7 +69,6 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() {
 
 	//this go function must created in order to get the pong
 	go func() {
-		defer log.Print(recover())
 		for {
 			wsh.conn.ReadMessage()
 		}
@@ -83,7 +83,7 @@ func (wsh *WebSocketHandler) sendReportRoutine() string {
 			log.Println("Sending: message.")
 			err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
-				log.Println("WriteMessage to websocket:", err)
+				log.Println("ERROR in sendReportRoutine, WriteMessage to websocket:", err)
 				wsh.reconnectToWebSocket()
 				err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 				if err != nil {
@@ -105,6 +105,7 @@ func (wsh *WebSocketHandler) pingPongRoutine() {
 		err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second))
 		if err != nil {
 			log.Println("Write Error: ", err)
+			return
 		}
 		wsh.keepAliveCounter++
 
@@ -117,14 +118,17 @@ func (wsh *WebSocketHandler) pingPongRoutine() {
 
 //StartWebSokcetClient -
 func (wsh *WebSocketHandler) StartWebSokcetClient() {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("RECOVER StartWebSokcetClient. error: %v", err)
+		}
+	}()
 
 	log.Printf("connecting to %s", wsh.u.String())
 	wsh.reconnectToWebSocket()
 
-	//defer conn.Close()
-
 	go func() {
-		log.Fatal(wsh.sendReportRoutine())
+		log.Print(wsh.sendReportRoutine())
 	}()
 
 	go func() {
@@ -137,4 +141,30 @@ func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
 	data := DataSocket{message: string(jsonData), RType: MESSAGE}
 
 	wh.WebSocketHandle.data <- data
+}
+
+// ListnerAndSender listen for changes in cluster and send reports to websocket
+func (wh *WatchHandler) ListnerAndSender() {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("RECOVER ListnerAndSender. error: %v", err)
+		}
+	}()
+	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
+	log.Printf("wait 40 seconds for aggragate the first data from the cluster\n")
+	time.Sleep(40 * time.Second)
+	wh.SetFirstReportFlag(true)
+	for {
+		jsonData := PrepareDataToSend(wh)
+		if jsonData != nil {
+			fmt.Printf("%s\n", string(jsonData))
+			wh.SendMessageToWebSocket(jsonData)
+		}
+		if wh.GetFirstReportFlag() {
+			wh.SetFirstReportFlag(false)
+		}
+		if WaitTillNewDataArrived(wh) {
+			continue
+		}
+	}
 }
