@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
 )
@@ -26,23 +25,26 @@ func main() {
 
 	go func() {
 		wh.ListenerAndSender()
+		signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGABRT)
 	}()
 
 	go func() {
 		wh.PodWatch()
+		signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGABRT)
 	}()
 
 	go func() {
 		wh.NodeWatch()
+		signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGABRT)
 	}()
 
 	go func() {
 		wh.ServiceWatch("")
+		signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGABRT)
 	}()
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-	<-signalChan
+	signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGINT, syscall.SIGTERM)
+	<-wh.WebSocketHandle.SignalChan
 
 }
 

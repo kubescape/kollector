@@ -2,11 +2,15 @@ package watch
 
 import (
 	"fmt"
-	"log"
 	"net/url"
+	"os"
+	"os/signal"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/gorilla/websocket"
 )
 
@@ -29,13 +33,15 @@ type WebSocketHandler struct {
 	data             chan DataSocket
 	conn             *websocket.Conn
 	u                url.URL
+	mutex            *sync.Mutex
+	SignalChan       chan os.Signal
 	keepAliveCounter int
 }
 
 func createWebSocketHandler(urlWS, path, clusterName, customerGuid string) *WebSocketHandler {
 	scheme := strings.Split(urlWS, "://")[0]
 	host := strings.Split(urlWS, "://")[1]
-	wsh := WebSocketHandler{data: make(chan DataSocket), keepAliveCounter: 0, u: url.URL{Scheme: scheme, Host: host, Path: path, ForceQuery: true}}
+	wsh := WebSocketHandler{data: make(chan DataSocket), keepAliveCounter: 0, u: url.URL{Scheme: scheme, Host: host, Path: path, ForceQuery: true}, mutex: &sync.Mutex{}, SignalChan: make(chan os.Signal)}
 	q := wsh.u.Query()
 	q.Add("customerGUID", customerGuid)
 	q.Add("clusterName", clusterName)
@@ -45,45 +51,32 @@ func createWebSocketHandler(urlWS, path, clusterName, customerGuid string) *WebS
 
 func (wsh *WebSocketHandler) reconnectToWebSocket() error {
 
+	wsh.mutex.Lock()
+	defer wsh.mutex.Unlock()
+
 	reconnectionCounter := 0
 	var err error
 
 	for reconnectionCounter < 5 {
-		log.Printf("connect try: %d", reconnectionCounter+1)
+		glog.Infof("connect try: %d", reconnectionCounter+1)
 		if wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
 			break
 		}
-		log.Printf("dial: %v", err)
+		glog.Error(err)
 		reconnectionCounter++
-		log.Printf("wait 5 seconds before reconnecting")
+		glog.Infof("wait 5 seconds before reconnecting")
 		time.Sleep(time.Second * 5)
 	}
 	if reconnectionCounter == 5 {
 		return fmt.Errorf("ERROR: reconnectToWebSocket, cant connect to wbsocket")
 	}
-
-	wsh.conn.SetPongHandler(func(string) error {
-		// log.Printf("pong recieved")
-		wsh.keepAliveCounter = 0
-		return nil
-	})
-
-	//this go function must created in order to get the pong
-	go func() {
-		for {
-			if _, _, err := wsh.conn.ReadMessage(); err != nil {
-				log.Print(err.Error())
-			}
-		}
-	}()
 	return nil
 }
 
 func (wsh *WebSocketHandler) sendReportRoutine() error {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("RECOVER sendReportRoutine. error: %v", err)
-			wsh.conn.Close()
+			glog.Errorf("RECOVER sendReportRoutine. %v", err)
 		}
 	}()
 
@@ -91,24 +84,26 @@ func (wsh *WebSocketHandler) sendReportRoutine() error {
 		data := <-wsh.data
 		switch data.RType {
 		case MESSAGE:
-			log.Println("Sending: message.")
+			glog.Infof("sending message")
 			err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
-				log.Println("ERROR in sendReportRoutine, WriteMessage to websocket:", err)
+				glog.Errorf("sendReportRoutine, WriteMessage to websocket: %v", err)
 				if err := wsh.reconnectToWebSocket(); err != nil {
-					log.Printf(err.Error())
+					glog.Errorf("sendReportRoutine. %s", err.Error())
 					continue
 				}
+				glog.Infof("resending message")
 				err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 				if err != nil {
-					log.Printf("WriteMessage to websocket: %v", err)
+					glog.Errorf("WriteMessage to websocket: %v", err)
 					continue
 				}
-				log.Println("resending: message.")
 			}
+			glog.Infof("message sent")
+
 		case EXIT:
 			wsh.conn.Close()
-			log.Printf("web socket client got exit with message: %s", data.message)
+			glog.Warningf("web socket client got exit with message: %s", data.message)
 			return nil
 		}
 	}
@@ -117,21 +112,29 @@ func (wsh *WebSocketHandler) sendReportRoutine() error {
 func (wsh *WebSocketHandler) pingPongRoutine() error {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("RECOVER pingPongRoutine. error: %v", err)
-			wsh.conn.Close()
+			glog.Errorf("RECOVER pingPongRoutine. %v", err)
 		}
 	}()
 	for {
 		time.Sleep(40 * time.Second)
-		err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second))
-		if err != nil {
-			log.Println("Write Error: ", err)
+
+		if err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second)); err != nil {
+			glog.Errorf("PING. %v", err)
 		}
+		messageType, _, err := wsh.conn.ReadMessage()
+		if err != nil {
+			glog.Errorf("PONG. %v", err)
+		} else if messageType != websocket.PongMessage {
+			glog.Error("PONG. expecting messageType 10 (pong type), received: %d", messageType)
+		} else {
+			continue
+		}
+
 		wsh.keepAliveCounter++
 
 		if wsh.keepAliveCounter == MAXPINGMESSAGE {
 			wsh.keepAliveCounter = 0
-			log.Printf("sent %d pings without receiving any pongs. restaring connection", MAXPINGMESSAGE)
+			glog.Warningf("sent %d pings without receiving any pongs. restaring connection", MAXPINGMESSAGE)
 			wsh.conn.Close()
 			if err := wsh.reconnectToWebSocket(); err != nil {
 				return err
@@ -144,21 +147,23 @@ func (wsh *WebSocketHandler) pingPongRoutine() error {
 func (wsh *WebSocketHandler) StartWebSokcetClient() error {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("RECOVER StartWebSokcetClient. error: %v", err)
+			glog.Errorf("RECOVER StartWebSokcetClient. %v", err)
 			wsh.conn.Close()
 		}
 	}()
-	log.Printf("connecting to %s", wsh.u.String())
+	glog.Infof("connecting to %s", wsh.u.String())
 	if err := wsh.reconnectToWebSocket(); err != nil {
 		return err
 	}
 
 	go func() {
-		log.Print(wsh.sendReportRoutine())
+		glog.Error(wsh.sendReportRoutine())
+		signal.Notify(wsh.SignalChan, syscall.SIGABRT)
 	}()
 
 	go func() {
-		log.Print(wsh.pingPongRoutine())
+		glog.Error(wsh.pingPongRoutine())
+		signal.Notify(wsh.SignalChan, syscall.SIGABRT)
 	}()
 	return nil
 }
@@ -174,18 +179,18 @@ func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
 func (wh *WatchHandler) ListenerAndSender() {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("RECOVER ListnerAndSender. error: %v", err)
+			glog.Errorf("RECOVER ListnerAndSender. %v", err)
 		}
 	}()
 
 	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
-	log.Printf("wait 40 seconds for aggragate the first data from the cluster\n")
+	glog.Infof("wait 40 seconds for aggragate the first data from the cluster\n")
 	time.Sleep(40 * time.Second)
 	wh.SetFirstReportFlag(true)
 	for {
 		jsonData := PrepareDataToSend(wh)
 		if jsonData != nil {
-			log.Printf("%s\n", string(jsonData))
+			glog.Infof("%s\n", string(jsonData))
 			wh.SendMessageToWebSocket(jsonData)
 		}
 		if wh.GetFirstReportFlag() {
