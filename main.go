@@ -25,22 +25,18 @@ func main() {
 
 	go func() {
 		wh.ListenerAndSender()
-		signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGABRT)
 	}()
 
 	go func() {
 		wh.PodWatch()
-		signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGABRT)
 	}()
 
 	go func() {
 		wh.NodeWatch()
-		signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGABRT)
 	}()
 
 	go func() {
 		wh.ServiceWatch("")
-		signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGABRT)
 	}()
 
 	signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGINT, syscall.SIGTERM)
@@ -49,7 +45,7 @@ func main() {
 }
 
 func displayBuildTag() {
-	imageVersion := "UNKNOWN"
+	imageVersion := "local build. date: 12-02-2020"
 	dat, err := ioutil.ReadFile("./build_number.txt")
 	if err == nil {
 		imageVersion = string(dat)

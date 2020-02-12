@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/golang/glog"
@@ -51,16 +49,14 @@ func createWebSocketHandler(urlWS, path, clusterName, customerGuid string) *WebS
 
 func (wsh *WebSocketHandler) reconnectToWebSocket() error {
 
-	wsh.mutex.Lock()
-	defer wsh.mutex.Unlock()
-
 	reconnectionCounter := 0
 	var err error
 
 	for reconnectionCounter < 5 {
 		glog.Infof("connect try: %d", reconnectionCounter+1)
 		if wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
-			break
+			glog.Infof("connected successfully")
+			return nil
 		}
 		glog.Error(err)
 		reconnectionCounter++
@@ -68,7 +64,9 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() error {
 		time.Sleep(time.Second * 5)
 	}
 	if reconnectionCounter == 5 {
-		return fmt.Errorf("ERROR: reconnectToWebSocket, cant connect to wbsocket")
+		wsh.conn.Close()
+		glog.Errorf("reconnectToWebSocket, cant connect to wbsocket")
+		return fmt.Errorf("cant connect to wbsocket after %d tries", 5)
 	}
 	return nil
 }
@@ -79,8 +77,8 @@ func (wsh *WebSocketHandler) sendReportRoutine() error {
 			glog.Errorf("RECOVER sendReportRoutine. %v", err)
 		}
 	}()
-
 	for {
+
 		data := <-wsh.data
 		switch data.RType {
 		case MESSAGE:
@@ -124,6 +122,9 @@ func (wsh *WebSocketHandler) pingPongRoutine() error {
 		messageType, _, err := wsh.conn.ReadMessage()
 		if err != nil {
 			glog.Errorf("PONG. %v", err)
+			if err := wsh.reconnectToWebSocket(); err != nil {
+				glog.Error(err)
+			}
 		} else if messageType != websocket.PongMessage {
 			glog.Error("PONG. expecting messageType 10 (pong type), received: %d", messageType)
 		} else {
@@ -135,7 +136,7 @@ func (wsh *WebSocketHandler) pingPongRoutine() error {
 		if wsh.keepAliveCounter == MAXPINGMESSAGE {
 			wsh.keepAliveCounter = 0
 			glog.Warningf("sent %d pings without receiving any pongs. restaring connection", MAXPINGMESSAGE)
-			wsh.conn.Close()
+
 			if err := wsh.reconnectToWebSocket(); err != nil {
 				return err
 			}
@@ -148,7 +149,6 @@ func (wsh *WebSocketHandler) StartWebSokcetClient() error {
 	defer func() {
 		if err := recover(); err != nil {
 			glog.Errorf("RECOVER StartWebSokcetClient. %v", err)
-			wsh.conn.Close()
 		}
 	}()
 	glog.Infof("connecting to %s", wsh.u.String())
@@ -157,13 +157,15 @@ func (wsh *WebSocketHandler) StartWebSokcetClient() error {
 	}
 
 	go func() {
-		glog.Error(wsh.sendReportRoutine())
-		signal.Notify(wsh.SignalChan, syscall.SIGABRT)
+		for {
+			glog.Error(wsh.sendReportRoutine())
+		}
 	}()
 
 	go func() {
-		glog.Error(wsh.pingPongRoutine())
-		signal.Notify(wsh.SignalChan, syscall.SIGABRT)
+		for {
+			glog.Error(wsh.pingPongRoutine())
+		}
 	}()
 	return nil
 }
