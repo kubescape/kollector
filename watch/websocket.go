@@ -71,14 +71,17 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() error {
 	return nil
 }
 
-func (wsh *WebSocketHandler) sendReportRoutine() error {
+func (wsh *WebSocketHandler) SendReportRoutine() error {
 	defer func() {
 		if err := recover(); err != nil {
 			glog.Errorf("RECOVER sendReportRoutine. %v", err)
 		}
 	}()
-	for {
+	go func() {
+		glog.Error(wsh.pingPongRoutine())
+	}()
 
+	for {
 		data := <-wsh.data
 		switch data.RType {
 		case MESSAGE:
@@ -101,41 +104,29 @@ func (wsh *WebSocketHandler) sendReportRoutine() error {
 
 		case EXIT:
 			wsh.conn.Close()
-			glog.Warningf("web socket client got exit with message: %s", data.message)
+			glog.Warningf("websocket received exit code exit. message: %s", data.message)
 			return nil
 		}
 	}
 }
 
 func (wsh *WebSocketHandler) pingPongRoutine() error {
-	defer func() {
-		if err := recover(); err != nil {
-			glog.Errorf("RECOVER pingPongRoutine. %v", err)
-		}
-	}()
 	for {
 		time.Sleep(40 * time.Second)
 
-		if err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second)); err != nil {
+		if err := wsh.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 			glog.Errorf("PING. %v", err)
-		}
-		messageType, _, _ := wsh.conn.ReadMessage()
-		if messageType != websocket.PongMessage {
-			glog.Error("PONG. expecting messageType 10 (pong type), received: %d", messageType)
-		} else {
-			continue
-		}
-
-		wsh.keepAliveCounter++
-
-		if wsh.keepAliveCounter == MAXPINGMESSAGE {
-			wsh.keepAliveCounter = 0
-			glog.Warningf("sent %d pings without receiving any pongs. restaring connection", MAXPINGMESSAGE)
-
 			if err := wsh.reconnectToWebSocket(); err != nil {
-				return err
+				panic(err)
 			}
 		}
+		// messageType, _, _ := wsh.conn.ReadMessage()
+		// if messageType != websocket.PongMessage {
+		// 	glog.Error("PONG. expecting messageType 10 (pong type), received: %d", messageType)
+		// } else {
+		// 	continue
+		// }
+
 	}
 }
 
@@ -150,18 +141,6 @@ func (wsh *WebSocketHandler) StartWebSokcetClient() error {
 	if err := wsh.reconnectToWebSocket(); err != nil {
 		return err
 	}
-
-	go func() {
-		for {
-			glog.Error(wsh.sendReportRoutine())
-		}
-	}()
-
-	go func() {
-		for {
-			glog.Error(wsh.pingPongRoutine())
-		}
-	}()
 	return nil
 }
 

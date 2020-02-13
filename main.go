@@ -4,9 +4,9 @@ import (
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
 	"log"
-	"os/signal"
-	"syscall"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 func main() {
@@ -40,8 +40,7 @@ func main() {
 		wh.ServiceWatch("")
 	}()
 
-	signal.Notify(wh.WebSocketHandle.SignalChan, syscall.SIGINT, syscall.SIGTERM)
-	<-wh.WebSocketHandle.SignalChan
+	glog.Error(wh.WebSocketHandle.SendReportRoutine())
 
 }
 
@@ -51,5 +50,5 @@ func displayBuildTag() {
 	if err == nil {
 		imageVersion = string(dat)
 	}
-	log.Printf("Image version: %s. date: %s (UTC)", imageVersion, time.Now().UTC().String())
+	log.Printf("Image version: %s. date: %s", imageVersion, time.Now().UTC().String())
 }
