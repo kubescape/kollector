@@ -19,10 +19,10 @@ func main() {
 		return
 	}
 	//start websocket
-	if err := wh.WebSocketHandle.StartWebSokcetClient(); err != nil {
-		log.Print(err)
-		return
-	}
+	// if err := wh.WebSocketHandle.StartWebSokcetClient(); err != nil {
+	// 	log.Print(err)
+	// 	return
+	// }
 
 	go func() {
 		wh.ListenerAndSender()

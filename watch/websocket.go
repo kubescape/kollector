@@ -28,8 +28,8 @@ type DataSocket struct {
 }
 
 type WebSocketHandler struct {
-	data             chan DataSocket
-	conn             *websocket.Conn
+	data chan DataSocket
+	// conn             *websocket.Conn
 	u                url.URL
 	mutex            *sync.Mutex
 	SignalChan       chan os.Signal
@@ -47,16 +47,17 @@ func createWebSocketHandler(urlWS, path, clusterName, customerGuid string) *WebS
 	return &wsh
 }
 
-func (wsh *WebSocketHandler) reconnectToWebSocket() error {
+func (wsh *WebSocketHandler) connectToWebSocket() (*websocket.Conn, error) {
 
 	reconnectionCounter := 0
 	var err error
+	var conn *websocket.Conn
 
 	for reconnectionCounter < 5 {
 		glog.Infof("connect try: %d", reconnectionCounter+1)
-		if wsh.conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
+		if conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
 			glog.Infof("connected successfully")
-			return nil
+			return conn, nil
 		}
 		glog.Error(err)
 		reconnectionCounter++
@@ -64,11 +65,10 @@ func (wsh *WebSocketHandler) reconnectToWebSocket() error {
 		time.Sleep(time.Second * 5)
 	}
 	if reconnectionCounter == 5 {
-		wsh.conn.Close()
-		glog.Errorf("reconnectToWebSocket, cant connect to wbsocket")
-		return fmt.Errorf("cant connect to wbsocket after %d tries", 5)
+		glog.Errorf("connectToWebSocket, cant connect to wbsocket")
+		return conn, fmt.Errorf("cant connect to wbsocket after %d tries", 5)
 	}
-	return nil
+	return conn, nil
 }
 
 func (wsh *WebSocketHandler) SendReportRoutine() error {
@@ -77,8 +77,24 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 			glog.Errorf("RECOVER sendReportRoutine. %v", err)
 		}
 	}()
+	conn, err := wsh.connectToWebSocket()
+	defer conn.Close()
+	if err != nil {
+		glog.Error(err)
+		return err
+	}
+
 	go func() {
-		glog.Error(wsh.pingPongRoutine())
+		for {
+			time.Sleep(40 * time.Second)
+
+			if e := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second)); e != nil {
+				glog.Errorf("PING. %v", e)
+				if conn, e = wsh.connectToWebSocket(); e != nil {
+					panic(e)
+				}
+			}
+		}
 	}()
 
 	for {
@@ -86,15 +102,15 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 		switch data.RType {
 		case MESSAGE:
 			glog.Infof("sending message")
-			err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
+			err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
 				glog.Errorf("sendReportRoutine, WriteMessage to websocket: %v", err)
-				if err := wsh.reconnectToWebSocket(); err != nil {
+				if conn, err = wsh.connectToWebSocket(); err != nil {
 					glog.Errorf("sendReportRoutine. %s", err.Error())
 					continue
 				}
 				glog.Infof("resending message")
-				err := wsh.conn.WriteMessage(websocket.TextMessage, []byte(data.message))
+				err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 				if err != nil {
 					glog.Errorf("WriteMessage to websocket: %v", err)
 					continue
@@ -103,46 +119,45 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 			glog.Infof("message sent")
 
 		case EXIT:
-			wsh.conn.Close()
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
 			return nil
 		}
 	}
 }
 
-func (wsh *WebSocketHandler) pingPongRoutine() error {
-	for {
-		time.Sleep(40 * time.Second)
+// func (wsh *WebSocketHandler) pingPongRoutine() error {
+// 	for {
+// 		time.Sleep(40 * time.Second)
 
-		if err := wsh.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
-			glog.Errorf("PING. %v", err)
-			if err := wsh.reconnectToWebSocket(); err != nil {
-				panic(err)
-			}
-		}
-		// messageType, _, _ := wsh.conn.ReadMessage()
-		// if messageType != websocket.PongMessage {
-		// 	glog.Error("PONG. expecting messageType 10 (pong type), received: %d", messageType)
-		// } else {
-		// 	continue
-		// }
+// 		if err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second)); err != nil {
+// 			glog.Errorf("PING. %v", err)
+// 			if err := wsh.connectToWebSocket(); err != nil {
+// 				panic(err)
+// 			}
+// 		}
+// 		// messageType, _, _ := wsh.conn.ReadMessage()
+// 		// if messageType != websocket.PongMessage {
+// 		// 	glog.Error("PONG. expecting messageType 10 (pong type), received: %d", messageType)
+// 		// } else {
+// 		// 	continue
+// 		// }
 
-	}
-}
+// 	}
+// }
 
 //StartWebSokcetClient -
-func (wsh *WebSocketHandler) StartWebSokcetClient() error {
-	defer func() {
-		if err := recover(); err != nil {
-			glog.Errorf("RECOVER StartWebSokcetClient. %v", err)
-		}
-	}()
-	glog.Infof("connecting to %s", wsh.u.String())
-	if err := wsh.reconnectToWebSocket(); err != nil {
-		return err
-	}
-	return nil
-}
+// func (wsh *WebSocketHandler) StartWebSokcetClient() error {
+// 	defer func() {
+// 		if err := recover(); err != nil {
+// 			glog.Errorf("RECOVER StartWebSokcetClient. %v", err)
+// 		}
+// 	}()
+// 	glog.Infof("connecting to %s", wsh.u.String())
+// 	if err := wsh.reconnectToWebSocket(); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 //SendMessageToWebSocket -
 func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
