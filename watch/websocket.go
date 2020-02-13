@@ -119,13 +119,8 @@ func (wsh *WebSocketHandler) pingPongRoutine() error {
 		if err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second)); err != nil {
 			glog.Errorf("PING. %v", err)
 		}
-		messageType, _, err := wsh.conn.ReadMessage()
-		if err != nil {
-			glog.Errorf("PONG. %v", err)
-			if err := wsh.reconnectToWebSocket(); err != nil {
-				glog.Error(err)
-			}
-		} else if messageType != websocket.PongMessage {
+		messageType, _, _ := wsh.conn.ReadMessage()
+		if messageType != websocket.PongMessage {
 			glog.Error("PONG. expecting messageType 10 (pong type), received: %d", messageType)
 		} else {
 			continue

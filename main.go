@@ -6,6 +6,7 @@ import (
 	"log"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -50,5 +51,5 @@ func displayBuildTag() {
 	if err == nil {
 		imageVersion = string(dat)
 	}
-	log.Printf("Image version: %s", imageVersion)
+	log.Printf("Image version: %s. date: %s (UTC)", imageVersion, time.Now().UTC().String())
 }
