@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
 	"log"
-	"time"
 
 	"github.com/golang/glog"
 )
@@ -45,10 +45,15 @@ func main() {
 }
 
 func displayBuildTag() {
-	imageVersion := "local build. date: 12-02-2020"
+	imageVersion := "local build"
 	dat, err := ioutil.ReadFile("./build_number.txt")
 	if err == nil {
 		imageVersion = string(dat)
+	} else {
+		dat, err = ioutil.ReadFile("./build_date.txt")
+		if err == nil {
+			imageVersion = fmt.Sprintf("%s, date: %s", imageVersion, string(dat))
+		}
 	}
-	log.Printf("Image version: %s. date: %s", imageVersion, time.Now().UTC().String())
+	log.Printf("Image version: %s", imageVersion)
 }

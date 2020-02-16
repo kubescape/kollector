@@ -84,16 +84,21 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 		return err
 	}
 
+	// use mutex for writing message that way if write failed only the failed writing will reconnect
+	var mutex = &sync.Mutex{}
+
 	go func() {
 		for {
 			time.Sleep(40 * time.Second)
-
+			// test ping works
+			mutex.Lock()
 			if e := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second)); e != nil {
 				glog.Errorf("PING. %v", e)
 				if conn, e = wsh.connectToWebSocket(); e != nil {
 					panic(e)
 				}
 			}
+			mutex.Unlock()
 		}
 	}()
 
@@ -101,22 +106,27 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 		data := <-wsh.data
 		switch data.RType {
 		case MESSAGE:
-			glog.Infof("sending message")
+			timeID := time.Now().UnixNano()
+			glog.Infof("sending message, %d", timeID)
+			mutex.Lock()
 			err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
-				glog.Errorf("sendReportRoutine, WriteMessage to websocket: %v", err)
+				glog.Errorf("sendReportRoutine, %d, WriteMessage to websocket: %v", err)
 				if conn, err = wsh.connectToWebSocket(); err != nil {
 					glog.Errorf("sendReportRoutine. %s", err.Error())
+					mutex.Unlock()
 					continue
 				}
-				glog.Infof("resending message")
+				glog.Infof("resending message. %d", timeID)
 				err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 				if err != nil {
-					glog.Errorf("WriteMessage to websocket: %v", err)
+					glog.Errorf("WriteMessage, %d, %v", timeID, err)
+					mutex.Unlock()
 					continue
 				}
 			}
-			glog.Infof("message sent")
+			mutex.Unlock()
+			glog.Infof("message sent, %d", timeID)
 
 		case EXIT:
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
