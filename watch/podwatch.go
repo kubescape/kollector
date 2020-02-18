@@ -92,7 +92,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		depDet.TypeMeta.Kind = kind
 		depDet.TypeMeta.APIVersion = apiVersion
 		return depDet
-	case "DeamonSet":
+	case "DeamonSet", "DaemonSet":
 		options := v1.GetOptions{}
 		daemSetDet, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(name, options)
 		if err != nil {
@@ -229,7 +229,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		v, _ := json.Marshal(mic)
 		log.Printf("Removing pod but not microservice, microservice found:\n%s", string(v))
 
-	case "DeamonSet":
+	case "DeamonSet", "DaemonSet":
 		options := v1.GetOptions{}
 		name := ownerData.(*v1beta2.DaemonSet).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.AppsV1beta2().DaemonSets(namespace).Get(name, options)
