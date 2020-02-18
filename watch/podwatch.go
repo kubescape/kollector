@@ -9,7 +9,6 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/apps/v1beta2"
 	batchv1 "k8s.io/api/batch/v1"
 	v2alpha1 "k8s.io/api/batch/v2alpha1"
 	core "k8s.io/api/core/v1"
@@ -231,8 +230,8 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 
 	case "DeamonSet", "DaemonSet":
 		options := v1.GetOptions{}
-		name := ownerData.(*v1beta2.DaemonSet).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.AppsV1beta2().DaemonSets(namespace).Get(name, options)
+		name := ownerData.(*appsv1.DaemonSet).ObjectMeta.Name
+		mic, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}

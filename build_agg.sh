@@ -5,7 +5,7 @@ CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o k8s-ca-dashboard-aggr
 chmod +x k8s-ca-dashboard-aggregator
 
 # docker build --no-cache -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator-t:5 .
-docker build --no-cache -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v1 -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:latest .
+docker build --no-cache -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:v2 -t dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:latest .
 
 rm -rf k8s-ca-dashboard-aggregator
 
