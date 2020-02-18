@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
-	"log"
 
 	"github.com/golang/glog"
 )
@@ -55,5 +54,5 @@ func displayBuildTag() {
 			imageVersion = fmt.Sprintf("%s, date: %s", imageVersion, string(dat))
 		}
 	}
-	log.Printf("Image version: %s", imageVersion)
+	glog.Infof("Image version: %s", imageVersion)
 }

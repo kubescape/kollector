@@ -71,6 +71,7 @@ func (wsh *WebSocketHandler) connectToWebSocket() (*websocket.Conn, error) {
 	return conn, nil
 }
 
+// SendReportRoutine function sending updates
 func (wsh *WebSocketHandler) SendReportRoutine() error {
 	defer func() {
 		if err := recover(); err != nil {
@@ -87,20 +88,7 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 	// use mutex for writing message that way if write failed only the failed writing will reconnect
 	var mutex = &sync.Mutex{}
 
-	go func() {
-		for {
-			time.Sleep(40 * time.Second)
-			// test ping works
-			mutex.Lock()
-			if e := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second)); e != nil {
-				glog.Errorf("PING. %v", e)
-				if conn, e = wsh.connectToWebSocket(); e != nil {
-					panic(e)
-				}
-			}
-			mutex.Unlock()
-		}
-	}()
+	wsh.setPingPongHandler(conn, mutex)
 
 	for {
 		data := <-wsh.data
@@ -135,40 +123,6 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 	}
 }
 
-// func (wsh *WebSocketHandler) pingPongRoutine() error {
-// 	for {
-// 		time.Sleep(40 * time.Second)
-
-// 		if err := wsh.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second)); err != nil {
-// 			glog.Errorf("PING. %v", err)
-// 			if err := wsh.connectToWebSocket(); err != nil {
-// 				panic(err)
-// 			}
-// 		}
-// 		// messageType, _, _ := wsh.conn.ReadMessage()
-// 		// if messageType != websocket.PongMessage {
-// 		// 	glog.Error("PONG. expecting messageType 10 (pong type), received: %d", messageType)
-// 		// } else {
-// 		// 	continue
-// 		// }
-
-// 	}
-// }
-
-//StartWebSokcetClient -
-// func (wsh *WebSocketHandler) StartWebSokcetClient() error {
-// 	defer func() {
-// 		if err := recover(); err != nil {
-// 			glog.Errorf("RECOVER StartWebSokcetClient. %v", err)
-// 		}
-// 	}()
-// 	glog.Infof("connecting to %s", wsh.u.String())
-// 	if err := wsh.reconnectToWebSocket(); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
 //SendMessageToWebSocket -
 func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
 	data := DataSocket{message: string(jsonData), RType: MESSAGE}
@@ -201,4 +155,41 @@ func (wh *WatchHandler) ListenerAndSender() {
 			continue
 		}
 	}
+}
+
+func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn, mutex *sync.Mutex) {
+	var err error
+	go func() {
+		counter := 0
+		defaultPING := conn.PingHandler()
+		conn.SetPingHandler(func(message string) error {
+			counter = 0
+			return defaultPING(message)
+		})
+
+		defaultPONG := conn.PongHandler()
+		conn.SetPongHandler(func(message string) error {
+			counter = 0
+			return defaultPONG(message)
+		})
+
+		// test ping-pong
+		for {
+			time.Sleep(10 * time.Second)
+			if counter > 3 {
+				mutex.Lock()
+				glog.Warningf("ping pong not reacting. reconecting")
+				if conn, err = wsh.connectToWebSocket(); err != nil {
+					panic(err)
+				}
+				mutex.Unlock()
+			}
+			counter++
+		}
+	}()
+	go func() {
+		for {
+			conn.ReadMessage()
+		}
+	}()
 }
