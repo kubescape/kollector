@@ -104,7 +104,7 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 			mutex.Lock()
 			err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
-				glog.Errorf("sendReportRoutine, %d, WriteMessage to websocket: %v", err)
+				glog.Errorf("In sendReportRoutine, %d, WriteMessage to websocket: %v", data.RType, err)
 				if conn, err = wsh.connectToWebSocket(); err != nil {
 					glog.Errorf("sendReportRoutine. %s", err.Error())
 					mutex.Unlock()
