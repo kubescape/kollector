@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/url"
 	"os"
@@ -52,6 +53,10 @@ func (wsh *WebSocketHandler) connectToWebSocket() (*websocket.Conn, error) {
 	reconnectionCounter := 0
 	var err error
 	var conn *websocket.Conn
+
+	if v, ok := os.LookupEnv("CA_IGNORE_VERIFY_CACLI"); ok && v != "" {
+		websocket.DefaultDialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
 
 	for reconnectionCounter < 5 {
 		glog.Infof("connect try: %d", reconnectionCounter+1)
