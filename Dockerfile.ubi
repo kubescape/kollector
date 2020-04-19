@@ -1,0 +1,10 @@
+# FROM alpine:3.5
+# RUN apk update && apk add ca-certificates
+FROM registry.access.redhat.com/ubi8/ubi-minimal
+COPY ./dist /.
+COPY ./build_number.txt /
+RUN echo $(date -u) > /tmp/build_date.txt
+
+# COPY ./k8s-ca-dashboard-aggregator /
+CMD /k8s-ca-dashboard-aggregator
+ENTRYPOINT ["/k8s-ca-dashboard-aggregator"]
