@@ -275,6 +275,15 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		}
 		v, _ := json.Marshal(mic)
 		log.Printf("Removing pod but not microservice, microservice found:\n%s", string(v))
+	case "Pod":
+		options := v1.GetOptions{}
+		name := ownerData.(*core.Pod).ObjectMeta.Name
+		mic, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(name, options)
+		if errors.IsNotFound(err) {
+			return true
+		}
+		v, _ := json.Marshal(mic)
+		log.Printf("Removing pod but not microservice, microservice found:\n%s", string(v))
 	}
 
 	return false
