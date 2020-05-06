@@ -131,6 +131,16 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		cronJobDet.TypeMeta.Kind = kind
 		cronJobDet.TypeMeta.APIVersion = apiVersion
 		return cronJobDet
+	case "Pod":
+		options := v1.GetOptions{}
+		podDet, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(name, options)
+		if err != nil {
+			log.Printf("GetOwnerData err %v\n", err)
+			return nil
+		}
+		podDet.TypeMeta.Kind = kind
+		podDet.TypeMeta.APIVersion = apiVersion
+		return podDet
 	}
 
 	return nil
@@ -139,7 +149,6 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 // GetAncestorOfPod -
 func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 	od := OwnerDet{}
-
 	if pod.OwnerReferences != nil {
 		switch pod.OwnerReferences[0].Kind {
 		case "ReplicaSet":
@@ -180,6 +189,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 	}
 	od.Name = pod.ObjectMeta.Name
 	od.Kind = "Pod"
+	od.OwnerData = GetOwnerData(pod.ObjectMeta.Name, od.Kind, pod.APIVersion, pod.ObjectMeta.Namespace, wh)
 	return od
 }
 
@@ -370,8 +380,8 @@ func (wh *WatchHandler) PodWatch() {
 					if podName == "" {
 						podName = pod.ObjectMeta.GenerateName
 					}
-
 					od := GetAncestorOfPod(pod, wh)
+
 					var id int
 					var runnigPodNum int
 					first := true
