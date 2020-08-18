@@ -2,6 +2,7 @@ package watch
 
 import (
 	"container/list"
+	"context"
 	"encoding/json"
 	"log"
 	"reflect"
@@ -23,7 +24,9 @@ type OwnerDet struct {
 	Kind      string      `json:"kind"`
 	OwnerData interface{} `json:"ownerData, omitempty"`
 }
-
+type CRDOwnerData struct {
+	v1.TypeMeta
+}
 type OwnerDetNameAndKindOnly struct {
 	Name string `json:"name"`
 	Kind string `json:"kind"`
@@ -141,6 +144,25 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		podDet.TypeMeta.Kind = kind
 		podDet.TypeMeta.APIVersion = apiVersion
 		return podDet
+
+	default:
+		if wh.extensionsClient == nil {
+			return nil
+		}
+		options := v1.ListOptions{}
+		crds, err := wh.extensionsClient.CustomResourceDefinitions().List(context.Background(), options)
+		if err != nil {
+			log.Printf("GetOwnerData CustomResourceDefinitions err %v\n", err)
+			return nil
+		}
+		for crdIdx := range crds.Items {
+			if crds.Items[crdIdx].Status.AcceptedNames.Kind == kind {
+				return CRDOwnerData{
+					v1.TypeMeta{Kind: crds.Items[crdIdx].Kind,
+						APIVersion: apiVersion,
+					}}
+			}
+		}
 	}
 
 	return nil

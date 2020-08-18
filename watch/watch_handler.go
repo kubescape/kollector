@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	restclient "k8s.io/client-go/rest"
@@ -14,6 +15,7 @@ import (
 )
 
 type WatchHandler struct {
+	extensionsClient       apixv1beta1client.ApiextensionsV1beta1Interface
 	RestAPIClient          kubernetes.Interface
 	WebSocketHandle        *WebSocketHandler
 	pdm                    map[int]*list.List
@@ -30,6 +32,12 @@ func CreateWatchHandler() *WatchHandler {
 	config := parseArgument()
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
+
+	if err != nil {
+		log.Print(err.Error())
+		return nil
+	}
+	extensionsClientSet, err := apixv1beta1client.NewForConfig(config)
 
 	if err != nil {
 		log.Print(err.Error())
@@ -57,7 +65,12 @@ func CreateWatchHandler() *WatchHandler {
 		return nil
 	}
 
-	result := WatchHandler{RestAPIClient: clientset, WebSocketHandle: createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, cusGUID), pdm: make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List), jsonReport: jsonFormat{Nodes: ObjectData{}, Services: ObjectData{}, MicroServices: ObjectData{}, Pods: ObjectData{}}, informNewDataChannel: make(chan int), aggregateFirstDataFlag: true}
+	result := WatchHandler{RestAPIClient: clientset,
+		WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, cusGUID),
+		extensionsClient: extensionsClientSet,
+		pdm:              make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List),
+		jsonReport: jsonFormat{Nodes: ObjectData{}, Services: ObjectData{}, MicroServices: ObjectData{},
+			Pods: ObjectData{}}, informNewDataChannel: make(chan int), aggregateFirstDataFlag: true}
 
 	return &result
 }
