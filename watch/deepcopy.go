@@ -15,6 +15,7 @@ func Clone(src, dst interface{}) error {
 	return dec.Decode(dst)
 }
 
+// fo
 // DeepCopy uses "encoding/json" package
 func DeepCopy(src, dst interface{}) error {
 	buff, err := json.Marshal(src)
