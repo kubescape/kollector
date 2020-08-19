@@ -87,7 +87,7 @@ func (wh *WatchHandler) NodeWatch() {
 	}()
 	for {
 		log.Printf("Watching over nodes starting")
-		podsWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(metav1.ListOptions{Watch: true})
+		podsWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			log.Printf("Cannot wathch over pods. %v", err)
 			time.Sleep(time.Duration(10) * time.Second)

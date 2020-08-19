@@ -86,7 +86,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 	switch kind {
 	case "Deployment":
 		options := v1.GetOptions{}
-		depDet, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(name, options)
+		depDet, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
@@ -96,7 +96,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		return depDet
 	case "DeamonSet", "DaemonSet":
 		options := v1.GetOptions{}
-		daemSetDet, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(name, options)
+		daemSetDet, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
@@ -106,7 +106,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		return daemSetDet
 	case "StatefulSet":
 		options := v1.GetOptions{}
-		statSetDet, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(name, options)
+		statSetDet, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
@@ -116,7 +116,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		return statSetDet
 	case "Job":
 		options := v1.GetOptions{}
-		jobDet, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(name, options)
+		jobDet, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
@@ -126,7 +126,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		return jobDet
 	case "CronJob":
 		options := v1.GetOptions{}
-		cronJobDet, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(name, options)
+		cronJobDet, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
@@ -136,7 +136,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		return cronJobDet
 	case "Pod":
 		options := v1.GetOptions{}
-		podDet, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(name, options)
+		podDet, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			log.Printf("GetOwnerData err %v\n", err)
 			return nil
@@ -174,7 +174,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 	if pod.OwnerReferences != nil {
 		switch pod.OwnerReferences[0].Kind {
 		case "ReplicaSet":
-			repItem, _ := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace).Get(pod.OwnerReferences[0].Name, metav1.GetOptions{})
+			repItem, _ := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if repItem.OwnerReferences != nil {
 				od.Name = repItem.OwnerReferences[0].Name
 				od.Kind = repItem.OwnerReferences[0].Kind
@@ -189,7 +189,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 				}
 
 				options := metav1.ListOptions{}
-				depList, _ := depInt.List(options)
+				depList, _ := depInt.List(globalHTTPContext, options)
 				for _, item := range depList.Items {
 					if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
 						continue
@@ -256,7 +256,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	case "Deployment":
 		options := v1.GetOptions{}
 		name := ownerData.(*appsv1.Deployment).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
@@ -266,7 +266,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	case "DeamonSet", "DaemonSet":
 		options := v1.GetOptions{}
 		name := ownerData.(*appsv1.DaemonSet).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
@@ -276,7 +276,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	case "StatefulSets":
 		options := v1.GetOptions{}
 		name := ownerData.(*appsv1.StatefulSet).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
@@ -285,7 +285,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	case "Job":
 		options := v1.GetOptions{}
 		name := ownerData.(*batchv1.Job).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
@@ -294,7 +294,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	case "CronJob":
 		options := v1.GetOptions{}
 		name := ownerData.(*v2alpha1.CronJob).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
@@ -303,7 +303,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	case "Pod":
 		options := v1.GetOptions{}
 		name := ownerData.(*core.Pod).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(name, options)
+		mic, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
@@ -367,7 +367,7 @@ func (wh *WatchHandler) podEnterDesiredState(pod *core.Pod) (*core.Pod, bool) {
 	begin := time.Now()
 	log.Printf("waiting for pod %v enter desired state\n", pod.ObjectMeta.Name)
 	for {
-		desiredStatePod, err := wh.RestAPIClient.CoreV1().Pods(pod.ObjectMeta.Namespace).Get(pod.ObjectMeta.Name, metav1.GetOptions{})
+		desiredStatePod, err := wh.RestAPIClient.CoreV1().Pods(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.ObjectMeta.Name, metav1.GetOptions{})
 		if err != nil {
 			log.Printf("podEnterDesiredState fail while we Get the pod %v\n", pod.ObjectMeta.Name)
 			return nil, false
@@ -397,7 +397,7 @@ func (wh *WatchHandler) PodWatch() {
 
 	log.Printf("Watching over pods starting")
 	for {
-		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(metav1.ListOptions{Watch: true})
+		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			log.Printf("Cannot watch over pods. %v", err)
 			time.Sleep(time.Duration(10) * time.Second)
