@@ -14,5 +14,5 @@ rm -rf k8s-ca-dashboard-aggregator
 echo "update dashboard-aggregator"
 
 kubectl set image deployment/ca-dashboard-aggregator -n cyberarmor-system ca-aggregator=dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:$WTAG || true
-kubectl delete pod -n cyberarmor-system $(kubectl get pod -n cyberarmor-system | grep k8s-ca-dashboard-aggregator |  awk '{print $1}')
-kubectl logs -f -n cyberarmor-system $(kubectl get pod -n cyberarmor-system | grep k8s-ca-dashboard-aggregator |  awk '{print $1}')
+kubectl delete pod -n cyberarmor-system $(kubectl get pod -n cyberarmor-system | grep ca-dashboard-aggregator |  awk '{print $1}')
+kubectl logs -f -n cyberarmor-system $(kubectl get pod -n cyberarmor-system | grep ca-dashboard-aggregator |  awk '{print $1}')
