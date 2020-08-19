@@ -166,19 +166,17 @@ func (wh *WatchHandler) ListenerAndSender() {
 func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 	timeout := 10 * time.Second
 	lastResponse := time.Now()
-
 	go func() {
 		for {
 			err := conn.WriteMessage(websocket.PingMessage, []byte("ping"))
 			if err != nil {
+				wsh.closeConnection(conn)
 				return
 			}
 			time.Sleep(timeout / 2)
 			if time.Now().Sub(lastResponse) > timeout {
-				wsh.mutex.Lock()
-				conn.Close()
-				wsh.mutex.Unlock()
-				wsh.data <- DataSocket{RType: EXIT, message: "ping pong not reacting"}
+				wsh.closeConnection(conn)
+				return
 			}
 		}
 	}()
@@ -186,4 +184,12 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 		lastResponse = time.Now()
 		return nil
 	})
+
+}
+
+func (wsh *WebSocketHandler) closeConnection(conn *websocket.Conn) {
+	wsh.mutex.Lock()
+	conn.Close()
+	wsh.mutex.Unlock()
+	wsh.data <- DataSocket{RType: EXIT, message: "ping pong not reacting"}
 }
