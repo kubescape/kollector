@@ -164,32 +164,51 @@ func (wh *WatchHandler) ListenerAndSender() {
 }
 
 func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
+	end := false
 	timeout := 10 * time.Second
-	lastResponse := time.Now()
 	go func() {
+		counter := 0
+		defaultPING := conn.PingHandler()
+		conn.SetPingHandler(func(message string) error {
+			counter = 0
+			return defaultPING(message)
+		})
+
+		defaultPONG := conn.PongHandler()
+		conn.SetPongHandler(func(message string) error {
+			counter = 0
+			return defaultPONG(message)
+		})
+
+		// test ping-pong
 		for {
-			err := conn.WriteMessage(websocket.PingMessage, []byte("ping"))
+			err := conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(timeout))
 			if err != nil {
-				wsh.closeConnection(conn)
+				glog.Errorf("WriteControl error: %s", err.Error())
+			}
+			time.Sleep(timeout)
+			if counter > 3 {
+				glog.Errorf("closeConnection")
+				wsh.closeConnection(conn, "ping pong error")
+				end = true
 				return
 			}
-			time.Sleep(timeout / 2)
-			if time.Now().Sub(lastResponse) > timeout {
-				wsh.closeConnection(conn)
-				return
-			}
+			counter++
 		}
 	}()
-	conn.SetPongHandler(func(msg string) error {
-		lastResponse = time.Now()
-		return nil
-	})
-
+	go func() {
+		for {
+			if end {
+				return
+			}
+			conn.ReadMessage()
+		}
+	}()
 }
 
-func (wsh *WebSocketHandler) closeConnection(conn *websocket.Conn) {
+func (wsh *WebSocketHandler) closeConnection(conn *websocket.Conn, message string) {
 	wsh.mutex.Lock()
 	conn.Close()
 	wsh.mutex.Unlock()
-	wsh.data <- DataSocket{RType: EXIT, message: "ping pong not reacting"}
+	wsh.data <- DataSocket{RType: EXIT, message: message}
 }
