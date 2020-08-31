@@ -48,11 +48,12 @@ func createWebSocketHandler(urlWS, path, clusterName, customerGUID string) *WebS
 	return &wsh
 }
 
-func (wsh *WebSocketHandler) connectToWebSocket() (*websocket.Conn, error) {
+func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Duration) (*websocket.Conn, error) {
 
 	var err error
 	var conn *websocket.Conn
 
+	time.Sleep(sleepBeforeConnection)
 	if v, ok := os.LookupEnv("CA_IGNORE_VERIFY_CACLI"); ok && v != "" {
 		websocket.DefaultDialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
@@ -81,7 +82,7 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 			glog.Errorf("RECOVER sendReportRoutine. %v", err)
 		}
 	}()
-	conn, err := wsh.connectToWebSocket()
+	conn, err := wsh.connectToWebSocket(0)
 	defer conn.Close()
 	if err != nil {
 		glog.Error(err)
@@ -100,7 +101,7 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 			err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
 				glog.Errorf("In sendReportRoutine, %d, WriteMessage to websocket: %v", data.RType, err)
-				if conn, err = wsh.connectToWebSocket(); err != nil {
+				if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
 					glog.Errorf("sendReportRoutine. %s", err.Error())
 					wsh.mutex.Unlock()
 					continue
@@ -119,7 +120,7 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 		case EXIT:
 			wsh.mutex.Lock()
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
-			if conn, err = wsh.connectToWebSocket(); err != nil {
+			if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
 				glog.Errorf("connectToWebSocket. %s", err.Error())
 				wsh.mutex.Unlock()
 				return err
