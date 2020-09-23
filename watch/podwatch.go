@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	v2alpha1 "k8s.io/api/batch/v2alpha1"
@@ -201,8 +202,38 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 					}
 				}
 			}
+		case "Job":
+			jobItem, err := wh.RestAPIClient.BatchV1().Jobs(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
+			if err != nil {
+				glog.Error(err)
+				return od
+			}
+			if jobItem.OwnerReferences != nil {
+				od.Name = jobItem.OwnerReferences[0].Name
+				od.Kind = jobItem.OwnerReferences[0].Kind
+				//meanwhile owner refferance must be in the same namespce, so owner refferance dont have namespace field(may be changed in the future)
+				od.OwnerData = GetOwnerData(jobItem.OwnerReferences[0].Name, jobItem.OwnerReferences[0].Kind, jobItem.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
+				return od
+			}
 
-		default:
+			depList, _ := wh.RestAPIClient.BatchV1beta1().CronJobs(pod.ObjectMeta.Namespace).List(globalHTTPContext, metav1.ListOptions{})
+			selector, err := metav1.LabelSelectorAsSelector(jobItem.Spec.Selector)
+			if err != nil {
+				log.Printf("LabelSelectorAsSelector err %v\n", err)
+			}
+
+			for _, item := range depList.Items {
+				if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
+					continue
+				} else {
+					od.Name = item.ObjectMeta.Name
+					od.Kind = item.Kind
+					od.OwnerData = GetOwnerData(od.Name, od.Kind, item.TypeMeta.APIVersion, pod.ObjectMeta.Namespace, wh)
+					return od
+				}
+			}
+
+		default: // POD
 			od.Name = pod.OwnerReferences[0].Name
 			od.Kind = pod.OwnerReferences[0].Kind
 			od.OwnerData = GetOwnerData(pod.OwnerReferences[0].Name, pod.OwnerReferences[0].Kind, pod.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
