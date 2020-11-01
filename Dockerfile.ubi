@@ -2,15 +2,14 @@
 # RUN apk update && apk add ca-certificates
 FROM registry.access.redhat.com/ubi8/ubi-minimal
 
-LABEL description="CyberArmor dashboard connector image - this image is part of the CyberArmor operator deployment and it is not meant to be used alone"
-LABEL name="CyberArmor dashboard connector"
-LABEL summary="CyberArmor dashboard connector image"
-LABEL vendor="CyberArmor Ltd."
+LABEL description="Armo dashboard connector image - this image is part of the Armo operator deployment and it is not meant to be used alone"
+LABEL name="Armo dashboard connector"
+LABEL summary="Armo dashboard connector image"
+LABEL vendor="Armo Ltd."
 
 COPY ./dist /.
 COPY ./build_number.txt /
 RUN echo $(date -u) > /tmp/build_date.txt
 
-# COPY ./k8s-ca-dashboard-aggregator /
 CMD /k8s-ca-dashboard-aggregator
 ENTRYPOINT ["/k8s-ca-dashboard-aggregator"]

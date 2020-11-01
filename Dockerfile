@@ -5,6 +5,4 @@ COPY ./dist /.
 COPY ./build_number.txt /
 RUN echo $(date -u) > /build_date.txt
 
-# COPY ./k8s-ca-dashboard-aggregator /
-CMD /k8s-ca-dashboard-aggregator
 ENTRYPOINT ["/k8s-ca-dashboard-aggregator"]
