@@ -1,7 +1,6 @@
-FROM dreg.eust0.cyberarmorsoft.com:443/k8s-base-image:latest
+FROM quay.io/armosec/k8s-ca-dashboard-aggregator-ubi
 RUN echo $(date -u) > /build_date.txt
 
 COPY ./k8s-ca-dashboard-aggregator . 
 
-CMD /k8s-ca-dashboard-aggregator
 ENTRYPOINT ["./k8s-ca-dashboard-aggregator"]
