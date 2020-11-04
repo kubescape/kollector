@@ -410,7 +410,7 @@ func (wh *WatchHandler) podEnterDesiredState(pod *core.Pod) (*core.Pod, bool) {
 			log.Printf("pod %v State is %v\n", pod.ObjectMeta.Name, pod.Status.Phase)
 			return desiredStatePod, true
 		} else {
-			if time.Now().Sub(begin) > 5*60*time.Second {
+			if time.Now().Sub(begin) > 5*time.Minute {
 				log.Printf("we wait for 5 nimutes pod %v to change his state to desired state and it's too long\n", pod.ObjectMeta.Name)
 				return nil, false
 			}

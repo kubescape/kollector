@@ -13,6 +13,7 @@ const (
 	SERVICES      JsonType = 2
 	MICROSERVICES JsonType = 3
 	PODS          JsonType = 4
+	SECRETS       JsonType = 5
 )
 
 const (
@@ -33,6 +34,7 @@ type jsonFormat struct {
 	Services      ObjectData `json:"service"`
 	MicroServices ObjectData `json:"microservice"`
 	Pods          ObjectData `json:"pod"`
+	Secret        ObjectData `json:"secret"`
 }
 
 func (obj *ObjectData) AddToJsonFormatByState(NewData interface{}, stype StateType) {
@@ -56,6 +58,8 @@ func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, 
 		jsonReport.MicroServices.AddToJsonFormatByState(data, stype)
 	case PODS:
 		jsonReport.Pods.AddToJsonFormatByState(data, stype)
+	case SECRETS:
+		jsonReport.Secret.AddToJsonFormatByState(data, stype)
 	}
 
 }

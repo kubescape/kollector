@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// WatchHandler -
 type WatchHandler struct {
 	extensionsClient       apixv1beta1client.ApiextensionsV1beta1Interface
 	RestAPIClient          kubernetes.Interface

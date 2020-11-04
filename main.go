@@ -39,6 +39,10 @@ func main() {
 		wh.ServiceWatch("")
 	}()
 
+	go func() {
+		wh.SecretWatch()
+	}()
+
 	glog.Error(wh.WebSocketHandle.SendReportRoutine())
 
 }
