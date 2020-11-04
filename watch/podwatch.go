@@ -447,10 +447,9 @@ func (wh *WatchHandler) PodWatch() {
 					}
 					od := GetAncestorOfPod(pod, wh)
 
-					var id int
-					var runnigPodNum int
 					first := true
-					if id, runnigPodNum = IsPodSpecAlreadyExist(pod, wh.pdm); runnigPodNum == 0 {
+					id, runnigPodNum := IsPodSpecAlreadyExist(pod, wh.pdm)
+					if runnigPodNum == 0 {
 						wh.pdm[id] = list.New()
 						nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 						wh.pdm[id].PushBack(nms)

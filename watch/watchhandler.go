@@ -22,6 +22,7 @@ type WatchHandler struct {
 	pdm                    map[int]*list.List
 	ndm                    map[int]*list.List
 	sdm                    map[int]*list.List
+	secretdm               map[int]*list.List
 	jsonReport             jsonFormat
 	informNewDataChannel   chan int
 	aggregateFirstDataFlag bool
@@ -69,7 +70,7 @@ func CreateWatchHandler() *WatchHandler {
 	result := WatchHandler{RestAPIClient: clientset,
 		WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, cusGUID),
 		extensionsClient: extensionsClientSet,
-		pdm:              make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List),
+		pdm:              make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List), secretdm: make(map[int]*list.List),
 		jsonReport: jsonFormat{Nodes: ObjectData{}, Services: ObjectData{}, MicroServices: ObjectData{},
 			Pods: ObjectData{}}, informNewDataChannel: make(chan int), aggregateFirstDataFlag: true}
 

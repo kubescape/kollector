@@ -16,8 +16,8 @@ type SecretData struct {
 }
 
 // UpdateSecret update websocket when secret is updated
-func UpdateSecret(secret *core.Secret, sdm map[int]*list.List) string {
-	for _, v := range sdm {
+func UpdateSecret(secret *core.Secret, secretdm map[int]*list.List) string {
+	for _, v := range secretdm {
 		if v == nil || v.Len() == 0 {
 			continue
 		}
@@ -36,8 +36,8 @@ func UpdateSecret(secret *core.Secret, sdm map[int]*list.List) string {
 }
 
 // RemoveSecret update websocket when secret is removed
-func RemoveSecret(secret *core.Secret, sdm map[int]*list.List) string {
-	for _, v := range sdm {
+func RemoveSecret(secret *core.Secret, secretdm map[int]*list.List) string {
+	for _, v := range secretdm {
 		if v == nil || v.Len() == 0 {
 			continue
 		}
@@ -79,20 +79,23 @@ func (wh *WatchHandler) SecretWatch() {
 				removeSecretData(secret)
 				switch event.Type {
 				case "ADDED":
-					id := CreateID()
-					if wh.sdm[id] == nil {
-						wh.sdm[id] = list.New()
+					if !newSecret(wh.secretdm, secret.SelfLink) {
+						break
 					}
-					sd := SecretData{Secret: secret}
-					wh.sdm[id].PushBack(sd)
+					id := CreateID()
+					if wh.secretdm[id] == nil {
+						wh.secretdm[id] = list.New()
+					}
+					secretdm := SecretData{Secret: secret}
+					wh.secretdm[id].PushBack(secretdm)
 					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(secret, SECRETS, CREATED)
 				case "MODIFY":
-					UpdateSecret(secret, wh.sdm)
+					UpdateSecret(secret, wh.secretdm)
 					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(secret, SECRETS, UPDATED)
 				case "DELETED":
-					RemoveSecret(secret, wh.sdm)
+					RemoveSecret(secret, wh.secretdm)
 					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(secret, SECRETS, DELETED)
 				case "BOOKMARK": //only the resource version is changed but it's the same workload
@@ -114,4 +117,22 @@ func removeSecretData(secret *core.Secret) {
 		delete(secret.Annotations, "data")
 		delete(secret.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 	}
+}
+
+func newSecret(secretdm map[int]*list.List, selfLink string) bool {
+	if secretdm == nil || selfLink == "" {
+		return true
+	}
+	for _, secret := range secretdm {
+		if secret.Front() != nil {
+			element := secret.Front().Next()
+			for element != nil {
+				if element.Value.(SecretData).Secret.SelfLink == selfLink {
+					return false
+				}
+				element = element.Next()
+			}
+		}
+	}
+	return true
 }
