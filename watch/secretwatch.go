@@ -79,9 +79,6 @@ func (wh *WatchHandler) SecretWatch() {
 				removeSecretData(secret)
 				switch event.Type {
 				case "ADDED":
-					if !newSecret(wh.secretdm, secret.SelfLink) {
-						break
-					}
 					id := CreateID()
 					if wh.secretdm[id] == nil {
 						wh.secretdm[id] = list.New()
@@ -117,22 +114,4 @@ func removeSecretData(secret *core.Secret) {
 		delete(secret.Annotations, "data")
 		delete(secret.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 	}
-}
-
-func newSecret(secretdm map[int]*list.List, selfLink string) bool {
-	if secretdm == nil || selfLink == "" {
-		return true
-	}
-	for _, secret := range secretdm {
-		if secret.Front() != nil {
-			element := secret.Front().Next()
-			for element != nil {
-				if element.Value.(SecretData).Secret.SelfLink == selfLink {
-					return false
-				}
-				element = element.Next()
-			}
-		}
-	}
-	return true
 }

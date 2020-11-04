@@ -110,4 +110,8 @@ func deleteJsonData(wh *WatchHandler) {
 	deleteObjecData(&jsonReport.MicroServices.Created)
 	deleteObjecData(&jsonReport.MicroServices.Deleted)
 	deleteObjecData(&jsonReport.MicroServices.Updated)
+
+	deleteObjecData(&jsonReport.Secret.Created)
+	deleteObjecData(&jsonReport.Secret.Deleted)
+	deleteObjecData(&jsonReport.Secret.Updated)
 }
