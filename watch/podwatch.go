@@ -74,7 +74,12 @@ func IsPodSpecAlreadyExist(pod *core.Pod, pdm map[int]*list.List) (int, int) {
 			continue
 		}
 		p := v.Front().Value.(MicroServiceData)
-		if reflect.DeepEqual(pod.Spec.Containers, p.Pod.Spec.Containers) {
+		//test owner references(if those exists)
+		if p.ObjectMeta.UID == pod.ObjectMeta.UID ||
+
+			(p.ObjectMeta.Namespace == pod.ObjectMeta.Namespace &&
+				(reflect.DeepEqual(p.OwnerReferences, pod.OwnerReferences))) {
+
 			return v.Front().Value.(MicroServiceData).PodSpecId, v.Len()
 		}
 	}
@@ -171,18 +176,25 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 
 // GetAncestorOfPod -
 func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
+
+	glog.Infof("get pod ancesstor:\n=====================\n%v\n\n", *pod)
 	od := OwnerDet{}
 	if pod.OwnerReferences != nil {
 		switch pod.OwnerReferences[0].Kind {
 		case "ReplicaSet":
 			repItem, _ := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if repItem.OwnerReferences != nil {
+				glog.Infof("have owner reference %v \n========================\n", repItem.OwnerReferences)
 				od.Name = repItem.OwnerReferences[0].Name
 				od.Kind = repItem.OwnerReferences[0].Kind
 				//meanwhile owner refferance must be in the same namespce, so owner refferance dont have namespace field(may be changed in the future)
+				glog.Infof("requesting owner data by name: %v kind: %v apiver: %v namespace: %v\n================\n", repItem.OwnerReferences[0].Name, repItem.OwnerReferences[0].Kind, repItem.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace)
 				od.OwnerData = GetOwnerData(repItem.OwnerReferences[0].Name, repItem.OwnerReferences[0].Kind, repItem.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
+
+				glog.Infof("owner data:\n%v\n==================\n\n", od.OwnerData)
 				return od
 			} else {
+				glog.Infof("no owner ref")
 				depInt := wh.RestAPIClient.AppsV1().Deployments(pod.ObjectMeta.Namespace)
 				selector, err := metav1.LabelSelectorAsSelector(repItem.Spec.Selector)
 				if err != nil {
@@ -193,8 +205,10 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 				depList, _ := depInt.List(globalHTTPContext, options)
 				for _, item := range depList.Items {
 					if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
+						glog.Infof("labels %v \nselector: %v\n============\n", pod.Labels, selector)
 						continue
 					} else {
+						glog.Infof("else\n\n====")
 						od.Name = item.ObjectMeta.Name
 						od.Kind = item.Kind
 						od.OwnerData = GetOwnerData(od.Name, od.Kind, item.TypeMeta.APIVersion, pod.ObjectMeta.Namespace, wh)
@@ -257,7 +271,10 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List) (int, P
 		for element != nil {
 			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
 				newOwner := GetAncestorOfPod(pod, wh)
+				glog.Infof("\n=================\ngot ancestor %v\n===================\n", newOwner)
+
 				if reflect.DeepEqual(*v.Front().Value.(MicroServiceData).Pod, *pod) {
+					glog.Infof("deep equal")
 					err := DeepCopy(*pod, *v.Front().Value.(MicroServiceData).Pod)
 					if err != nil {
 						log.Printf("error in DeepCopy in UpdatePod")
@@ -268,6 +285,7 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List) (int, P
 					}
 					id = v.Front().Value.(MicroServiceData).PodSpecId
 				}
+				glog.Infof("outside deep equal\n================\n")
 				podDataForExistMicroService = PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NumberOfRunnigPods: element.Value.(PodDataForExistMicroService).NumberOfRunnigPods, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: newOwner.Name, Kind: newOwner.Kind}}
 
 				err := DeepCopy(podDataForExistMicroService, element.Value.(PodDataForExistMicroService))
@@ -446,9 +464,11 @@ func (wh *WatchHandler) PodWatch() {
 						podName = pod.ObjectMeta.GenerateName
 					}
 					od := GetAncestorOfPod(pod, wh)
-
+					glog.Infof("owner in added pod: %v\n===================\n\n", od)
 					first := true
 					id, runnigPodNum := IsPodSpecAlreadyExist(pod, wh.pdm)
+
+					glog.Infof("pod already exist? id: %v , runningPod#: %v", id, runnigPodNum)
 					if runnigPodNum == 0 {
 						wh.pdm[id] = list.New()
 						nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
@@ -471,6 +491,8 @@ func (wh *WatchHandler) PodWatch() {
 					}
 					np := PodDataForExistMicroService{PodName: podName, NumberOfRunnigPods: runnigPodNum, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}}
 					wh.pdm[id].PushBack(np)
+					glog.Infof("SENDING POD:\n=======================\n%v\n\nOWNER\n%v\n======================\n\n", np, np.Owner)
+
 					wh.jsonReport.AddToJsonFormat(np, PODS, CREATED)
 					informNewDataArrive(wh)
 					if strings.Compare(string(pod.Status.Phase), string(core.PodPending)) == 0 {
@@ -482,9 +504,14 @@ func (wh *WatchHandler) PodWatch() {
 									return
 								}
 								od = GetAncestorOfPod(podInDesiredState, wh)
+								glog.Infof("owner in loop pod: %v\n===================\n\n", od)
+
 								od.Kind = wh.pdm[id].Front().Value.(MicroServiceData).Owner.Kind
 								od.Name = wh.pdm[id].Front().Value.(MicroServiceData).Owner.Name
 								od.OwnerData = wh.pdm[id].Front().Value.(MicroServiceData).Owner.OwnerData
+
+								glog.Infof("WH.PDM[id]:\n %v\n===================\n\n", wh.pdm[id].Front().Value.(MicroServiceData).Owner)
+
 								wh.jsonReport.AddToJsonFormat(wh.pdm[id].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
 								informNewDataArrive(wh)
 							}
