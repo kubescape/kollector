@@ -169,7 +169,9 @@ func IsPodSpecAlreadyExist(pod *core.Pod, pdm map[int]*list.List) (int, int) {
 			continue
 		}
 		p := v.Front().Value.(MicroServiceData)
-		if reflect.DeepEqual(pod.Spec.Containers, p.Pod.Spec.Containers) {
+		//test owner references(if those exists)
+		if p.ObjectMeta.UID == pod.ObjectMeta.UID || (p.ObjectMeta.Namespace == pod.ObjectMeta.Namespace &&
+			(reflect.DeepEqual(p.OwnerReferences, pod.OwnerReferences))) {
 			return v.Front().Value.(MicroServiceData).PodSpecId, v.Len()
 		}
 	}
