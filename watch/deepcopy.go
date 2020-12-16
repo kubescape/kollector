@@ -15,7 +15,6 @@ func Clone(src, dst interface{}) error {
 	return dec.Decode(dst)
 }
 
-// fo
 // DeepCopy uses "encoding/json" package
 func DeepCopy(src, dst interface{}) error {
 	buff, err := json.Marshal(src)
@@ -23,4 +22,13 @@ func DeepCopy(src, dst interface{}) error {
 		return err
 	}
 	return json.Unmarshal(buff, dst)
+}
+
+// DeepCopyObj uses "encoding/json" package
+func DeepCopyObj(src, dst interface{}) error {
+	buff, err := json.Marshal(src)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(buff, &dst)
 }

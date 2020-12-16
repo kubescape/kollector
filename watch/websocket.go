@@ -152,7 +152,7 @@ func (wh *WatchHandler) ListenerAndSender() {
 	for {
 		jsonData := PrepareDataToSend(wh)
 		if jsonData != nil {
-			glog.Infof("%s\n", string(jsonData))
+			glog.Infof("%s", string(jsonData))
 			wh.SendMessageToWebSocket(jsonData)
 		}
 		if wh.GetFirstReportFlag() {
