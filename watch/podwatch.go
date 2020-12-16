@@ -186,7 +186,9 @@ func IsPodSpecAlreadyExist(pod *core.Pod, pdm map[int]*list.List) (int, int) {
 	return CreateID(), 0
 }
 
+// NumberOfRunningPods count number of running pods
 func NumberOfRunningPods(pod *core.Pod, pdm map[int]*list.List) int {
+	counter := 0
 	for _, v := range pdm {
 		if v == nil || v.Len() == 0 {
 			continue
@@ -195,11 +197,18 @@ func NumberOfRunningPods(pod *core.Pod, pdm map[int]*list.List) int {
 		//test owner references(if those exists)
 		if p.ObjectMeta.UID == pod.ObjectMeta.UID || (p.ObjectMeta.Namespace == pod.ObjectMeta.Namespace &&
 			(reflect.DeepEqual(p.OwnerReferences, pod.OwnerReferences))) {
-			return v.Len()
+			element := v.Front()
+			for element != nil {
+				if _, k := element.Value.(PodDataForExistMicroService); k {
+					counter++
+				}
+				element = element.Next()
+			}
+			return counter
 		}
 	}
 
-	return 0
+	return counter
 }
 
 // GetOwnerData - get the data of pod owner
@@ -374,62 +383,6 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 	}
 	return od
 }
-
-// // UpdatePod -
-// func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStatus string) (int, PodDataForExistMicroService) {
-// 	id := -1
-// 	podDataForExistMicroService := PodDataForExistMicroService{}
-// 	for _, v := range pdm {
-// 		// if v == nil || v.Front() == nil {
-// 		// 	continue
-// 		// } ????????????????????????????????????????????????????????????????????
-// 		element := v.Front().Next()
-// 		for element != nil {
-// 			if element.Value.(PodDataForExistMicroService).PodName == pod.ObjectMeta.Name {
-// 				// newOwner := GetAncestorOfPod(pod, wh)
-// 				// if reflect.DeepEqual(*v.Front().Value.(MicroServiceData).Pod, *pod) {
-// 				// 	err := DeepCopy(*pod, *v.Front().Value.(MicroServiceData).Pod)
-// 				// 	if err != nil {
-// 				// 		glog.Errorf("error in A DeepCopy in UpdatePod, err: %s", err.Error())
-// 				// 	}
-// 				// 	// if v.Front().Value.(MicroServiceData).Owner.Kind == "" {
-// 				// 	err = DeepCopy(newOwner, v.Front().Value.(MicroServiceData).Owner)
-// 				// 	if err != nil {
-// 				// 		glog.Errorf("error in B DeepCopy in UpdatePod, err: %s", err.Error())
-// 				// 	}
-// 				// 	// }
-// 				// }
-// 				// if pod.Namespace == "default" || pod.Namespace == "" {
-// 				// 	glog.Infof("----------------------------------------------------------------------------------------------------")
-// 				// 	oldd, _ := json.Marshal(element.Value.(PodDataForExistMicroService))
-// 				// 	glog.Infof("dwertent, old: %s", string(oldd))
-// 				// }
-
-// 				podDataForExistMicroService = element.Value.(PodDataForExistMicroService)
-// 				podDataForExistMicroService.PodIP = pod.Status.PodIP
-// 				podDataForExistMicroService.PodStatus = podStatus
-// 				podDataForExistMicroService.NodeName = pod.Spec.NodeName
-// 				podDataForExistMicroService.Namespace = pod.ObjectMeta.Namespace
-// 				if podDataForExistMicroService.Owner.Kind != "" {
-// 					id = v.Front().Value.(MicroServiceData).PodSpecId
-// 				}
-
-// 				element.Value = podDataForExistMicroService
-// 				// if err := DeepCopy(podDataForExistMicroService, element.Value.(PodDataForExistMicroService)); err != nil {
-// 				// 	glog.Errorf("error in C DeepCopy in UpdatePod, err: %s", err.Error())
-// 				// }
-// 				// if pod.Namespace == "default" || pod.Namespace == "" {
-// 				// 	neww, _ := json.Marshal(element.Value.(PodDataForExistMicroService))
-// 				// 	glog.Infof("dwertent, new: %s", string(neww))
-// 				// 	glog.Infof("----------------------------------------------------------------------------------------------------")
-// 				// }
-// 				break
-// 			}
-// 			element = element.Next()
-// 		}
-// 	}
-// 	return id, podDataForExistMicroService
-// }
 
 func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStatus string) (int, PodDataForExistMicroService) {
 	id := -1
