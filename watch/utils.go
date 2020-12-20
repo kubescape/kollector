@@ -10,7 +10,7 @@ import (
 func InterfaceToString(inter interface{}) string {
 	bytObj, err := json.Marshal(inter)
 	if err != nil {
-		glog.Error("InterfaceToString, error: %s", err.Error())
+		glog.Errorf("InterfaceToString, error: %s", err.Error())
 		bytObj = []byte{}
 	}
 	return string(bytObj)
