@@ -116,7 +116,12 @@ func (wh *WatchHandler) PodWatch() {
 				informNewDataArrive(wh)
 
 			case watch.Modified:
+				if pod.DeletionTimestamp != nil { // the pod is terminating
+					// wh.DeletePod(pod, podName)
+					break
+				}
 				glog.Infof("Modified. name: %s, status: %s", podName, podStatus)
+
 				podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
 				wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
 
@@ -125,17 +130,7 @@ func (wh *WatchHandler) PodWatch() {
 				}
 				informNewDataArrive(wh)
 			case watch.Deleted:
-				podStatus = "Terminating"
-				podSpecID, removeMicroServiceAsWell, owner := wh.RemovePod(pod, wh.pdm)
-				glog.Infof("Deleted. name: %s, status: %s", podName, podStatus)
-				np := PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: owner.Name, Kind: owner.Kind}, PodStatus: podStatus}
-				wh.jsonReport.AddToJsonFormat(np, PODS, DELETED)
-				if removeMicroServiceAsWell {
-					glog.Infof("remove %s.%s", owner.Kind, owner.Name)
-					nms := MicroServiceData{Pod: pod, Owner: owner, PodSpecId: podSpecID}
-					wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, DELETED)
-				}
-				informNewDataArrive(wh)
+				wh.DeletePod(pod, podName)
 			case watch.Bookmark:
 				glog.Infof("Bookmark. name: %s, status: %s", podName, podStatus)
 			case watch.Error:
@@ -146,6 +141,22 @@ func (wh *WatchHandler) PodWatch() {
 	}
 }
 
+// DeletePod delete a pod
+func (wh *WatchHandler) DeletePod(pod *core.Pod, podName string) {
+	podStatus := "Terminating"
+	podSpecID, removeMicroServiceAsWell, owner := wh.RemovePod(pod, wh.pdm)
+	glog.Infof("Deleted. name: %s, status: %s", podName, podStatus)
+	np := PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: owner.Name, Kind: owner.Kind}, PodStatus: podStatus}
+	wh.jsonReport.AddToJsonFormat(np, PODS, DELETED)
+	if removeMicroServiceAsWell {
+		glog.Infof("remove %s.%s", owner.Kind, owner.Name)
+		nms := MicroServiceData{Pod: pod, Owner: owner, PodSpecId: podSpecID}
+		wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, DELETED)
+	}
+	informNewDataArrive(wh)
+}
+
+// IsPodExist check
 func IsPodExist(pod *core.Pod, pdm map[int]*list.List) bool {
 	for _, v := range pdm {
 		if v == nil || v.Len() == 0 {
