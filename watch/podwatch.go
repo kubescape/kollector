@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -58,7 +59,7 @@ func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly Owner
 	}
 }
 
-// PodWatch - StayUpadted starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
+// PodWatch - Stay updated starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
 	for {
 		// defer func() {
@@ -81,8 +82,11 @@ func (wh *WatchHandler) PodWatch() {
 			switch event.Type {
 			case watch.Added:
 				glog.Infof("added. name: %s, status: %s", podName, podStatus)
-				od := GetAncestorOfPod(pod, wh)
-
+				od, err := GetAncestorOfPod(pod, wh)
+				if err != nil {
+					glog.Errorf("%s, ignoring pod report", err.Error())
+					break
+				}
 				first := true
 				id, runnigPodNum := IsPodSpecAlreadyExist(pod, wh.pdm)
 				// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
@@ -107,7 +111,7 @@ func (wh *WatchHandler) PodWatch() {
 					}
 				}
 				if !first {
-					continue
+					break
 				}
 				// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
 				newPod := PodDataForExistMicroService{PodName: podName, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}, PodStatus: podStatus}
@@ -117,18 +121,19 @@ func (wh *WatchHandler) PodWatch() {
 
 			case watch.Modified:
 				if pod.DeletionTimestamp != nil { // the pod is terminating
-					// wh.DeletePod(pod, podName)
 					break
 				}
-				glog.Infof("Modified. name: %s, status: %s", podName, podStatus)
-
 				podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
-				wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
-
-				if podSpecID != -1 {
+				if podSpecID > -2 {
+					glog.Infof("Modified. name: %s, status: %s", podName, podStatus)
+					wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
+				}
+				if podSpecID > -1 {
 					wh.jsonReport.AddToJsonFormat(wh.pdm[podSpecID].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
 				}
-				informNewDataArrive(wh)
+				if podSpecID > -2 {
+					informNewDataArrive(wh)
+				}
 			case watch.Deleted:
 				wh.DeletePod(pod, podName)
 			case watch.Bookmark:
@@ -145,6 +150,9 @@ func (wh *WatchHandler) PodWatch() {
 func (wh *WatchHandler) DeletePod(pod *core.Pod, podName string) {
 	podStatus := "Terminating"
 	podSpecID, removeMicroServiceAsWell, owner := wh.RemovePod(pod, wh.pdm)
+	if podSpecID == -1 {
+		return
+	}
 	glog.Infof("Deleted. name: %s, status: %s", podName, podStatus)
 	np := PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: owner.Name, Kind: owner.Kind}, PodStatus: podStatus}
 	wh.jsonReport.AddToJsonFormat(np, PODS, DELETED)
@@ -308,7 +316,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 }
 
 // GetAncestorOfPod -
-func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
+func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 	od := OwnerDet{}
 
 	if pod.OwnerReferences != nil {
@@ -316,20 +324,18 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 		case "ReplicaSet":
 			repItem, err := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if err != nil {
-				glog.Errorf("ReplicaSets get: %s", err.Error())
-				break
+				return od, fmt.Errorf("error getting owner reference: %s", err.Error())
 			}
 			if repItem.OwnerReferences != nil {
 				od.Name = repItem.OwnerReferences[0].Name
 				od.Kind = repItem.OwnerReferences[0].Kind
-				//meanwhile owner refferance must be in the same namespce, so owner refferance dont have namespace field(may be changed in the future)
+				//meanwhile owner reference must be in the same namespace, so owner reference doesn't have the namespace field(may be changed in the future)
 				od.OwnerData = GetOwnerData(repItem.OwnerReferences[0].Name, repItem.OwnerReferences[0].Kind, repItem.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
 			} else {
 				depInt := wh.RestAPIClient.AppsV1().Deployments(pod.ObjectMeta.Namespace)
 				selector, err := metav1.LabelSelectorAsSelector(repItem.Spec.Selector)
 				if err != nil {
-					glog.Errorf("LabelSelectorAsSelector: %s", err.Error())
-					break
+					return od, fmt.Errorf("error getting owner reference: %s", err.Error())
 				}
 
 				options := metav1.ListOptions{}
@@ -349,12 +355,12 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 			jobItem, err := wh.RestAPIClient.BatchV1().Jobs(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if err != nil {
 				glog.Error(err)
-				break
+				return od, err
 			}
 			if jobItem.OwnerReferences != nil {
 				od.Name = jobItem.OwnerReferences[0].Name
 				od.Kind = jobItem.OwnerReferences[0].Kind
-				//meanwhile owner refferance must be in the same namespce, so owner refferance dont have namespace field(may be changed in the future)
+				//meanwhile owner reference must be in the same namespace, so owner reference doesn't have the namespace field(may be changed in the future)
 				od.OwnerData = GetOwnerData(jobItem.OwnerReferences[0].Name, jobItem.OwnerReferences[0].Kind, jobItem.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
 				break
 			}
@@ -363,7 +369,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 			selector, err := metav1.LabelSelectorAsSelector(jobItem.Spec.Selector)
 			if err != nil {
 				glog.Errorf("LabelSelectorAsSelector: %s", err.Error())
-				break
+				return od, fmt.Errorf("error getting owner reference")
 			}
 
 			for _, item := range depList.Items {
@@ -390,11 +396,11 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) OwnerDet {
 			od.Kind = crd.Kind
 		}
 	}
-	return od
+	return od, nil
 }
 
 func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStatus string) (int, PodDataForExistMicroService) {
-	id := -1
+	id := -2
 	podDataForExistMicroService := PodDataForExistMicroService{}
 	for _, v := range pdm {
 		// glog.Infof("dwertent -- Modified UpdatePod name: %s, id: %d", jj)
@@ -413,6 +419,8 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 					// 	glog.Errorf("error in DeepCopy B in UpdatePod")
 					// }
 					id = v.Front().Value.(MicroServiceData).PodSpecId
+				} else {
+					id = -1
 				}
 				podDataForExistMicroService = PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, PodStatus: podStatus}
 
@@ -540,7 +548,7 @@ func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, b
 			}
 		}
 	}
-	return 0, false, owner
+	return -1, false, owner
 }
 
 // func (wh *WatchHandler) AddPod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool, OwnerDet) {
