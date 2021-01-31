@@ -202,9 +202,7 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 			if end {
 				return
 			}
-			wsh.mutex.Lock()
 			conn.ReadMessage()
-			wsh.mutex.Unlock()
 		}
 	}()
 }
