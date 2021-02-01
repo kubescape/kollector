@@ -1,5 +1,5 @@
 FROM quay.io/armosec/k8s-ca-dashboard-aggregator-ubi:latest
-RUN echo $(date -u) > /build_date.txt
+RUN echo $(date -u) > /build_number.txt
 
 COPY ./k8s-ca-dashboard-aggregator . 
 

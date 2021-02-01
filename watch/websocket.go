@@ -93,9 +93,7 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 
 	for {
 		data := <-wsh.data
-
 		wsh.mutex.Lock()
-		defer wsh.mutex.Unlock()
 
 		switch data.RType {
 		case MESSAGE:
@@ -113,7 +111,7 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 				err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 				if err != nil {
 					glog.Errorf("WriteMessage, %d, %v", timeID, err)
-					continue
+					break
 				}
 			}
 			glog.Infof("message sent, %d", timeID)
@@ -122,9 +120,11 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
 			if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
 				glog.Errorf("connectToWebSocket. %s", err.Error())
+				wsh.mutex.Unlock()
 				return err
 			}
 		}
+		wsh.mutex.Unlock()
 	}
 }
 

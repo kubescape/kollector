@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ex
 
-export WTAG=test
+export WTAG=latest
 
 # dep ensure
 CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o k8s-ca-dashboard-aggregator .
@@ -9,7 +9,7 @@ chmod +x k8s-ca-dashboard-aggregator
 
 docker build --no-cache -f Dockerfile.test -t quay.io/armosec/k8s-ca-dashboard-aggregator-ubi:$WTAG .
 rm -rf k8s-ca-dashboard-aggregator
-# docker push quay.io/armosec/k8s-ca-dashboard-aggregator:$WTAG
+docker push quay.io/armosec/k8s-ca-dashboard-aggregator-ubi:$WTAG
  
 echo "update dashboard-aggregator"
 
