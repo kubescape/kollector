@@ -11,7 +11,7 @@ import (
 	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
-	v2alpha1 "k8s.io/api/batch/v2alpha1"
+	"k8s.io/api/batch/v1beta1"
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -481,8 +481,12 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		glog.Infof("Removing pod but not Job: %s", string(v))
 	case "CronJob":
 		options := v1.GetOptions{}
-		name := ownerData.(*v2alpha1.CronJob).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, name, options)
+		cronJob, ok := ownerData.(*v1beta1.CronJob)
+		if !ok {
+			glog.Errorf("cant convert to v1beta1.CronJob")
+			return true
+		}
+		mic, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, cronJob.ObjectMeta.Name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
