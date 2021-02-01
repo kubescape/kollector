@@ -93,39 +93,37 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 
 	for {
 		data := <-wsh.data
+
+		wsh.mutex.Lock()
+		defer wsh.mutex.Unlock()
+
 		switch data.RType {
 		case MESSAGE:
 			timeID := time.Now().UnixNano()
 			glog.Infof("sending message, %d", timeID)
-			wsh.mutex.Lock()
+
 			err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
 				glog.Errorf("In sendReportRoutine, %d, WriteMessage to websocket: %v", data.RType, err)
 				if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
 					glog.Errorf("sendReportRoutine. %s", err.Error())
-					wsh.mutex.Unlock()
-					continue
+					break
 				}
 				glog.Infof("resending message. %d", timeID)
 				err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 				if err != nil {
 					glog.Errorf("WriteMessage, %d, %v", timeID, err)
-					wsh.mutex.Unlock()
 					continue
 				}
 			}
-			wsh.mutex.Unlock()
 			glog.Infof("message sent, %d", timeID)
 
 		case EXIT:
-			wsh.mutex.Lock()
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
 			if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
 				glog.Errorf("connectToWebSocket. %s", err.Error())
-				wsh.mutex.Unlock()
 				return err
 			}
-			wsh.mutex.Unlock()
 		}
 	}
 }
@@ -183,17 +181,25 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 
 		// test ping-pong
 		for {
+			// wsh.mutex.Lock()
+			// defer wsh.mutex.Unlock()
+			if end {
+				return
+			}
 			err := conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(timeout))
 			if err != nil {
 				glog.Errorf("WriteControl error: %s", err.Error())
 			}
-			time.Sleep(timeout)
-			if counter > 3 {
-				glog.Errorf("closeConnection")
+			if counter > 2 {
+				if end {
+					return
+				}
+				glog.Errorf("ping closed connection")
 				wsh.closeConnection(conn, "ping pong error")
 				end = true
 				return
 			}
+			time.Sleep(timeout)
 			counter++
 		}
 	}()
@@ -202,7 +208,16 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 			if end {
 				return
 			}
-			conn.ReadMessage()
+			if _, _, err := conn.ReadMessage(); err != nil {
+				if end {
+					return
+				}
+				end = true
+				glog.Errorf("pong closed connection")
+				wsh.closeConnection(conn, "ping pong error")
+				return
+			}
+			time.Sleep(timeout)
 		}
 	}()
 }
