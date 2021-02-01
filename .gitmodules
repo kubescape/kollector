@@ -5,6 +5,3 @@
 [submodule "vendor/asterix.cyberarmor.io/cyberarmor/capacketsgo"]
 	path = vendor/asterix.cyberarmor.io/cyberarmor/capacketsgo
 	url = git@asterix.cyberarmor.io:cyberarmor/capacketsgo.git
-[submodule "vendor/asterix.cyberarmor.io/cyberarmor"]
-	path = vendor/asterix.cyberarmor.io/cyberarmor
-	url = git@asterix.cyberarmor.io:cyberarmor/capacketsgo.git
