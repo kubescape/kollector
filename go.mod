@@ -2,10 +2,8 @@ module k8s-ca-dashboard-aggregator
 
 go 1.14
 
-replace asterix.cyberarmor.io/cyberarmor/capacketsgo => ./vendor/asterix.cyberarmor.io/cyberarmor/capacketsgo
 
 require (
-	asterix.cyberarmor.io/cyberarmor/capacketsgo v0.0.0 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/googleapis/gnostic v0.4.0 // indirect
 	github.com/gorilla/websocket v1.4.1
