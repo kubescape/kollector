@@ -47,7 +47,8 @@ type PodDataForExistMicroService struct {
 	Namespace         string                  `json:"namespace, omitempty"`
 	Owner             OwnerDetNameAndKindOnly `json:"uptreeOwner"`
 	PodStatus         string                  `json:"podStatus"`
-	CreationTimestamp time.Time               `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
+	CreationTimestamp string                  `json:"creationTimestamp"`
+	DeletionTimestamp string                  `json:"deletionTimestamp,omitempty"`
 }
 
 func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly OwnerDetNameAndKindOnly, numberOfRunnigPods int, podStatus string) PodDataForExistMicroService {
@@ -116,7 +117,7 @@ func (wh *WatchHandler) PodWatch() {
 					break
 				}
 				// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
-				newPod := PodDataForExistMicroService{PodName: podName, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time}
+				newPod := PodDataForExistMicroService{PodName: podName, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
 				wh.pdm[id].PushBack(newPod)
 				wh.jsonReport.AddToJsonFormat(newPod, PODS, CREATED)
 				informNewDataArrive(wh)
@@ -156,7 +157,10 @@ func (wh *WatchHandler) DeletePod(pod *core.Pod, podName string) {
 		return
 	}
 	glog.Infof("Deleted. name: %s, status: %s", podName, podStatus)
-	np := PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: owner.Name, Kind: owner.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time}
+	np := PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: owner.Name, Kind: owner.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
+	if pod.DeletionTimestamp != nil {
+		np.DeletionTimestamp = pod.DeletionTimestamp.Time.UTC().Format(time.RFC3339)
+	}
 	wh.jsonReport.AddToJsonFormat(np, PODS, DELETED)
 	if removeMicroServiceAsWell {
 		glog.Infof("remove %s.%s", owner.Kind, owner.Name)
@@ -424,7 +428,7 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 				} else {
 					id = -1
 				}
-				podDataForExistMicroService = PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time}
+				podDataForExistMicroService = PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
 
 				if err := DeepCopy(element.Value.(PodDataForExistMicroService).Owner, &podDataForExistMicroService.Owner); err != nil {
 					glog.Errorf("error in DeepCopy 'Owner' in UpdatePod")
