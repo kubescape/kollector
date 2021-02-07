@@ -47,8 +47,8 @@ type PodDataForExistMicroService struct {
 	Namespace         string                  `json:"namespace, omitempty"`
 	Owner             OwnerDetNameAndKindOnly `json:"uptreeOwner"`
 	PodStatus         string                  `json:"podStatus"`
-	CreationTimestamp string                  `json:"creationTimestamp"`
-	DeletionTimestamp string                  `json:"deletionTimestamp,omitempty"`
+	CreationTimestamp string                  `json:"startedAt"`
+	DeletionTimestamp string                  `json:"terminatedAt,omitempty"`
 }
 
 func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly OwnerDetNameAndKindOnly, numberOfRunnigPods int, podStatus string) PodDataForExistMicroService {
