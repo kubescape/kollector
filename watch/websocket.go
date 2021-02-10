@@ -184,12 +184,12 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 			if end {
 				return
 			}
-			wsh.mutex.Lock()
+			//			wsh.mutex.Lock()
 			err := conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(timeout))
 			if err != nil {
 				glog.Errorf("WriteControl error: %s", err.Error())
 			}
-			wsh.mutex.Unlock()
+			//			wsh.mutex.Unlock()
 			if counter > 2 {
 				if end {
 					return
@@ -208,9 +208,9 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 			if end {
 				return
 			}
-			wsh.mutex.Lock()
+			//			wsh.mutex.Lock()
 			if _, _, err := conn.ReadMessage(); err != nil {
-				wsh.mutex.Unlock()
+				//				wsh.mutex.Unlock()
 				if end {
 					return
 				}
@@ -219,7 +219,7 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 				wsh.closeConnection(conn, "ping pong error")
 				return
 			}
-			wsh.mutex.Unlock()
+			//			wsh.mutex.Unlock()
 
 			time.Sleep(timeout)
 		}
