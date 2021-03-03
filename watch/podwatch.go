@@ -93,8 +93,11 @@ func (wh *WatchHandler) PodWatch() {
 					for desIdx := range res {
 						if res[desIdx].Alert {
 							glog.Infof("Found OPA alert for pod '%s': %+v", podName, res)
-
 						}
+					}
+					if err := opapoliciesstore.NotifyReceiver(res); err != nil {
+						glog.Error("failed to NotifyReceiver", err)
+
 					}
 				}
 			}
