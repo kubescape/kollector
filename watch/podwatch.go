@@ -5,9 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"time"
+
+	opapoliciesstore "k8s-ca-dashboard-aggregator/opapolicies"
 
 	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
@@ -24,7 +27,7 @@ import (
 type OwnerDet struct {
 	Name      string      `json:"name"`
 	Kind      string      `json:"kind"`
-	OwnerData interface{} `json:"ownerData, omitempty"`
+	OwnerData interface{} `json:"ownerData,omitempty"`
 }
 type CRDOwnerData struct {
 	v1.TypeMeta
@@ -44,7 +47,7 @@ type PodDataForExistMicroService struct {
 	PodName           string                  `json:"podName"`
 	NodeName          string                  `json:"nodeName"`
 	PodIP             string                  `json:"podIP"`
-	Namespace         string                  `json:"namespace, omitempty"`
+	Namespace         string                  `json:"namespace,omitempty"`
 	Owner             OwnerDetNameAndKindOnly `json:"uptreeOwner"`
 	PodStatus         string                  `json:"podStatus"`
 	CreationTimestamp string                  `json:"startedAt"`
@@ -64,6 +67,11 @@ func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly Owner
 
 // PodWatch - Stay updated starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
+	pStore := opapoliciesstore.NewPoliciyStore()
+	policiesDir := os.Getenv("ARMO_POLICIES_DIR")
+	if err := pStore.LoadRegoPoliciesFromDir(policiesDir); err != nil {
+		glog.Error("Failed to LoadRegoPoliciesFromDir", policiesDir, err)
+	}
 	for {
 		// defer func() {
 		// 	if err := recover(); err != nil {
@@ -78,6 +86,18 @@ func (wh *WatchHandler) PodWatch() {
 		for event := range podsWatcher.ResultChan() {
 			pod, _ := event.Object.(*core.Pod)
 			podName := pod.ObjectMeta.Name
+			if res, err := pStore.Eval(pod); err != nil {
+				glog.Errorf("pStore.Eval error: %s", err.Error())
+			} else {
+				if len(res) > 0 {
+					for desIdx := range res {
+						if res[desIdx].Alert {
+							glog.Infof("Found OPA alert for pod '%s': %+v", podName, res)
+
+						}
+					}
+				}
+			}
 			if podName == "" {
 				podName = pod.ObjectMeta.GenerateName
 			}
