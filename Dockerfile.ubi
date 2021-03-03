@@ -8,6 +8,7 @@ LABEL summary="Armo dashboard connector image"
 LABEL vendor="Armo Ltd."
 
 COPY ./dist /.
+COPY ./opapolicies /opapolicies/
 COPY ./build_number.txt /
 RUN echo $(date -u) > /tmp/build_date.txt
 
