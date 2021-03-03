@@ -1,0 +1,16 @@
+kind: Pod
+message: world
+metadata:
+  labels:
+    app: golang-inf
+  name: golang-inf-79c97c9864-tzhtx
+  namespace: armo-playground
+  selfLink: /api/v1/namespaces/armo-playground/pods/golang-inf-79c97c9864-tzhtx
+spec:
+  containers:
+  - image: 015253967648.dkr.ecr.eu-central-1.amazonaws.com/armo:1
+    name: armo
+  - image: 015253967648.dkr.ecr.eu-central-1.amazonaws.com/armo:3
+    name: armo3
+    securityContext:
+      privileged: true

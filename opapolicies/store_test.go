@@ -2,27 +2,11 @@ package opapoliciesstore
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"testing"
 
 	"gopkg.in/yaml.v2"
 )
-
-var podYAML = []byte(`
-kind: Pod
-message: world
-metadata:
-  labels:
-    app: golang-inf
-  name: golang-inf-79c97c9864-tzhtx
-  namespace: armo-playground
-  selfLink: /api/v1/namespaces/armo-playground/pods/golang-inf-79c97c9864-tzhtx
-spec:
-  containers:
-  - image: 015253967648.dkr.ecr.eu-central-1.amazonaws.com/armo:1
-    name: armo
-  - image: 015253967648.dkr.ecr.eu-central-1.amazonaws.com/armo:3
-    name: armo3
-`)
 
 func TestLoadFromDir(t *testing.T) {
 	store := NewPoliciyStore()
@@ -39,7 +23,7 @@ func TestLoadFromDir(t *testing.T) {
 		t.Errorf("%+v", res)
 	}
 	input := make(map[string]interface{})
-
+	podYAML, _ := ioutil.ReadFile("simple_pod.yml")
 	if err := yaml.Unmarshal(podYAML, &input); err != nil {
 		t.Errorf("yaml.Unmarshal - %v", err)
 
