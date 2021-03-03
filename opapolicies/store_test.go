@@ -19,8 +19,6 @@ func TestLoadFromDir(t *testing.T) {
 		"message":  "world",
 	}); err != nil {
 		t.Errorf("eval - %v", err)
-	} else {
-		t.Errorf("%+v", res)
 	}
 	input := make(map[string]interface{})
 	podYAML, _ := ioutil.ReadFile("simple_pod.yml")
