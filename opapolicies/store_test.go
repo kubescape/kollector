@@ -13,7 +13,7 @@ func TestLoadFromDir(t *testing.T) {
 	if err := store.LoadRegoPoliciesFromDir("."); err != nil {
 		t.Errorf("%v", err)
 	}
-	if res, err := store.Eval(map[string]interface{}{
+	if _, err := store.Eval(map[string]interface{}{
 		"identity": "bob",
 		"method":   "GET",
 		"message":  "world",
