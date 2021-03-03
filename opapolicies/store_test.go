@@ -38,12 +38,9 @@ func TestLoadFromDir(t *testing.T) {
 		}
 	}
 
-	if res, err := store.Eval(input); err != nil {
+	if _, err := store.Eval(input); err != nil {
 		t.Errorf("eval2 - %v", err)
-	} else {
-		t.Errorf("%+v", res)
 	}
-	t.Error("OK")
 }
 
 func convert(i interface{}) interface{} {
