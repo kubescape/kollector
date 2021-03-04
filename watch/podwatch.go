@@ -86,21 +86,23 @@ func (wh *WatchHandler) PodWatch() {
 		for event := range podsWatcher.ResultChan() {
 			pod, _ := event.Object.(*core.Pod)
 			podName := pod.ObjectMeta.Name
-			if res, err := pStore.Eval(pod); err != nil {
-				glog.Errorf("pStore.Eval error: %s", err.Error())
-			} else {
-				if len(res) > 0 {
-					for desIdx := range res {
-						if res[desIdx].Alert {
-							glog.Infof("Found OPA alert for pod '%s': %+v", podName, res)
+			go func() {
+				if res, err := pStore.Eval(pod); err != nil {
+					glog.Errorf("pStore.Eval error: %s", err.Error())
+				} else {
+					if len(res) > 0 {
+						for desIdx := range res {
+							if res[desIdx].Alert {
+								glog.Infof("Found OPA alert for pod '%s': %+v", podName, res)
+							}
+						}
+						if err := opapoliciesstore.NotifyReceiver(res); err != nil {
+							glog.Error("failed to NotifyReceiver", err)
+
 						}
 					}
-					if err := opapoliciesstore.NotifyReceiver(res); err != nil {
-						glog.Error("failed to NotifyReceiver", err)
-
-					}
 				}
-			}
+			}()
 			if podName == "" {
 				podName = pod.ObjectMeta.GenerateName
 			}

@@ -3,6 +3,7 @@ package opapoliciesstore
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"testing"
 
 	"gopkg.in/yaml.v2"
@@ -35,10 +36,18 @@ func TestLoadFromDir(t *testing.T) {
 			t.Errorf("json.Unmarshal - %v", err)
 		}
 	}
-
-	if _, err := store.Eval(input); err != nil {
+	res, err := store.Eval(input)
+	if err != nil {
 		t.Errorf("eval2 - %v", err)
 	}
+	os.Setenv("CA_K8S_REPORT_URL", "wss://report.eudev3.cyberarmorsoft.com")
+	// os.Setenv("CA_K8S_REPORT_URL", "ws://localhost:7555")
+	os.Setenv("CA_CUSTOMER_GUID", "5d817063-096f-4d91-b39b-8665240080af")
+	os.Setenv("CA_CLUSTER_NAME", "collector_test_dummy")
+	if err := NotifyReceiver(res); err != nil {
+		t.Errorf("NotifyReceiver - %v", err)
+	}
+	// t.Error("OK")
 }
 
 func convert(i interface{}) interface{} {

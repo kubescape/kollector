@@ -71,8 +71,8 @@ type LightEventList []LightAgentEvent
 
 // LightAgentEvent holds the type + payload of single report
 type LightAgentEvent struct {
-	Type    int32               `json:"type"`
-	Payload *gojay.EmbeddedJSON `json:"payload"`
+	Type    int32            `json:"type"`
+	Payload *json.RawMessage `json:"payload"`
 }
 
 // EventsContainer holds list of reports from agent
@@ -162,10 +162,12 @@ func (lae *LightAgentEvent) UnmarshalJSONObject(dec *gojay.Decoder, key string) 
 	case "type":
 		return dec.Int32(&lae.Type)
 	case "payload":
-		lae.Payload = &gojay.EmbeddedJSON{}
-		if err := dec.EmbeddedJSON(lae.Payload); err != nil {
+		v := &gojay.EmbeddedJSON{}
+		if err := dec.AddEmbeddedJSON(v); err != nil {
 			return err
 		}
+		k := json.RawMessage(*v)
+		lae.Payload = &k
 		if lae.Payload == nil && lae.Type > 0x1 {
 			return fmt.Errorf("Empty payload for report type 0x%X", lae.Type)
 		}

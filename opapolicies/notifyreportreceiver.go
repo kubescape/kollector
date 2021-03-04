@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/francoispqt/gojay"
+	"github.com/golang/glog"
 	uuid "github.com/satori/go.uuid"
 )
 
 var (
-	reportStructBytes = []byte{}
-	httpClient        = http.Client{}
+	httpClient = http.Client{}
 )
 
 // NotifyReceiver notifies reports
@@ -37,7 +37,10 @@ func NotifyReceiver(alerts []DesicionOutput) error {
 	if err != nil {
 		return fmt.Errorf("httpClient.Do failed: %v", err)
 	}
-	_, err = HTTPRespToString(res)
+	msg, err := HTTPRespToString(res)
+	if err != nil {
+		err = fmt.Errorf("%v:%s", err, msg)
+	}
 	return err
 }
 
@@ -80,7 +83,7 @@ func buildReportSession(alerts []DesicionOutput) (io.Reader, error) {
 			if err != nil {
 				return nil, fmt.Errorf("json.Marshal of AgentFirstData failed: %v", err)
 			}
-			afdRaw := gojay.EmbeddedJSON(afdBytes)
+			afdRaw := json.RawMessage(afdBytes)
 			ec.EventsList[evntIDx].Payload = &afdRaw
 		case 4101:
 			ica := InnerComponentAttributes{}
@@ -95,7 +98,7 @@ func buildReportSession(alerts []DesicionOutput) (io.Reader, error) {
 			if err != nil {
 				return nil, fmt.Errorf("json.Marshal of InnerComponentAttributes failed: %v", err)
 			}
-			afdRaw := gojay.EmbeddedJSON(afdBytes)
+			afdRaw := json.RawMessage(afdBytes)
 			ec.EventsList[evntIDx].Payload = &afdRaw
 		case 4097:
 			ica := make(map[string]interface{})
@@ -108,7 +111,7 @@ func buildReportSession(alerts []DesicionOutput) (io.Reader, error) {
 			if err != nil {
 				return nil, fmt.Errorf("json.Marshal of 4097 failed: %v", err)
 			}
-			afdRaw := gojay.EmbeddedJSON(afdBytes)
+			afdRaw := json.RawMessage(afdBytes)
 			ec.EventsList[evntIDx].Payload = &afdRaw
 		}
 	}
@@ -122,14 +125,16 @@ func buildReportSession(alerts []DesicionOutput) (io.Reader, error) {
 		if err != nil {
 			return nil, fmt.Errorf("json.Marshal of alert %d failed: %v,%+v", alertIdx, err, alertBody)
 		}
-		afdRaw := gojay.EmbeddedJSON(afdBytes)
+		afdRaw := json.RawMessage(afdBytes)
 		ec.EventsList = append(ec.EventsList, LightAgentEvent{Type: 0xF071, Payload: &afdRaw})
 	}
 	ec.EventsList = append(ec.EventsList, LightAgentEvent{Type: 1})
-	bytesSlice, err := json.Marshal(ec)
+	bytesSlice, err := json.Marshal(*ec)
 	if err != nil {
 		return nil, fmt.Errorf("json.Marshal failed: %v", err)
 	}
+	glog.Infof("Reports body: %s", string(bytesSlice))
+	fmt.Printf("Reports body: %s", string(bytesSlice))
 	return bytes.NewReader(bytesSlice), nil
 }
 
