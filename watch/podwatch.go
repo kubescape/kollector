@@ -72,6 +72,7 @@ func (wh *WatchHandler) PodWatch() {
 	if err := pStore.LoadRegoPoliciesFromDir(policiesDir); err != nil {
 		glog.Error("Failed to LoadRegoPoliciesFromDir", policiesDir, err)
 	}
+	glog.Infof("Finished pStore.LoadRegoPoliciesFromDir")
 	for {
 		// defer func() {
 		// 	if err := recover(); err != nil {
@@ -87,9 +88,11 @@ func (wh *WatchHandler) PodWatch() {
 			pod, _ := event.Object.(*core.Pod)
 			podName := pod.ObjectMeta.Name
 			go func() {
+				glog.Infof("START - pStore.Eval on pod: %v", pod)
 				if res, err := pStore.Eval(pod); err != nil {
 					glog.Errorf("pStore.Eval error: %s", err.Error())
 				} else {
+					glog.Infof("pStore.Eval on pod, res length: %d, %v", len(res), res)
 					if len(res) > 0 {
 						for desIdx := range res {
 							if res[desIdx].Alert {
@@ -102,6 +105,7 @@ func (wh *WatchHandler) PodWatch() {
 						}
 					}
 				}
+				glog.Infof("END - pStore.Eval on pod: %v", pod)
 			}()
 			if podName == "" {
 				podName = pod.ObjectMeta.GenerateName
