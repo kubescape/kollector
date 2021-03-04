@@ -51,7 +51,7 @@ func (ps *PoliciyStore) LoadRegoPoliciesFromDir(dir string) error {
 			if err != nil {
 				glog.Errorf("LoadRegoPoliciesFromDir, Failed to load: %s: %v", path, err)
 			} else {
-				glog.Info("LoadRegoPoliciesFromDir, loaded: %s: %v", path, err)
+				glog.Infof("LoadRegoPoliciesFromDir, loaded: %s: %v", path, err)
 				policiesMap[path[len(dir):]] = string(content)
 			}
 		}
