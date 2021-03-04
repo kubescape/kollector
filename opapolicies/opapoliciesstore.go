@@ -69,6 +69,10 @@ func (ps *PoliciyStore) LoadRegoPoliciesFromDir(dir string) error {
 
 // Eval eval a given input against all pre-compiled policies
 func (ps *PoliciyStore) Eval(input interface{}) ([]DesicionOutput, error) {
+	iputByets, err := json.Marshal(input)
+	if err == nil {
+		glog.Infof("iputByets: %s", string(iputByets))
+	}
 	result := make([]DesicionOutput, 0)
 	rego := rego.New(
 		rego.Query("data.armo_builtins"),
