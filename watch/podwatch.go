@@ -88,7 +88,10 @@ func (wh *WatchHandler) PodWatch() {
 			pod, _ := event.Object.(*core.Pod)
 			podName := pod.ObjectMeta.Name
 			go func() {
-				glog.Infof("START - pStore.Eval on pod: %v", pod)
+				if event.Type != "ADDED" && event.Type != "MODIFIED" {
+					return
+				}
+				glog.Infof("START - pStore.Eval on pod")
 				if res, err := pStore.Eval(pod); err != nil {
 					glog.Errorf("pStore.Eval error: %s", err.Error())
 				} else {
@@ -105,7 +108,7 @@ func (wh *WatchHandler) PodWatch() {
 						}
 					}
 				}
-				glog.Infof("END - pStore.Eval on pod: %v", pod)
+				glog.Infof("END - pStore.Eval on pod")
 			}()
 			if podName == "" {
 				podName = pod.ObjectMeta.GenerateName

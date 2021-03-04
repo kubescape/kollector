@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 
+	core "k8s.io/api/core/v1"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -23,20 +25,29 @@ func TestLoadFromDir(t *testing.T) {
 	}
 	input := make(map[string]interface{})
 	podYAML, _ := ioutil.ReadFile("simple_pod.yml")
-	if err := yaml.Unmarshal(podYAML, &input); err != nil {
+	cPod := &core.Pod{}
+	if err := yaml.Unmarshal(podYAML, input); err != nil {
 		t.Errorf("yaml.Unmarshal - %v", err)
 
 	}
 
 	inputa := convert(input)
 	if jsonBytes, err := json.Marshal(inputa); err != nil {
+		// if jsonBytes, err := json.Marshal(*cPod); err != nil {
 		t.Errorf("json.Marshal - %v", err)
 	} else {
 		if err := json.Unmarshal(jsonBytes, &input); err != nil {
 			t.Errorf("json.Unmarshal - %v", err)
 		}
+		if err := json.Unmarshal(jsonBytes, cPod); err != nil {
+			t.Errorf("json.Unmarshal - %v", err)
+		}
 	}
-	res, err := store.Eval(input)
+	if len(cPod.Spec.Containers) > 1 && (cPod.Spec.Containers[1].SecurityContext == nil || cPod.Spec.Containers[1].SecurityContext.Privileged == nil ||
+		*(cPod.Spec.Containers[1].SecurityContext.Privileged) == false) {
+		t.Errorf("invalid security context:%v", cPod.Spec.Containers[1].SecurityContext)
+	}
+	res, err := store.Eval(cPod)
 	if err != nil {
 		t.Errorf("eval2 - %v", err)
 	}
@@ -44,8 +55,12 @@ func TestLoadFromDir(t *testing.T) {
 	// os.Setenv("CA_K8S_REPORT_URL", "ws://localhost:7555")
 	os.Setenv("CA_CUSTOMER_GUID", "5d817063-096f-4d91-b39b-8665240080af")
 	os.Setenv("CA_CLUSTER_NAME", "collector_test_dummy")
-	if err := NotifyReceiver(res); err != nil {
-		t.Errorf("NotifyReceiver - %v", err)
+	if len(res) < 4 {
+		t.Errorf("missing alerts: %d", len(res))
+	} else {
+		if err := NotifyReceiver(res); err != nil {
+			t.Errorf("NotifyReceiver - %v", err)
+		}
 	}
 	// t.Error("OK")
 }

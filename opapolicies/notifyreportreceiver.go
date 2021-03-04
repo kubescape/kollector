@@ -134,7 +134,6 @@ func buildReportSession(alerts []DesicionOutput) (io.Reader, error) {
 		return nil, fmt.Errorf("json.Marshal failed: %v", err)
 	}
 	glog.Infof("Reports body: %s", string(bytesSlice))
-	fmt.Printf("Reports body: %s", string(bytesSlice))
 	return bytes.NewReader(bytesSlice), nil
 }
 
