@@ -91,7 +91,8 @@ func (wh *WatchHandler) PodWatch() {
 				if event.Type != "ADDED" && event.Type != "MODIFIED" {
 					return
 				}
-				glog.Infof("START - pStore.Eval on pod")
+				pod.APIVersion = "v1"
+				pod.Kind = "Pod"
 				if res, err := pStore.Eval(pod); err != nil {
 					glog.Errorf("pStore.Eval error: %s", err.Error())
 				} else {
