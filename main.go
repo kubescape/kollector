@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
@@ -12,7 +11,6 @@ import (
 )
 
 func main() {
-	flag.Parse()
 
 	isServerReady := false
 	go probes.InitReadinessV1(&isServerReady)
