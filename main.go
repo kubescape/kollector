@@ -1,14 +1,21 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
+
+	"asterix.cyberarmor.io/cyberarmor/capacketsgo/k8sshared/probes"
 
 	"github.com/golang/glog"
 )
 
 func main() {
+	flag.Parse()
+
+	isServerReady := false
+	go probes.InitReadinessV1(&isServerReady)
 
 	displayBuildTag()
 
@@ -43,7 +50,7 @@ func main() {
 		wh.SecretWatch()
 	}()
 
-	glog.Error(wh.WebSocketHandle.SendReportRoutine())
+	glog.Error(wh.WebSocketHandle.SendReportRoutine(&isServerReady))
 
 }
 

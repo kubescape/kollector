@@ -28,6 +28,11 @@ type WatchHandler struct {
 	aggregateFirstDataFlag bool
 }
 
+// GetAggregateFirstDataFlag return pointer
+func (wh *WatchHandler) GetAggregateFirstDataFlag() *bool {
+	return &wh.aggregateFirstDataFlag
+}
+
 //CreateWatchHandler -
 func CreateWatchHandler() *WatchHandler {
 

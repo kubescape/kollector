@@ -76,7 +76,7 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 }
 
 // SendReportRoutine function sending updates
-func (wsh *WebSocketHandler) SendReportRoutine() error {
+func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool) error {
 	defer func() {
 		if err := recover(); err != nil {
 			glog.Errorf("RECOVER sendReportRoutine. %v", err)
@@ -88,9 +88,9 @@ func (wsh *WebSocketHandler) SendReportRoutine() error {
 		glog.Error(err)
 		return err
 	}
+	*isServerReady = true
 
 	// use mutex for writing message that way if write failed only the failed writing will reconnect
-
 	for {
 		data := <-wsh.data
 		wsh.mutex.Lock()
