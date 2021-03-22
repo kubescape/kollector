@@ -87,30 +87,30 @@ func (wh *WatchHandler) PodWatch() {
 		for event := range podsWatcher.ResultChan() {
 			pod, _ := event.Object.(*core.Pod)
 			podName := pod.ObjectMeta.Name
-			go func() {
-				if event.Type != "ADDED" && event.Type != "MODIFIED" {
-					return
-				}
-				pod.APIVersion = "v1"
-				pod.Kind = "Pod"
-				if res, err := pStore.Eval(pod); err != nil {
-					glog.Errorf("pStore.Eval error: %s", err.Error())
-				} else {
-					glog.Infof("pStore.Eval on pod, res length: %d, %v", len(res), res)
-					if len(res) > 0 {
-						for desIdx := range res {
-							if res[desIdx].Alert {
-								glog.Infof("Found OPA alert for pod '%s': %+v", podName, res)
-							}
-						}
-						if err := opapoliciesstore.NotifyReceiver(res); err != nil {
-							glog.Error("failed to NotifyReceiver", err)
+			// go func() {
+			// 	if event.Type != "ADDED" && event.Type != "MODIFIED" {
+			// 		return
+			// 	}
+			// 	pod.APIVersion = "v1"
+			// 	pod.Kind = "Pod"
+			// 	if res, err := pStore.Eval(pod); err != nil {
+			// 		glog.Errorf("pStore.Eval error: %s", err.Error())
+			// 	} else {
+			// 		glog.Infof("pStore.Eval on pod, res length: %d, %v", len(res), res)
+			// 		if len(res) > 0 {
+			// 			for desIdx := range res {
+			// 				if res[desIdx].Alert {
+			// 					glog.Infof("Found OPA alert for pod '%s': %+v", podName, res)
+			// 				}
+			// 			}
+			// 			if err := opapoliciesstore.NotifyReceiver(res); err != nil {
+			// 				glog.Error("failed to NotifyReceiver", err)
 
-						}
-					}
-				}
-				glog.Infof("END - pStore.Eval on pod")
-			}()
+			// 			}
+			// 		}
+			// 	}
+			// 	glog.Infof("END - pStore.Eval on pod")
+			// }()
 			if podName == "" {
 				podName = pod.ObjectMeta.GenerateName
 			}
