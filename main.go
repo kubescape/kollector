@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
 
-	"asterix.cyberarmor.io/cyberarmor/capacketsgo/k8sshared/probes"
+	"github.com/armosec/capacketsgo/k8sshared/probes"
 
 	"github.com/golang/glog"
 )
