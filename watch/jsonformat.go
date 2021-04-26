@@ -3,6 +3,8 @@ package watch
 import (
 	"encoding/json"
 	"log"
+
+	"k8s.io/apimachinery/pkg/version"
 )
 
 type JsonType int
@@ -29,12 +31,13 @@ type ObjectData struct {
 }
 
 type jsonFormat struct {
-	FirstReport   bool       `json:"firstReport"`
-	Nodes         ObjectData `json:"node"`
-	Services      ObjectData `json:"service"`
-	MicroServices ObjectData `json:"microservice"`
-	Pods          ObjectData `json:"pod"`
-	Secret        ObjectData `json:"secret"`
+	FirstReport             bool          `json:"firstReport"`
+	ClusterAPIServerVersion *version.Info `json:"clusterAPIServerVersion,omitempty"`
+	Nodes                   ObjectData    `json:"node"`
+	Services                ObjectData    `json:"service"`
+	MicroServices           ObjectData    `json:"microservice"`
+	Pods                    ObjectData    `json:"pod"`
+	Secret                  ObjectData    `json:"secret"`
 }
 
 func (obj *ObjectData) AddToJsonFormatByState(NewData interface{}, stype StateType) {
@@ -67,6 +70,11 @@ func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, 
 //PrepareDataToSend -
 func PrepareDataToSend(wh *WatchHandler) []byte {
 	jsonReport := wh.jsonReport
+	if *wh.GetAggregateFirstDataFlag() {
+		jsonReport.ClusterAPIServerVersion = wh.clusterAPIServerVersion
+	} else {
+		jsonReport.ClusterAPIServerVersion = nil
+	}
 	jsonReportToSend, err := json.Marshal(jsonReport)
 	if nil != err {
 		log.Printf("json.Marshal %v", err)

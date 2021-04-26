@@ -83,11 +83,11 @@ func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool) error {
 		}
 	}()
 	conn, err := wsh.connectToWebSocket(0)
-	defer conn.Close()
 	if err != nil {
 		glog.Error(err)
 		return err
 	}
+	defer conn.Close()
 	*isServerReady = true
 
 	// use mutex for writing message that way if write failed only the failed writing will reconnect
@@ -145,7 +145,7 @@ func (wh *WatchHandler) ListenerAndSender() {
 
 	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
 	glog.Infof("wait 40 seconds for aggragate the first data from the cluster\n")
-	time.Sleep(40 * time.Second)
+	time.Sleep(5 * time.Second)
 	wh.SetFirstReportFlag(true)
 	for {
 		jsonData := PrepareDataToSend(wh)

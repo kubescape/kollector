@@ -19,7 +19,6 @@ import (
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -30,7 +29,7 @@ type OwnerDet struct {
 	OwnerData interface{} `json:"ownerData,omitempty"`
 }
 type CRDOwnerData struct {
-	v1.TypeMeta
+	metav1.TypeMeta
 }
 type OwnerDetNameAndKindOnly struct {
 	Name string `json:"name"`
@@ -271,7 +270,7 @@ func NumberOfRunningPods(pod *core.Pod, pdm map[int]*list.List) int {
 func GetOwnerData(name string, kind string, apiVersion string, namespace string, wh *WatchHandler) interface{} {
 	switch kind {
 	case "Deployment":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		depDet, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData Deployments: %s", err.Error())
@@ -281,7 +280,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		depDet.TypeMeta.APIVersion = apiVersion
 		return depDet
 	case "DeamonSet", "DaemonSet":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		daemSetDet, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData DaemonSets: %s", err.Error())
@@ -291,7 +290,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		daemSetDet.TypeMeta.APIVersion = apiVersion
 		return daemSetDet
 	case "StatefulSet":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		statSetDet, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData StatefulSets: %s", err.Error())
@@ -301,7 +300,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		statSetDet.TypeMeta.APIVersion = apiVersion
 		return statSetDet
 	case "Job":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		jobDet, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData Jobs: %s", err.Error())
@@ -311,7 +310,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		jobDet.TypeMeta.APIVersion = apiVersion
 		return jobDet
 	case "CronJob":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		cronJobDet, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData CronJobs: %s", err.Error())
@@ -321,7 +320,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		cronJobDet.TypeMeta.APIVersion = apiVersion
 		return cronJobDet
 	case "Pod":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		podDet, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData Pods: %s", err.Error())
@@ -335,7 +334,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		if wh.extensionsClient == nil {
 			return nil
 		}
-		options := v1.ListOptions{}
+		options := metav1.ListOptions{}
 		crds, err := wh.extensionsClient.CustomResourceDefinitions().List(context.Background(), options)
 		if err != nil {
 			glog.Errorf("GetOwnerData CustomResourceDefinitions: %s", err.Error())
@@ -344,7 +343,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		for crdIdx := range crds.Items {
 			if crds.Items[crdIdx].Status.AcceptedNames.Kind == kind {
 				return CRDOwnerData{
-					v1.TypeMeta{Kind: crds.Items[crdIdx].Kind,
+					metav1.TypeMeta{Kind: crds.Items[crdIdx].Kind,
 						APIVersion: apiVersion,
 					}}
 			}
@@ -481,7 +480,7 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kind, namespace string) bool {
 	switch kind {
 	case "Deployment":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*appsv1.Deployment).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
@@ -491,7 +490,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		glog.Infof("Removing pod but not Deployment: %s", string(v))
 
 	case "DeamonSet", "DaemonSet":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*appsv1.DaemonSet).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
@@ -501,7 +500,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		glog.Infof("Removing pod but not DaemonSet: %s", string(v))
 
 	case "StatefulSets":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*appsv1.StatefulSet).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
@@ -510,7 +509,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		v, _ := json.Marshal(mic)
 		glog.Infof("Removing pod but not StatefulSet: %s", string(v))
 	case "Job":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*batchv1.Job).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
@@ -519,7 +518,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		v, _ := json.Marshal(mic)
 		glog.Infof("Removing pod but not Job: %s", string(v))
 	case "CronJob":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		cronJob, ok := ownerData.(*v1beta1.CronJob)
 		if !ok {
 			glog.Errorf("cant convert to v1beta1.CronJob")
@@ -532,7 +531,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		v, _ := json.Marshal(mic)
 		glog.Infof("Removing pod but not CronJob: %s", string(v))
 	case "Pod":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*core.Pod).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
