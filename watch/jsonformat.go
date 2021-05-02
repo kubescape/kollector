@@ -33,6 +33,7 @@ type ObjectData struct {
 type jsonFormat struct {
 	FirstReport             bool          `json:"firstReport"`
 	ClusterAPIServerVersion *version.Info `json:"clusterAPIServerVersion,omitempty"`
+	CloudVendor             string        `json:"cloudVendor,omitempty"`
 	Nodes                   ObjectData    `json:"node"`
 	Services                ObjectData    `json:"service"`
 	MicroServices           ObjectData    `json:"microservice"`
@@ -72,8 +73,10 @@ func PrepareDataToSend(wh *WatchHandler) []byte {
 	jsonReport := wh.jsonReport
 	if *wh.GetAggregateFirstDataFlag() {
 		jsonReport.ClusterAPIServerVersion = wh.clusterAPIServerVersion
+		jsonReport.CloudVendor = wh.cloudVendor
 	} else {
 		jsonReport.ClusterAPIServerVersion = nil
+		jsonReport.CloudVendor = ""
 	}
 	jsonReportToSend, err := json.Marshal(jsonReport)
 	if nil != err {

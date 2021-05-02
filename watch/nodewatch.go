@@ -69,6 +69,11 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 	return nodeName
 }
 
+func (wh *WatchHandler) CheckInstanceMetadataAPIVendor() string {
+	res, _ := getInstanceMetadata()
+	return res
+}
+
 // NodeWatch Watching over nodes
 func (wh *WatchHandler) NodeWatch() {
 	defer func() {
@@ -84,8 +89,10 @@ func (wh *WatchHandler) NodeWatch() {
 			serverVersion = &version.Info{GitVersion: "Unknown"}
 		} else {
 			log.Printf("K8s API version :%v", serverVersion)
-			wh.clusterAPIServerVersion = serverVersion
 		}
+		wh.clusterAPIServerVersion = serverVersion
+		wh.cloudVendor = wh.CheckInstanceMetadataAPIVendor()
+		log.Printf("K8s Cloud Vendor : %s", wh.cloudVendor)
 		log.Printf("Watching over nodes starting")
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {

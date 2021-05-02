@@ -21,6 +21,7 @@ type WatchHandler struct {
 	WebSocketHandle  *WebSocketHandler
 	// cluster info
 	clusterAPIServerVersion *version.Info
+	cloudVendor             string
 	// pods list
 	pdm map[int]*list.List
 	// node list
