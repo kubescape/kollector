@@ -10,6 +10,7 @@ import (
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 type NodeData struct {
@@ -102,7 +103,12 @@ func (wh *WatchHandler) NodeWatch() {
 		}
 		podsChan := podsWatcher.ResultChan()
 		log.Printf("Watching over nodes started")
+	ChanLoop:
 		for event := range podsChan {
+			if event.Type == watch.Error {
+				glog.Errorf("Chan loop((((((((((nodes)))))))))) error: %v", event.Object)
+				break ChanLoop
+			}
 			if node, ok := event.Object.(*core.Node); ok {
 				switch event.Type {
 				case "ADDED":

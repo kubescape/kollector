@@ -73,43 +73,23 @@ func (wh *WatchHandler) PodWatch() {
 	}
 	glog.Infof("Finished pStore.LoadRegoPoliciesFromDir")
 	for {
-		// defer func() {
-		// 	if err := recover(); err != nil {
-		// 		glog.Errorf("RECOVER PodWatch. error: %v", err)
-		// 	}
-		// }()
 		glog.Infof("Watching over pods starting")
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			glog.Errorf("Watch error: %s", err.Error())
 		}
+	ChanLoop:
 		for event := range podsWatcher.ResultChan() {
-			pod, _ := event.Object.(*core.Pod)
+			if event.Type == watch.Error {
+				glog.Errorf("Chan loop error: %v", event.Object)
+				break ChanLoop
+			}
+			pod, ok := event.Object.(*core.Pod)
+			if !ok {
+				glog.Errorf("Watch error: cannot convert to  core.Pod")
+				break ChanLoop
+			}
 			podName := pod.ObjectMeta.Name
-			// go func() {
-			// 	if event.Type != "ADDED" && event.Type != "MODIFIED" {
-			// 		return
-			// 	}
-			// 	pod.APIVersion = "v1"
-			// 	pod.Kind = "Pod"
-			// 	if res, err := pStore.Eval(pod); err != nil {
-			// 		glog.Errorf("pStore.Eval error: %s", err.Error())
-			// 	} else {
-			// 		glog.Infof("pStore.Eval on pod, res length: %d, %v", len(res), res)
-			// 		if len(res) > 0 {
-			// 			for desIdx := range res {
-			// 				if res[desIdx].Alert {
-			// 					glog.Infof("Found OPA alert for pod '%s': %+v", podName, res)
-			// 				}
-			// 			}
-			// 			if err := opapoliciesstore.NotifyReceiver(res); err != nil {
-			// 				glog.Error("failed to NotifyReceiver", err)
-
-			// 			}
-			// 		}
-			// 	}
-			// 	glog.Infof("END - pStore.Eval on pod")
-			// }()
 			if podName == "" {
 				podName = pod.ObjectMeta.GenerateName
 			}
@@ -123,7 +103,7 @@ func (wh *WatchHandler) PodWatch() {
 					break
 				}
 				first := true
-				id, runnigPodNum := IsPodSpecAlreadyExist(pod, wh.pdm)
+				id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels["cyberarmor"], wh.pdm)
 				// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
 				if runnigPodNum == 0 {
 					// glog.Infof("dwertent -- Adding NEW pod name: %s, id: %d", podName, id)
@@ -223,16 +203,54 @@ func IsPodExist(pod *core.Pod, pdm map[int]*list.List) bool {
 	return false
 }
 
+func extractPodSpecFromOwner(ownerData interface{}) interface{} {
+	if ownerData != nil {
+		jsonBytes, err := json.Marshal(ownerData)
+		if err != nil {
+			return ownerData
+		}
+		fd := make(map[string]interface{})
+		if err := json.Unmarshal(jsonBytes, &fd); err != nil {
+			return ownerData
+		}
+		if fdSpec, ok := fd["spec"]; ok {
+			return fdSpec
+			// if fdSpecMap, ok := fdSpec.(map[string]interface{}); ok {
+			// 	if temp, ok := fdSpecMap["template"]; ok {
+			// 		if tempMap, ok := temp.(map[string]interface{}); ok {
+			// 			if tempSpec, ok := tempMap["spec"]; ok {
+			// 				if tempSpecMap, ok := tempSpec.(map[string]interface{}); ok {
+			// 					if serviceAccountNameI, ok := tempSpecMap["serviceAccount"]; ok {
+			// 						serviceAccountName := fmt.Sprintf("%v", serviceAccountNameI)
+			// 						if wlidsList, ok := sa2WLIDmap[serviceAccountName]; ok {
+			// 							wlidsList = append(wlidsList, wlid)
+			// 							sa2WLIDmap[serviceAccountName] = wlidsList
+			// 						} else {
+			// 							sa2WLIDmap[serviceAccountName] = []string{serviceAccountName}
+			// 						}
+			// 					}
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
+		}
+
+	}
+	return ownerData
+}
+
 // IsPodSpecAlreadyExist -
-func IsPodSpecAlreadyExist(pod *core.Pod, pdm map[int]*list.List) (int, int) {
+func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus string, pdm map[int]*list.List) (int, int) {
+	newSpec := extractPodSpecFromOwner(podOwner.OwnerData)
 	for _, v := range pdm {
 		if v == nil || v.Len() == 0 {
 			continue
 		}
 		p := v.Front().Value.(MicroServiceData)
-		//test owner references(if those exists)
-		if p.ObjectMeta.UID == pod.ObjectMeta.UID || (p.ObjectMeta.Namespace == pod.ObjectMeta.Namespace &&
-			(reflect.DeepEqual(p.OwnerReferences, pod.OwnerReferences))) {
+		existsSpec := extractPodSpecFromOwner(p.Owner.OwnerData)
+		//test owner data(if those exists)
+		if p.ObjectMeta.Namespace == namespace && armoStatus == p.Labels["cyberarmor"] && reflect.DeepEqual(newSpec, existsSpec) {
 			return v.Front().Value.(MicroServiceData).PodSpecId, v.Len()
 		}
 	}
@@ -359,6 +377,13 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 
 	if pod.OwnerReferences != nil {
 		switch pod.OwnerReferences[0].Kind {
+		case "Node":
+			od.Name = pod.ObjectMeta.Name
+			od.Kind = "Pod"
+			od.OwnerData = GetOwnerData(pod.ObjectMeta.Name, od.Kind, pod.APIVersion, pod.ObjectMeta.Namespace, wh)
+			if crd, ok := od.OwnerData.(CRDOwnerData); ok {
+				od.Kind = crd.Kind
+			}
 		case "ReplicaSet":
 			repItem, err := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if err != nil {

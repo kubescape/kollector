@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 // SecretData -
@@ -74,7 +76,12 @@ func (wh *WatchHandler) SecretWatch() {
 		}
 		secretsChan := secretsWatcher.ResultChan()
 		log.Printf("Watching over secrets started")
+	ChanLoop:
 		for event := range secretsChan {
+			if event.Type == watch.Error {
+				glog.Errorf("Chan loop((((((((((secret)))))))))) error: %v", event.Object)
+				break ChanLoop
+			}
 			if secret, ok := event.Object.(*core.Secret); ok {
 				removeSecretData(secret)
 				switch event.Type {
