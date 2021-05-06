@@ -105,13 +105,12 @@ func (wh *WatchHandler) PodWatch() {
 				first := true
 				id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels["cyberarmor"], wh.pdm)
 				// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
-				if runnigPodNum == 0 {
+				if runnigPodNum <= 1 {
 					// glog.Infof("dwertent -- Adding NEW pod name: %s, id: %d", podName, id)
 					wh.pdm[id] = list.New()
 					nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 					wh.pdm[id].PushBack(nms)
 					wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
-					runnigPodNum = 1
 				} else { // Check if pod is already reported
 					if wh.pdm[id].Front() != nil {
 						element := wh.pdm[id].Front().Next()
@@ -244,7 +243,7 @@ func extractPodSpecFromOwner(ownerData interface{}) interface{} {
 func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus string, pdm map[int]*list.List) (int, int) {
 	newSpec := extractPodSpecFromOwner(podOwner.OwnerData)
 	for _, v := range pdm {
-		if v == nil || v.Len() == 0 {
+		if v == nil || v.Len() <= 1 {
 			continue
 		}
 		p := v.Front().Value.(MicroServiceData)
@@ -569,53 +568,52 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	return false
 }
 
-// RemovePod remove pod and check if has parents
+// RemovePod remove pod and check if has parents. Returns 3 elements: 1. pod spec ID, 2. is owner removed, 3. owner
 func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, bool, OwnerDet) {
 	var owner OwnerDet
+	removed := false
+	podSpecID := -1
 	for id, v := range pdm {
-		if v.Front() != nil {
-			element := v.Front().Next()
-			for element != nil {
-				if element.Value.(PodDataForExistMicroService).PodName == pod.ObjectMeta.Name {
-					//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-					owner = v.Front().Value.(MicroServiceData).Owner
-					v.Remove(element)
-					removed := false
-					if v.Len() == 1 {
-						msd := v.Front().Value.(MicroServiceData)
-						removed = wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
-						podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
-						if removed {
-							v.Remove(v.Front())
-							delete(pdm, id)
-						}
-						return podSpecID, removed, owner
-					}
-					// remove before testing len?
-					return v.Front().Value.(MicroServiceData).PodSpecId, removed, owner
-				}
-				if element.Value.(PodDataForExistMicroService).PodName == pod.ObjectMeta.GenerateName {
-					//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-					owner = v.Front().Value.(MicroServiceData).Owner
-					removed := false
-					v.Remove(element)
-					if v.Len() == 1 {
-						msd := v.Front().Value.(MicroServiceData)
-						removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
-						podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
-						if removed {
-							v.Remove(v.Front())
-							delete(pdm, id)
-						}
-						return podSpecID, removed, owner
-					}
-					return v.Front().Value.(MicroServiceData).PodSpecId, removed, owner
-				}
-				element = element.Next()
+		for element := v.Front(); element != nil; element = element.Next() {
+			podData, ok := element.Value.(PodDataForExistMicroService)
+			if !ok {
+				continue
 			}
+			if podData.PodName == pod.ObjectMeta.Name {
+				//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+				owner = v.Front().Value.(MicroServiceData).Owner
+				v.Remove(element)
+				podSpecID = id
+				if v.Len() <= 1 {
+					msd := v.Front().Value.(MicroServiceData)
+					removed = wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
+					if removed {
+						v.Remove(v.Front())
+						delete(pdm, id)
+					}
+					// return podSpecID, removed, owner
+				}
+				// remove before testing len?
+			}
+			if element.Value.(PodDataForExistMicroService).PodName == pod.ObjectMeta.GenerateName {
+				// log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+				owner = v.Front().Value.(MicroServiceData).Owner
+				v.Remove(element)
+				if v.Len() <= 1 {
+					msd := v.Front().Value.(MicroServiceData)
+					removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
+					if removed {
+						v.Remove(v.Front())
+						delete(pdm, id)
+					}
+				}
+				podSpecID = v.Front().Value.(MicroServiceData).PodSpecId
+			}
+
 		}
+
 	}
-	return -1, false, owner
+	return podSpecID, removed, owner
 }
 
 // func (wh *WatchHandler) AddPod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool, OwnerDet) {
