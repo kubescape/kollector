@@ -19,7 +19,6 @@ import (
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -30,7 +29,7 @@ type OwnerDet struct {
 	OwnerData interface{} `json:"ownerData,omitempty"`
 }
 type CRDOwnerData struct {
-	v1.TypeMeta
+	metav1.TypeMeta
 }
 type OwnerDetNameAndKindOnly struct {
 	Name string `json:"name"`
@@ -74,43 +73,23 @@ func (wh *WatchHandler) PodWatch() {
 	}
 	glog.Infof("Finished pStore.LoadRegoPoliciesFromDir")
 	for {
-		// defer func() {
-		// 	if err := recover(); err != nil {
-		// 		glog.Errorf("RECOVER PodWatch. error: %v", err)
-		// 	}
-		// }()
 		glog.Infof("Watching over pods starting")
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			glog.Errorf("Watch error: %s", err.Error())
 		}
+	ChanLoop:
 		for event := range podsWatcher.ResultChan() {
-			pod, _ := event.Object.(*core.Pod)
+			if event.Type == watch.Error {
+				glog.Errorf("Chan loop error: %v", event.Object)
+				break ChanLoop
+			}
+			pod, ok := event.Object.(*core.Pod)
+			if !ok {
+				glog.Errorf("Watch error: cannot convert to  core.Pod")
+				break ChanLoop
+			}
 			podName := pod.ObjectMeta.Name
-			go func() {
-				if event.Type != "ADDED" && event.Type != "MODIFIED" {
-					return
-				}
-				pod.APIVersion = "v1"
-				pod.Kind = "Pod"
-				if res, err := pStore.Eval(pod); err != nil {
-					glog.Errorf("pStore.Eval error: %s", err.Error())
-				} else {
-					glog.Infof("pStore.Eval on pod, res length: %d, %v", len(res), res)
-					if len(res) > 0 {
-						for desIdx := range res {
-							if res[desIdx].Alert {
-								glog.Infof("Found OPA alert for pod '%s': %+v", podName, res)
-							}
-						}
-						if err := opapoliciesstore.NotifyReceiver(res); err != nil {
-							glog.Error("failed to NotifyReceiver", err)
-
-						}
-					}
-				}
-				glog.Infof("END - pStore.Eval on pod")
-			}()
 			if podName == "" {
 				podName = pod.ObjectMeta.GenerateName
 			}
@@ -124,15 +103,14 @@ func (wh *WatchHandler) PodWatch() {
 					break
 				}
 				first := true
-				id, runnigPodNum := IsPodSpecAlreadyExist(pod, wh.pdm)
+				id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels["cyberarmor"], wh.pdm)
 				// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
-				if runnigPodNum == 0 {
+				if runnigPodNum <= 1 {
 					// glog.Infof("dwertent -- Adding NEW pod name: %s, id: %d", podName, id)
 					wh.pdm[id] = list.New()
 					nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 					wh.pdm[id].PushBack(nms)
 					wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
-					runnigPodNum = 1
 				} else { // Check if pod is already reported
 					if wh.pdm[id].Front() != nil {
 						element := wh.pdm[id].Front().Next()
@@ -224,16 +202,54 @@ func IsPodExist(pod *core.Pod, pdm map[int]*list.List) bool {
 	return false
 }
 
+func extractPodSpecFromOwner(ownerData interface{}) interface{} {
+	if ownerData != nil {
+		jsonBytes, err := json.Marshal(ownerData)
+		if err != nil {
+			return ownerData
+		}
+		fd := make(map[string]interface{})
+		if err := json.Unmarshal(jsonBytes, &fd); err != nil {
+			return ownerData
+		}
+		if fdSpec, ok := fd["spec"]; ok {
+			return fdSpec
+			// if fdSpecMap, ok := fdSpec.(map[string]interface{}); ok {
+			// 	if temp, ok := fdSpecMap["template"]; ok {
+			// 		if tempMap, ok := temp.(map[string]interface{}); ok {
+			// 			if tempSpec, ok := tempMap["spec"]; ok {
+			// 				if tempSpecMap, ok := tempSpec.(map[string]interface{}); ok {
+			// 					if serviceAccountNameI, ok := tempSpecMap["serviceAccount"]; ok {
+			// 						serviceAccountName := fmt.Sprintf("%v", serviceAccountNameI)
+			// 						if wlidsList, ok := sa2WLIDmap[serviceAccountName]; ok {
+			// 							wlidsList = append(wlidsList, wlid)
+			// 							sa2WLIDmap[serviceAccountName] = wlidsList
+			// 						} else {
+			// 							sa2WLIDmap[serviceAccountName] = []string{serviceAccountName}
+			// 						}
+			// 					}
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
+		}
+
+	}
+	return ownerData
+}
+
 // IsPodSpecAlreadyExist -
-func IsPodSpecAlreadyExist(pod *core.Pod, pdm map[int]*list.List) (int, int) {
+func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus string, pdm map[int]*list.List) (int, int) {
+	newSpec := extractPodSpecFromOwner(podOwner.OwnerData)
 	for _, v := range pdm {
-		if v == nil || v.Len() == 0 {
+		if v == nil || v.Len() <= 1 {
 			continue
 		}
 		p := v.Front().Value.(MicroServiceData)
-		//test owner references(if those exists)
-		if p.ObjectMeta.UID == pod.ObjectMeta.UID || (p.ObjectMeta.Namespace == pod.ObjectMeta.Namespace &&
-			(reflect.DeepEqual(p.OwnerReferences, pod.OwnerReferences))) {
+		existsSpec := extractPodSpecFromOwner(p.Owner.OwnerData)
+		//test owner data(if those exists)
+		if p.ObjectMeta.Namespace == namespace && armoStatus == p.Labels["cyberarmor"] && reflect.DeepEqual(newSpec, existsSpec) {
 			return v.Front().Value.(MicroServiceData).PodSpecId, v.Len()
 		}
 	}
@@ -271,7 +287,7 @@ func NumberOfRunningPods(pod *core.Pod, pdm map[int]*list.List) int {
 func GetOwnerData(name string, kind string, apiVersion string, namespace string, wh *WatchHandler) interface{} {
 	switch kind {
 	case "Deployment":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		depDet, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData Deployments: %s", err.Error())
@@ -281,7 +297,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		depDet.TypeMeta.APIVersion = apiVersion
 		return depDet
 	case "DeamonSet", "DaemonSet":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		daemSetDet, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData DaemonSets: %s", err.Error())
@@ -291,7 +307,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		daemSetDet.TypeMeta.APIVersion = apiVersion
 		return daemSetDet
 	case "StatefulSet":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		statSetDet, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData StatefulSets: %s", err.Error())
@@ -301,7 +317,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		statSetDet.TypeMeta.APIVersion = apiVersion
 		return statSetDet
 	case "Job":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		jobDet, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData Jobs: %s", err.Error())
@@ -311,7 +327,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		jobDet.TypeMeta.APIVersion = apiVersion
 		return jobDet
 	case "CronJob":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		cronJobDet, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData CronJobs: %s", err.Error())
@@ -321,7 +337,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		cronJobDet.TypeMeta.APIVersion = apiVersion
 		return cronJobDet
 	case "Pod":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		podDet, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			glog.Errorf("GetOwnerData Pods: %s", err.Error())
@@ -335,7 +351,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		if wh.extensionsClient == nil {
 			return nil
 		}
-		options := v1.ListOptions{}
+		options := metav1.ListOptions{}
 		crds, err := wh.extensionsClient.CustomResourceDefinitions().List(context.Background(), options)
 		if err != nil {
 			glog.Errorf("GetOwnerData CustomResourceDefinitions: %s", err.Error())
@@ -344,7 +360,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		for crdIdx := range crds.Items {
 			if crds.Items[crdIdx].Status.AcceptedNames.Kind == kind {
 				return CRDOwnerData{
-					v1.TypeMeta{Kind: crds.Items[crdIdx].Kind,
+					metav1.TypeMeta{Kind: crds.Items[crdIdx].Kind,
 						APIVersion: apiVersion,
 					}}
 			}
@@ -360,6 +376,13 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 
 	if pod.OwnerReferences != nil {
 		switch pod.OwnerReferences[0].Kind {
+		case "Node":
+			od.Name = pod.ObjectMeta.Name
+			od.Kind = "Pod"
+			od.OwnerData = GetOwnerData(pod.ObjectMeta.Name, od.Kind, pod.APIVersion, pod.ObjectMeta.Namespace, wh)
+			if crd, ok := od.OwnerData.(CRDOwnerData); ok {
+				od.Kind = crd.Kind
+			}
 		case "ReplicaSet":
 			repItem, err := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if err != nil {
@@ -481,7 +504,7 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kind, namespace string) bool {
 	switch kind {
 	case "Deployment":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*appsv1.Deployment).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
@@ -491,7 +514,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		glog.Infof("Removing pod but not Deployment: %s", string(v))
 
 	case "DeamonSet", "DaemonSet":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*appsv1.DaemonSet).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
@@ -501,7 +524,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		glog.Infof("Removing pod but not DaemonSet: %s", string(v))
 
 	case "StatefulSets":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*appsv1.StatefulSet).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
@@ -510,7 +533,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		v, _ := json.Marshal(mic)
 		glog.Infof("Removing pod but not StatefulSet: %s", string(v))
 	case "Job":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*batchv1.Job).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
@@ -519,7 +542,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		v, _ := json.Marshal(mic)
 		glog.Infof("Removing pod but not Job: %s", string(v))
 	case "CronJob":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		cronJob, ok := ownerData.(*v1beta1.CronJob)
 		if !ok {
 			glog.Errorf("cant convert to v1beta1.CronJob")
@@ -532,7 +555,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		v, _ := json.Marshal(mic)
 		glog.Infof("Removing pod but not CronJob: %s", string(v))
 	case "Pod":
-		options := v1.GetOptions{}
+		options := metav1.GetOptions{}
 		name := ownerData.(*core.Pod).ObjectMeta.Name
 		mic, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
@@ -545,53 +568,52 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	return false
 }
 
-// RemovePod remove pod and check if has parents
+// RemovePod remove pod and check if has parents. Returns 3 elements: 1. pod spec ID, 2. is owner removed, 3. owner
 func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, bool, OwnerDet) {
 	var owner OwnerDet
+	removed := false
+	podSpecID := -1
 	for id, v := range pdm {
-		if v.Front() != nil {
-			element := v.Front().Next()
-			for element != nil {
-				if element.Value.(PodDataForExistMicroService).PodName == pod.ObjectMeta.Name {
-					//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-					owner = v.Front().Value.(MicroServiceData).Owner
-					v.Remove(element)
-					removed := false
-					if v.Len() == 1 {
-						msd := v.Front().Value.(MicroServiceData)
-						removed = wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
-						podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
-						if removed {
-							v.Remove(v.Front())
-							delete(pdm, id)
-						}
-						return podSpecID, removed, owner
-					}
-					// remove before testing len?
-					return v.Front().Value.(MicroServiceData).PodSpecId, removed, owner
-				}
-				if element.Value.(PodDataForExistMicroService).PodName == pod.ObjectMeta.GenerateName {
-					//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
-					owner = v.Front().Value.(MicroServiceData).Owner
-					removed := false
-					v.Remove(element)
-					if v.Len() == 1 {
-						msd := v.Front().Value.(MicroServiceData)
-						removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
-						podSpecID := v.Front().Value.(MicroServiceData).PodSpecId
-						if removed {
-							v.Remove(v.Front())
-							delete(pdm, id)
-						}
-						return podSpecID, removed, owner
-					}
-					return v.Front().Value.(MicroServiceData).PodSpecId, removed, owner
-				}
-				element = element.Next()
+		for element := v.Front(); element != nil; element = element.Next() {
+			podData, ok := element.Value.(PodDataForExistMicroService)
+			if !ok {
+				continue
 			}
+			if podData.PodName == pod.ObjectMeta.Name {
+				//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+				owner = v.Front().Value.(MicroServiceData).Owner
+				v.Remove(element)
+				podSpecID = id
+				if v.Len() <= 1 {
+					msd := v.Front().Value.(MicroServiceData)
+					removed = wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
+					if removed {
+						v.Remove(v.Front())
+						delete(pdm, id)
+					}
+					// return podSpecID, removed, owner
+				}
+				// remove before testing len?
+			}
+			if element.Value.(PodDataForExistMicroService).PodName == pod.ObjectMeta.GenerateName {
+				// log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
+				owner = v.Front().Value.(MicroServiceData).Owner
+				v.Remove(element)
+				if v.Len() <= 1 {
+					msd := v.Front().Value.(MicroServiceData)
+					removed := wh.isMicroServiceNeedToBeRemoved(msd.Owner.OwnerData, msd.Owner.Kind, msd.ObjectMeta.Namespace)
+					if removed {
+						v.Remove(v.Front())
+						delete(pdm, id)
+					}
+				}
+				podSpecID = v.Front().Value.(MicroServiceData).PodSpecId
+			}
+
 		}
+
 	}
-	return -1, false, owner
+	return podSpecID, removed, owner
 }
 
 // func (wh *WatchHandler) AddPod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool, OwnerDet) {

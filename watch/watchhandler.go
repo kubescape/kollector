@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -22,12 +22,19 @@ type PodMap struct {
 
 // WatchHandler -
 type WatchHandler struct {
-	extensionsClient       apixv1beta1client.ApiextensionsV1beta1Interface
-	RestAPIClient          kubernetes.Interface
-	WebSocketHandle        *WebSocketHandler
-	pdm                    map[int]*list.List
-	ndm                    map[int]*list.List
-	sdm                    map[int]*list.List
+	extensionsClient apixv1beta1client.ApiextensionsV1beta1Interface
+	RestAPIClient    kubernetes.Interface
+	WebSocketHandle  *WebSocketHandler
+	// cluster info
+	clusterAPIServerVersion *version.Info
+	cloudVendor             string
+	// pods list
+	pdm map[int]*list.List
+	// node list
+	ndm map[int]*list.List
+	// services list
+	sdm map[int]*list.List
+	// secrets list
 	secretdm               map[int]*list.List
 	jsonReport             jsonFormat
 	informNewDataChannel   chan int
@@ -119,7 +126,7 @@ func parseArgument() *restclient.Config {
 			return nil
 		}
 	case 1:
-		config, err = rest.InClusterConfig()
+		config, err = restclient.InClusterConfig()
 		if err != nil {
 			log.Print(err.Error())
 			return nil

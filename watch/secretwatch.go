@@ -63,57 +63,56 @@ func RemoveSecret(secret *core.Secret, secretdm map[int]*list.List) string {
 func (wh *WatchHandler) SecretWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			glog.Errorf("RECOVER SecretWatch. error: %v", err)
+			log.Printf("RECOVER SecretWatch. error: %v", err)
 		}
 	}()
-	glog.Infof("Watching over secrets starting")
+	log.Printf("Watching over secrets starting")
 	for {
 		secretsWatcher, err := wh.RestAPIClient.CoreV1().Secrets("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			glog.Warningf("Failed to watch over secrets. reason: %s", err.Error())
-			time.Sleep(time.Duration(5) * time.Second)
+			log.Printf("Cannot wathching over secrets. %v", err)
+			time.Sleep(time.Duration(10) * time.Second)
 			continue
 		}
 		secretsChan := secretsWatcher.ResultChan()
 		log.Printf("Watching over secrets started")
+	ChanLoop:
 		for event := range secretsChan {
-			go wh.HandleSecretEvent(&event)
-		}
-
-		glog.Infof("Watching over secrets ended - since we got timeout")
-	}
-}
-
-func (wh *WatchHandler) HandleSecretEvent(event *watch.Event) {
-	if secret, ok := event.Object.(*core.Secret); ok {
-		removeSecretData(secret)
-		switch event.Type {
-		case "ADDED":
-			id := CreateID()
-			if wh.secretdm[id] == nil {
-				wh.secretdm[id] = list.New()
+			if event.Type == watch.Error {
+				glog.Errorf("Chan loop((((((((((secret)))))))))) error: %v", event.Object)
+				break ChanLoop
 			}
-			secretdm := SecretData{Secret: secret}
-			wh.secretdm[id].PushBack(secretdm)
-			informNewDataArrive(wh)
-			wh.jsonReport.AddToJsonFormat(secret, SECRETS, CREATED)
-		case "MODIFY":
-			UpdateSecret(secret, wh.secretdm)
-			informNewDataArrive(wh)
-			wh.jsonReport.AddToJsonFormat(secret, SECRETS, UPDATED)
-		case "DELETED":
-			RemoveSecret(secret, wh.secretdm)
-			informNewDataArrive(wh)
-			wh.jsonReport.AddToJsonFormat(secret, SECRETS, DELETED)
-		case "BOOKMARK": //only the resource version is changed but it's the same workload
-			return
-		case "ERROR":
-			glog.Errorf("while watching over secrets we got an error: ")
+			if secret, ok := event.Object.(*core.Secret); ok {
+				removeSecretData(secret)
+				switch event.Type {
+				case "ADDED":
+					id := CreateID()
+					if wh.secretdm[id] == nil {
+						wh.secretdm[id] = list.New()
+					}
+					secretdm := SecretData{Secret: secret}
+					wh.secretdm[id].PushBack(secretdm)
+					informNewDataArrive(wh)
+					wh.jsonReport.AddToJsonFormat(secret, SECRETS, CREATED)
+				case "MODIFY":
+					UpdateSecret(secret, wh.secretdm)
+					informNewDataArrive(wh)
+					wh.jsonReport.AddToJsonFormat(secret, SECRETS, UPDATED)
+				case "DELETED":
+					RemoveSecret(secret, wh.secretdm)
+					informNewDataArrive(wh)
+					wh.jsonReport.AddToJsonFormat(secret, SECRETS, DELETED)
+				case "BOOKMARK": //only the resource version is changed but it's the same workload
+					continue
+				case "ERROR":
+					log.Printf("while watching over secrets we got an error: ")
+				}
+			} else {
+				log.Printf("Got unexpected secret from chan: %t, %v", event.Object, event.Object)
+			}
 		}
-	} else {
-		glog.Errorf("Got unexpected secret from chan: %t, %v", event.Object, event.Object)
+		log.Printf("Wathching over secrets ended - since we got timeout")
 	}
-
 }
 
 func removeSecretData(secret *core.Secret) {

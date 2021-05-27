@@ -6,30 +6,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 type NodeData struct {
-	Name                    string             `json:"name"`
-	MachineID               string             `json:"machineID"`
-	KernelVersion           string             `json:"kernelVersion"`
-	OsImage                 string             `json:"osImage"`
-	ContainerRuntimeVersion string             `json:"containerRuntimeVersion"`
-	OperatingSystem         string             `json:"operatingSystem"`
-	Architecture            string             `json:"architecture"`
-	Addresses               []core.NodeAddress `json:"addresses"`
+	// core.NodeSystemInfo
+	core.NodeStatus `json:",inline"`
+	Name            string `json:"name"`
 }
 
 func (updateNode *NodeData) UpdateNodeData(node *core.Node) {
 	updateNode.Name = node.ObjectMeta.Name
-	updateNode.MachineID = node.Status.NodeInfo.MachineID
-	updateNode.KernelVersion = node.Status.NodeInfo.KernelVersion
-	updateNode.OsImage = node.Status.NodeInfo.OSImage
-	updateNode.ContainerRuntimeVersion = node.Status.NodeInfo.ContainerRuntimeVersion
-	updateNode.OperatingSystem = node.Status.NodeInfo.OperatingSystem
-	updateNode.Architecture = node.Status.NodeInfo.Architecture
-	updateNode.Addresses = node.Status.Addresses
+	updateNode.NodeStatus = node.Status
 }
 
 func UpdateNode(node *core.Node, ndm map[int]*list.List) NodeData {
@@ -78,6 +70,11 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 	return nodeName
 }
 
+func (wh *WatchHandler) CheckInstanceMetadataAPIVendor() string {
+	res, _ := getInstanceMetadata()
+	return res
+}
+
 // NodeWatch Watching over nodes
 func (wh *WatchHandler) NodeWatch() {
 	defer func() {
@@ -86,6 +83,17 @@ func (wh *WatchHandler) NodeWatch() {
 		}
 	}()
 	for {
+		log.Printf("Taking k8s API version")
+		serverVersion, err := wh.RestAPIClient.Discovery().ServerVersion()
+		if err != nil {
+			glog.Errorf("Failed to get API server version, %v", err)
+			serverVersion = &version.Info{GitVersion: "Unknown"}
+		} else {
+			log.Printf("K8s API version :%v", serverVersion)
+		}
+		wh.clusterAPIServerVersion = serverVersion
+		wh.cloudVendor = wh.CheckInstanceMetadataAPIVendor()
+		log.Printf("K8s Cloud Vendor : %s", wh.cloudVendor)
 		log.Printf("Watching over nodes starting")
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
@@ -95,7 +103,12 @@ func (wh *WatchHandler) NodeWatch() {
 		}
 		podsChan := podsWatcher.ResultChan()
 		log.Printf("Watching over nodes started")
+	ChanLoop:
 		for event := range podsChan {
+			if event.Type == watch.Error {
+				glog.Errorf("Chan loop((((((((((nodes)))))))))) error: %v", event.Object)
+				break ChanLoop
+			}
 			if node, ok := event.Object.(*core.Node); ok {
 				switch event.Type {
 				case "ADDED":
@@ -104,13 +117,8 @@ func (wh *WatchHandler) NodeWatch() {
 						wh.ndm[id] = list.New()
 					}
 					nd := &NodeData{Name: node.ObjectMeta.Name,
-						MachineID:               node.Status.NodeInfo.MachineID,
-						KernelVersion:           node.Status.NodeInfo.KernelVersion,
-						OsImage:                 node.Status.NodeInfo.OSImage,
-						ContainerRuntimeVersion: node.Status.NodeInfo.ContainerRuntimeVersion,
-						OperatingSystem:         node.Status.NodeInfo.OperatingSystem,
-						Architecture:            node.Status.NodeInfo.Architecture,
-						Addresses:               node.Status.Addresses}
+						NodeStatus: node.Status,
+					}
 					wh.ndm[id].PushBack(nd)
 					informNewDataArrive(wh)
 					wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
@@ -133,5 +141,4 @@ func (wh *WatchHandler) NodeWatch() {
 		}
 		log.Printf("Wathching over nodes ended - since we got timeout")
 	}
-	log.Printf("Wathching over nodes ended")
 }

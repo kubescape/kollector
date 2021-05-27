@@ -6,8 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 type ServiceData struct {
@@ -72,7 +74,12 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 		}
 		podsChan := podsWatcher.ResultChan()
 		log.Printf("Watching over services started")
+	ChanLoop:
 		for event := range podsChan {
+			if event.Type == watch.Error {
+				glog.Errorf("Chan loop((((((((((services)))))))))) error: %v", event.Object)
+				break ChanLoop
+			}
 			if service, ok := event.Object.(*core.Service); ok {
 				switch event.Type {
 				case "ADDED":
