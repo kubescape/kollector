@@ -7,7 +7,7 @@ import (
 
 type IDDataBase struct {
 	Ids     *list.List
-	Mutex   sync.Mutex
+	Mutex   sync.RWMutex
 	counter int
 }
 
@@ -25,6 +25,9 @@ func CreateID() int {
 	var id int
 	var flag int = 1
 
+	ids.Mutex.Lock()
+	defer ids.Mutex.Unlock()
+
 	for flag == 1 {
 		flag = 0
 		id = IDCreator()
@@ -36,13 +39,14 @@ func CreateID() int {
 		}
 
 	}
-	ids.Mutex.Lock()
 	ids.Ids.PushBack(id)
-	ids.Mutex.Unlock()
 	return id
 }
 
 func DeleteID(id int) {
+	ids.Mutex.Lock()
+	defer ids.Mutex.Unlock()
+
 	for e := ids.Ids.Front(); e != nil; e = e.Next() {
 		if e.Value.(int) == id {
 			ids.Ids.Remove(e)

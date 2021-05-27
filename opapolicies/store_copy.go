@@ -1,7 +1,6 @@
 package opapoliciesstore
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -34,18 +33,6 @@ func TestLoadFromDirLior(t *testing.T) {
 
 	}
 
-	inputa := convert(input)
-	if jsonBytes, err := json.Marshal(inputa); err != nil {
-		// if jsonBytes, err := json.Marshal(*cPod); err != nil {
-		t.Errorf("json.Marshal - %v", err)
-	} else {
-		if err := json.Unmarshal(jsonBytes, &input); err != nil {
-			t.Errorf("json.Unmarshal - %v", err)
-		}
-		if err := json.Unmarshal(jsonBytes, cPod); err != nil {
-			t.Errorf("json.Unmarshal - %v", err)
-		}
-	}
 	if len(cPod.Spec.Containers) > 1 && (cPod.Spec.Containers[1].SecurityContext == nil || cPod.Spec.Containers[1].SecurityContext.Privileged == nil ||
 		*(cPod.Spec.Containers[1].SecurityContext.Privileged) == false) {
 		t.Errorf("invalid security context:%v", cPod.Spec.Containers[1].SecurityContext)

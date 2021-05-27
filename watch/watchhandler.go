@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
@@ -13,6 +14,11 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
+
+type IMap interface {
+}
+type PodMap struct {
+}
 
 // WatchHandler -
 type WatchHandler struct {
@@ -26,6 +32,7 @@ type WatchHandler struct {
 	jsonReport             jsonFormat
 	informNewDataChannel   chan int
 	aggregateFirstDataFlag bool
+	Mutex                  sync.RWMutex
 }
 
 // GetAggregateFirstDataFlag return pointer
