@@ -69,7 +69,7 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Services(namespace).Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			log.Printf("Cannot wathching over services. %v", err)
-			time.Sleep(time.Duration(10) * time.Second)
+			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
 		podsChan := podsWatcher.ResultChan()

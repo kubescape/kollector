@@ -15,9 +15,66 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-type IMap interface {
+type ResourceMap struct {
+	resourceMap map[int]*list.List
+	mutex       sync.RWMutex
 }
-type PodMap struct {
+
+func NewResourceMap() *ResourceMap {
+	return &ResourceMap{
+		resourceMap: make(map[int]*list.List),
+		mutex:       sync.RWMutex{},
+	}
+}
+func (rm *ResourceMap) Init(index int) {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+	if rm.resourceMap[index] == nil {
+		rm.resourceMap[index] = list.New()
+	}
+}
+func (rm *ResourceMap) Remove(index int) {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+	delete(rm.resourceMap, index)
+}
+func (rm *ResourceMap) GetIDs() []int {
+	rm.mutex.RLock()
+	defer rm.mutex.RUnlock()
+	ids := []int{}
+	for i := range rm.resourceMap {
+		ids = append(ids, i)
+	}
+	return ids
+}
+func (rm *ResourceMap) PushBack(index int, obj interface{}) {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+	rm.resourceMap[index].PushBack(obj)
+}
+func (rm *ResourceMap) Front(index int) *list.Element {
+	rm.mutex.RLock()
+	defer rm.mutex.RUnlock()
+	return rm.resourceMap[index].Front()
+}
+func (rm *ResourceMap) UpdateFront(index int, obj interface{}) {
+	rm.mutex.Lock()
+	defer rm.mutex.Unlock()
+	rm.resourceMap[index].Front().Value = obj
+}
+func (rm *ResourceMap) Len() int {
+	rm.mutex.RLock()
+	defer rm.mutex.RUnlock()
+	return len(rm.resourceMap)
+}
+
+func (rm *ResourceMap) IndexLen(index int) int {
+	rm.mutex.RLock()
+	defer rm.mutex.RUnlock()
+	if rm.resourceMap[index] == nil {
+		return 0
+	}
+	return rm.resourceMap[index].Len()
 }
 
 // WatchHandler -
@@ -35,11 +92,10 @@ type WatchHandler struct {
 	// services list
 	sdm map[int]*list.List
 	// secrets list
-	secretdm               map[int]*list.List
+	secretdm               *ResourceMap
 	jsonReport             jsonFormat
 	informNewDataChannel   chan int
 	aggregateFirstDataFlag bool
-	Mutex                  sync.RWMutex
 }
 
 // GetAggregateFirstDataFlag return pointer
@@ -89,10 +145,19 @@ func CreateWatchHandler() *WatchHandler {
 	result := WatchHandler{RestAPIClient: clientset,
 		WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, cusGUID),
 		extensionsClient: extensionsClientSet,
-		pdm:              make(map[int]*list.List), ndm: make(map[int]*list.List), sdm: make(map[int]*list.List), secretdm: make(map[int]*list.List),
-		jsonReport: jsonFormat{Nodes: ObjectData{}, Services: ObjectData{}, MicroServices: ObjectData{},
-			Pods: ObjectData{}}, informNewDataChannel: make(chan int), aggregateFirstDataFlag: true}
-
+		pdm:              make(map[int]*list.List),
+		ndm:              make(map[int]*list.List),
+		sdm:              make(map[int]*list.List),
+		secretdm:         NewResourceMap(),
+		jsonReport: jsonFormat{
+			Nodes:         ObjectData{},
+			Services:      ObjectData{},
+			MicroServices: ObjectData{},
+			Pods:          ObjectData{},
+		},
+		informNewDataChannel:   make(chan int),
+		aggregateFirstDataFlag: true,
+	}
 	return &result
 }
 

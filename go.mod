@@ -3,7 +3,7 @@ module k8s-ca-dashboard-aggregator
 go 1.13
 
 require (
-	github.com/armosec/capacketsgo v0.0.1
+	github.com/armosec/capacketsgo v0.0.9
 	github.com/francoispqt/gojay v1.2.13
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/gorilla/websocket v1.4.2
