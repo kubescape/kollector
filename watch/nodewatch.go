@@ -96,6 +96,9 @@ WatchLoop:
 		}
 		wh.clusterAPIServerVersion = serverVersion
 		wh.cloudVendor = wh.CheckInstanceMetadataAPIVendor()
+		if wh.cloudVendor != "" {
+			wh.clusterAPIServerVersion.GitVersion += ";" + wh.cloudVendor
+		}
 		log.Printf("K8s Cloud Vendor : %s", wh.cloudVendor)
 		log.Printf("Watching over nodes starting")
 		nodesWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
