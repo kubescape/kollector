@@ -23,8 +23,11 @@ func (wh *WatchHandler) SecretWatch() {
 			log.Printf("RECOVER SecretWatch. error: %v", err)
 		}
 	}()
-	log.Printf("Watching over secrets starting")
+	newStateChan := make(chan bool)
+	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
+WatchLoop:
 	for {
+		log.Printf("Watching over secrets starting")
 		secretsWatcher, err := wh.RestAPIClient.CoreV1().Secrets("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			glog.Errorf("Failed watching over secrets. %s", err.Error())
@@ -34,9 +37,18 @@ func (wh *WatchHandler) SecretWatch() {
 		secretsChan := secretsWatcher.ResultChan()
 		log.Printf("Watching over secrets started")
 	ChanLoop:
-		for event := range secretsChan {
+		for {
+			var event watch.Event
+			select {
+			case event = <-secretsChan:
+			case <-newStateChan:
+				secretsWatcher.Stop()
+				glog.Errorf("Secrets watch - newStateChan signal")
+				continue WatchLoop
+			}
 			if event.Type == watch.Error {
-				glog.Errorf("Chan loop secret error: %v", event.Object)
+				glog.Errorf("Secrets watch chan loop error: %v", event.Object)
+				secretsWatcher.Stop()
 				break ChanLoop
 			}
 			go wh.SecretEventHandler(&event)

@@ -47,8 +47,7 @@ func main() {
 	go func() {
 		wh.SecretWatch()
 	}()
-
-	glog.Error(wh.WebSocketHandle.SendReportRoutine(&isServerReady))
+	glog.Error(wh.WebSocketHandle.SendReportRoutine(&isServerReady, wh.SetFirstReportFlag))
 
 }
 

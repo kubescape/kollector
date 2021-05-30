@@ -82,6 +82,9 @@ func (wh *WatchHandler) NodeWatch() {
 			log.Printf("RECOVER NodeWatch. error: %v", err)
 		}
 	}()
+	newStateChan := make(chan bool)
+	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
+WatchLoop:
 	for {
 		log.Printf("Taking k8s API version")
 		serverVersion, err := wh.RestAPIClient.Discovery().ServerVersion()
@@ -95,18 +98,27 @@ func (wh *WatchHandler) NodeWatch() {
 		wh.cloudVendor = wh.CheckInstanceMetadataAPIVendor()
 		log.Printf("K8s Cloud Vendor : %s", wh.cloudVendor)
 		log.Printf("Watching over nodes starting")
-		podsWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
+		nodesWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			log.Printf("Cannot wathch over pods. %v", err)
 			time.Sleep(time.Duration(10) * time.Second)
 			continue
 		}
-		podsChan := podsWatcher.ResultChan()
+		nodesChan := nodesWatcher.ResultChan()
 		log.Printf("Watching over nodes started")
 	ChanLoop:
-		for event := range podsChan {
+		for {
+			var event watch.Event
+			select {
+			case event = <-nodesChan:
+			case <-newStateChan:
+				nodesWatcher.Stop()
+				glog.Errorf("Node watch - newStateChan signal")
+				continue WatchLoop
+			}
 			if event.Type == watch.Error {
-				glog.Errorf("Chan loop((((((((((nodes)))))))))) error: %v", event.Object)
+				glog.Errorf("Node watch chan loop error: %v", event.Object)
+				nodesWatcher.Stop()
 				break ChanLoop
 			}
 			if node, ok := event.Object.(*core.Node); ok {

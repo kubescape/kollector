@@ -5,12 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 	"time"
-
-	opapoliciesstore "k8s-ca-dashboard-aggregator/opapolicies"
 
 	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
@@ -66,12 +63,9 @@ func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly Owner
 
 // PodWatch - Stay updated starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
-	pStore := opapoliciesstore.NewPoliciyStore()
-	policiesDir := os.Getenv("ARMO_POLICIES_DIR")
-	if err := pStore.LoadRegoPoliciesFromDir(policiesDir); err != nil {
-		glog.Error("Failed to LoadRegoPoliciesFromDir", policiesDir, err)
-	}
-	glog.Infof("Finished pStore.LoadRegoPoliciesFromDir")
+	newStateChan := make(chan bool)
+	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
+WatchLoop:
 	for {
 		glog.Infof("Watching over pods starting")
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
@@ -79,9 +73,18 @@ func (wh *WatchHandler) PodWatch() {
 			glog.Errorf("Watch error: %s", err.Error())
 		}
 	ChanLoop:
-		for event := range podsWatcher.ResultChan() {
+		for {
+			var event watch.Event
+			select {
+			case event = <-podsWatcher.ResultChan():
+			case <-newStateChan:
+				podsWatcher.Stop()
+				glog.Errorf("pod watch - newStateChan signal")
+				continue WatchLoop
+			}
 			if event.Type == watch.Error {
-				glog.Errorf("Chan loop error: %v", event.Object)
+				glog.Errorf("Pod watch chan loop error: %v", event.Object)
+				podsWatcher.Stop()
 				break ChanLoop
 			}
 			pod, ok := event.Object.(*core.Pod)

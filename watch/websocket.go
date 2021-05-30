@@ -76,7 +76,7 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 }
 
 // SendReportRoutine function sending updates
-func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool) error {
+func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool, reconnectCallback func(bool)) error {
 	defer func() {
 		if err := recover(); err != nil {
 			glog.Errorf("RECOVER sendReportRoutine. %v", err)
@@ -103,21 +103,31 @@ func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool) error {
 			err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
 				glog.Errorf("In sendReportRoutine, %d, WriteMessage to websocket: %v", data.RType, err)
+				if reconnectCallback != nil {
+					reconnectCallback(true)
+				}
 				if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
 					glog.Errorf("sendReportRoutine. %s", err.Error())
 					break
 				}
-				glog.Infof("resending message. %d", timeID)
-				err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
-				if err != nil {
-					glog.Errorf("WriteMessage, %d, %v", timeID, err)
-					break
+				if reconnectCallback == nil {
+					glog.Infof("resending message. %d", timeID)
+					err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
+					if err != nil {
+						glog.Errorf("WriteMessage, %d, %v", timeID, err)
+						break
+					}
+					glog.Infof("message resent, %d", timeID)
 				}
+			} else {
+				glog.Infof("message sent, %d", timeID)
 			}
-			glog.Infof("message sent, %d", timeID)
 
 		case EXIT:
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
+			if reconnectCallback != nil {
+				reconnectCallback(true)
+			}
 			if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
 				glog.Errorf("connectToWebSocket. %s", err.Error())
 				wsh.mutex.Unlock()
@@ -142,10 +152,10 @@ func (wh *WatchHandler) ListenerAndSender() {
 			glog.Errorf("RECOVER ListnerAndSender. %v", err)
 		}
 	}()
-
+	waitingSeconds := time.Duration(5)
 	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
-	glog.Infof("wait 40 seconds for aggragate the first data from the cluster\n")
-	time.Sleep(5 * time.Second)
+	glog.Infof("wait %d seconds for aggragate the first data from the cluster\n", waitingSeconds)
+	time.Sleep(waitingSeconds * time.Second)
 	wh.SetFirstReportFlag(true)
 	for {
 		jsonData := PrepareDataToSend(wh)

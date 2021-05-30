@@ -96,6 +96,8 @@ type WatchHandler struct {
 	jsonReport             jsonFormat
 	informNewDataChannel   chan int
 	aggregateFirstDataFlag bool
+	// newStateReportChans is calling in a loop whenever new connection to ARMO BE is initialized
+	newStateReportChans []chan bool
 }
 
 // GetAggregateFirstDataFlag return pointer
@@ -150,6 +152,7 @@ func CreateWatchHandler() *WatchHandler {
 		sdm:              make(map[int]*list.List),
 		secretdm:         NewResourceMap(),
 		jsonReport: jsonFormat{
+			FirstReport:   true,
 			Nodes:         ObjectData{},
 			Services:      ObjectData{},
 			MicroServices: ObjectData{},
@@ -203,7 +206,19 @@ func parseArgument() *restclient.Config {
 
 // SetFirstReportFlag set first report flag
 func (wh *WatchHandler) SetFirstReportFlag(first bool) {
+	if wh.jsonReport.FirstReport == first {
+		return
+	}
 	wh.jsonReport.FirstReport = first
+	if first {
+		wh.ndm = make(map[int]*list.List)
+		wh.pdm = make(map[int]*list.List)
+		wh.sdm = make(map[int]*list.List)
+		wh.secretdm.resourceMap = make(map[int]*list.List)
+		for chanIdx := range wh.newStateReportChans {
+			wh.newStateReportChans[chanIdx] <- true
+		}
+	}
 }
 
 // GetFirstReportFlag get first report flag

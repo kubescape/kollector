@@ -64,20 +64,32 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 			log.Printf("RECOVER ServiceWatch. error: %v", err)
 		}
 	}()
-	log.Printf("Watching over services starting")
+	newStateChan := make(chan bool)
+	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
+WatchLoop:
 	for {
-		podsWatcher, err := wh.RestAPIClient.CoreV1().Services(namespace).Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
+		log.Printf("Watching over services starting")
+		serviceWatcher, err := wh.RestAPIClient.CoreV1().Services(namespace).Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			log.Printf("Cannot wathching over services. %v", err)
 			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
-		podsChan := podsWatcher.ResultChan()
+		serviceChan := serviceWatcher.ResultChan()
 		log.Printf("Watching over services started")
 	ChanLoop:
-		for event := range podsChan {
+		for {
+			var event watch.Event
+			select {
+			case event = <-serviceChan:
+			case <-newStateChan:
+				serviceWatcher.Stop()
+				glog.Errorf("Service watch - newStateChan signal")
+				continue WatchLoop
+			}
 			if event.Type == watch.Error {
-				glog.Errorf("Chan loop((((((((((services)))))))))) error: %v", event.Object)
+				glog.Errorf("Service watch chan loop error: %v", event.Object)
+				serviceWatcher.Stop()
 				break ChanLoop
 			}
 			if service, ok := event.Object.(*core.Service); ok {
