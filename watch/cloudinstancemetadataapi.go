@@ -36,7 +36,7 @@ func getGCPInstanceMetatadata() (string, error) {
 		defer resp.Body.Close()
 	}
 	io.Copy(io.Discard, resp.Body)
-	return "AWS", nil
+	return "GCP", nil
 }
 
 func getAzureInstanceMetatadata() (string, error) {
@@ -53,7 +53,7 @@ func getAzureInstanceMetatadata() (string, error) {
 		defer resp.Body.Close()
 	}
 	io.Copy(io.Discard, resp.Body)
-	return "AWS", nil
+	return "Azure", nil
 }
 
 func getInstanceMetadata() (string, error) {
