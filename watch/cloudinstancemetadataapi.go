@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -19,6 +20,9 @@ func getAWSInstanceMetatadata() (string, error) {
 		defer resp.Body.Close()
 	}
 	io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("http error: %s", resp.Status)
+	}
 	return "AWS", nil
 }
 
@@ -36,6 +40,9 @@ func getGCPInstanceMetatadata() (string, error) {
 		defer resp.Body.Close()
 	}
 	io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("http error: %s", resp.Status)
+	}
 	return "GCP", nil
 }
 
@@ -53,6 +60,9 @@ func getAzureInstanceMetatadata() (string, error) {
 		defer resp.Body.Close()
 	}
 	io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("http error: %s", resp.Status)
+	}
 	return "Azure", nil
 }
 
