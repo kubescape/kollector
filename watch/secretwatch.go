@@ -2,6 +2,7 @@ package watch
 
 import (
 	"log"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -20,7 +21,7 @@ type SecretData struct {
 func (wh *WatchHandler) SecretWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("RECOVER SecretWatch. error: %v", err)
+			log.Printf("RECOVER SecretWatch. error: %v\n %s", err, string(debug.Stack()))
 		}
 	}()
 	newStateChan := make(chan bool)
@@ -90,17 +91,24 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event) {
 func (wh *WatchHandler) UpdateSecret(secret *corev1.Secret) {
 	for id := range wh.secretdm.GetIDs() {
 		front := wh.secretdm.Front(id)
-		if front == nil {
+		if front == nil || front.Value == nil {
 			continue
 		}
-		if strings.Compare(front.Value.(SecretData).Secret.ObjectMeta.Name, secret.ObjectMeta.Name) == 0 {
-			*front.Value.(SecretData).Secret = *secret
-			log.Printf("secret %s updated", front.Value.(SecretData).Secret.ObjectMeta.Name)
+		secretData, ok := front.Value.(SecretData)
+		if !ok || secretData.Secret == nil {
+			continue
+		}
+		if strings.Compare(secretData.Secret.Namespace, secret.Namespace) != 0 {
+			continue
+		}
+		if strings.Compare(secretData.Secret.ObjectMeta.Name, secret.ObjectMeta.Name) == 0 {
+			*secretData.Secret = *secret
+			log.Printf("secret %s updated", secretData.Secret.ObjectMeta.Name)
 			break
 		}
-		if strings.Compare(front.Value.(SecretData).Secret.ObjectMeta.GenerateName, secret.ObjectMeta.Name) == 0 {
-			*front.Value.(SecretData).Secret = *secret
-			log.Printf("secret %s updated", front.Value.(SecretData).Secret.ObjectMeta.Name)
+		if strings.Compare(secretData.Secret.ObjectMeta.GenerateName, secret.ObjectMeta.Name) == 0 {
+			*secretData.Secret = *secret
+			log.Printf("secret %s updated", secretData.Secret.ObjectMeta.Name)
 			break
 		}
 	}
@@ -110,17 +118,24 @@ func (wh *WatchHandler) UpdateSecret(secret *corev1.Secret) {
 func (wh *WatchHandler) RemoveSecret(secret *corev1.Secret) string {
 	for id := range wh.secretdm.GetIDs() {
 		front := wh.secretdm.Front(id)
-		if front == nil {
+		if front == nil || front.Value == nil {
 			continue
 		}
-		if strings.Compare(front.Value.(SecretData).Secret.ObjectMeta.Name, secret.ObjectMeta.Name) == 0 {
-			name := front.Value.(SecretData).Secret.ObjectMeta.Name
+		secretData, ok := front.Value.(SecretData)
+		if !ok || secretData.Secret == nil {
+			continue
+		}
+		if strings.Compare(secretData.Secret.Namespace, secret.Namespace) != 0 {
+			continue
+		}
+		if strings.Compare(secretData.Secret.ObjectMeta.Name, secret.ObjectMeta.Name) == 0 {
+			name := secretData.Secret.ObjectMeta.Name
 			wh.secretdm.Remove(id)
 			log.Printf("secret %s removed", name)
 			return name
 		}
-		if strings.Compare(front.Value.(SecretData).Secret.ObjectMeta.GenerateName, secret.ObjectMeta.Name) == 0 {
-			gName := front.Value.(SecretData).Secret.ObjectMeta.Name
+		if strings.Compare(secretData.Secret.ObjectMeta.GenerateName, secret.ObjectMeta.Name) == 0 {
+			gName := secretData.Secret.ObjectMeta.Name
 			wh.secretdm.Remove(id)
 			log.Printf("secret %s removed", gName)
 			return gName

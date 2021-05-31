@@ -214,7 +214,7 @@ func (wh *WatchHandler) SetFirstReportFlag(first bool) {
 		wh.ndm = make(map[int]*list.List)
 		wh.pdm = make(map[int]*list.List)
 		wh.sdm = make(map[int]*list.List)
-		wh.secretdm.resourceMap = make(map[int]*list.List)
+		wh.secretdm = NewResourceMap()
 		for chanIdx := range wh.newStateReportChans {
 			wh.newStateReportChans[chanIdx] <- true
 		}
