@@ -50,17 +50,25 @@ func (rm *ResourceMap) GetIDs() []int {
 func (rm *ResourceMap) PushBack(index int, obj interface{}) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
-	rm.resourceMap[index].PushBack(obj)
+	if mapElem := rm.resourceMap[index]; mapElem != nil {
+		mapElem.PushBack(obj)
+	}
 }
 func (rm *ResourceMap) Front(index int) *list.Element {
 	rm.mutex.RLock()
 	defer rm.mutex.RUnlock()
-	return rm.resourceMap[index].Front()
+	if mapElem := rm.resourceMap[index]; mapElem != nil {
+		return rm.resourceMap[index].Front()
+	}
+	return nil
 }
 func (rm *ResourceMap) UpdateFront(index int, obj interface{}) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
-	rm.resourceMap[index].Front().Value = obj
+	if mapElem := rm.resourceMap[index]; mapElem != nil {
+		mapElem.Front().Value = obj
+		rm.resourceMap[index] = mapElem
+	}
 }
 func (rm *ResourceMap) Len() int {
 	rm.mutex.RLock()
