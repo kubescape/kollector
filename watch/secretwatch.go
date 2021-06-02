@@ -52,7 +52,6 @@ WatchLoop:
 				secretsWatcher.Stop()
 				break ChanLoop
 			}
-			log.Printf("secret event: %v", event)
 			wh.SecretEventHandler(&event)
 		}
 		log.Printf("Watching over secrets ended - timeout")
