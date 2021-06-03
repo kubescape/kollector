@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"fmt"
 	"log"
 	"runtime/debug"
 	"strings"
@@ -52,12 +53,14 @@ WatchLoop:
 				secretsWatcher.Stop()
 				break ChanLoop
 			}
-			wh.SecretEventHandler(&event)
+			if nil != wh.SecretEventHandler(&event) {
+				break WatchLoop
+			}
 		}
 		log.Printf("Watching over secrets ended - timeout")
 	}
 }
-func (wh *WatchHandler) SecretEventHandler(event *watch.Event) {
+func (wh *WatchHandler) SecretEventHandler(event *watch.Event) error {
 	if secret, ok := event.Object.(*corev1.Secret); ok {
 		removeSecretData(secret)
 		switch event.Type {
@@ -77,13 +80,16 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event) {
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, DELETED)
 		case "BOOKMARK": //only the resource version is changed but it's the same workload
-			return
+			return nil
 		case "ERROR":
-			log.Printf("while watching over secrets we got an error: ")
+			log.Printf("while watching over secrets we got an error ")
+			return fmt.Errorf("while watching over secrets we got an error")
 		}
 	} else {
 		log.Printf("Got unexpected secret from chan: %t, %v", event.Object, event.Object)
+		return fmt.Errorf("Got unexpected secret from chan")
 	}
+	return nil
 }
 
 // UpdateSecret update websocket when secret is updated
