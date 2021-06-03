@@ -117,7 +117,8 @@ WatchLoop:
 					log.Printf("while watching over services we got an error: ")
 				}
 			} else {
-				log.Printf("Got unexpected pod from chan: %t, %v", event.Object, event.Object)
+				log.Printf("Got unexpected service from chan: %t, %v", event.Object, event.Object)
+				break
 			}
 		}
 		log.Printf("Wathching over services ended - since we got timeout")
