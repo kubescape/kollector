@@ -125,6 +125,7 @@ WatchLoop:
 				break ChanLoop
 			}
 			if node, ok := event.Object.(*core.Node); ok {
+				node.ManagedFields = []metav1.ManagedFieldsEntry{}
 				switch event.Type {
 				case "ADDED":
 					id := CreateID()

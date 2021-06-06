@@ -93,6 +93,7 @@ WatchLoop:
 				break ChanLoop
 			}
 			if service, ok := event.Object.(*core.Service); ok {
+				service.ManagedFields = []metav1.ManagedFieldsEntry{}
 				switch event.Type {
 				case "ADDED":
 					id := CreateID()

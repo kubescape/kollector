@@ -92,6 +92,7 @@ WatchLoop:
 				glog.Errorf("Watch error: cannot convert to  core.Pod")
 				break ChanLoop
 			}
+			pod.ManagedFields = []metav1.ManagedFieldsEntry{}
 			podName := pod.ObjectMeta.Name
 			if podName == "" {
 				podName = pod.ObjectMeta.GenerateName
@@ -298,6 +299,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		}
 		depDet.TypeMeta.Kind = kind
 		depDet.TypeMeta.APIVersion = apiVersion
+		depDet.ManagedFields = []metav1.ManagedFieldsEntry{}
 		return depDet
 	case "DeamonSet", "DaemonSet":
 		options := metav1.GetOptions{}
@@ -308,6 +310,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		}
 		daemSetDet.TypeMeta.Kind = kind
 		daemSetDet.TypeMeta.APIVersion = apiVersion
+		daemSetDet.ManagedFields = []metav1.ManagedFieldsEntry{}
 		return daemSetDet
 	case "StatefulSet":
 		options := metav1.GetOptions{}
@@ -318,6 +321,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		}
 		statSetDet.TypeMeta.Kind = kind
 		statSetDet.TypeMeta.APIVersion = apiVersion
+		statSetDet.ManagedFields = []metav1.ManagedFieldsEntry{}
 		return statSetDet
 	case "Job":
 		options := metav1.GetOptions{}
@@ -328,6 +332,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		}
 		jobDet.TypeMeta.Kind = kind
 		jobDet.TypeMeta.APIVersion = apiVersion
+		jobDet.ManagedFields = []metav1.ManagedFieldsEntry{}
 		return jobDet
 	case "CronJob":
 		options := metav1.GetOptions{}
@@ -338,6 +343,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		}
 		cronJobDet.TypeMeta.Kind = kind
 		cronJobDet.TypeMeta.APIVersion = apiVersion
+		cronJobDet.ManagedFields = []metav1.ManagedFieldsEntry{}
 		return cronJobDet
 	case "Pod":
 		options := metav1.GetOptions{}
@@ -348,6 +354,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		}
 		podDet.TypeMeta.Kind = kind
 		podDet.TypeMeta.APIVersion = apiVersion
+		podDet.ManagedFields = []metav1.ManagedFieldsEntry{}
 		return podDet
 
 	default:

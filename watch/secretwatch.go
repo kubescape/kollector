@@ -62,6 +62,7 @@ WatchLoop:
 }
 func (wh *WatchHandler) SecretEventHandler(event *watch.Event) error {
 	if secret, ok := event.Object.(*corev1.Secret); ok {
+		secret.ManagedFields = []metav1.ManagedFieldsEntry{}
 		removeSecretData(secret)
 		switch event.Type {
 		case "ADDED":
