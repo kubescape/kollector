@@ -61,106 +61,207 @@ func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly Owner
 	}
 }
 
+// // PodWatch - Stay updated starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
+// func (wh *WatchHandler) PodWatch() {
+// 	newStateChan := make(chan bool)
+// 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
+// WatchLoop:
+// 	for {
+// 		glog.Infof("Watching over pods starting")
+// 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
+// 		if err != nil {
+// 			glog.Errorf("Watch error: %s", err.Error())
+// 		}
+// 	ChanLoop:
+// 		for {
+// 			var event watch.Event
+// 			select {
+// 			case event = <-podsWatcher.ResultChan():
+// 			case <-newStateChan:
+// 				podsWatcher.Stop()
+// 				glog.Errorf("pod watch - newStateChan signal")
+// 				continue WatchLoop
+// 			}
+// 			if event.Type == watch.Error {
+// 				glog.Errorf("Pod watch chan loop error: %v", event.Object)
+// 				podsWatcher.Stop()
+// 				break ChanLoop
+// 			}
+// 			pod, ok := event.Object.(*core.Pod)
+// 			if !ok {
+// 				glog.Errorf("Watch error: cannot convert to  core.Pod")
+// 				break ChanLoop
+// 			}
+// 			pod.ManagedFields = []metav1.ManagedFieldsEntry{}
+// 			podName := pod.ObjectMeta.Name
+// 			if podName == "" {
+// 				podName = pod.ObjectMeta.GenerateName
+// 			}
+// 			podStatus := getPodStatus(pod)
+// 			switch event.Type {
+// 			case watch.Added:
+// 				glog.Infof("added. name: %s, status: %s", podName, podStatus)
+// 				od, err := GetAncestorOfPod(pod, wh)
+// 				if err != nil {
+// 					glog.Errorf("%s, ignoring pod report", err.Error())
+// 					break
+// 				}
+// 				first := true
+// 				id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels["cyberarmor"], wh.pdm)
+// 				// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
+// 				if runnigPodNum <= 1 {
+// 					// glog.Infof("dwertent -- Adding NEW pod name: %s, id: %d", podName, id)
+// 					wh.pdm[id] = list.New()
+// 					nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
+// 					wh.pdm[id].PushBack(nms)
+// 					wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
+// 				} else { // Check if pod is already reported
+// 					if wh.pdm[id].Front() != nil {
+// 						element := wh.pdm[id].Front().Next()
+// 						for element != nil {
+// 							if element.Value.(PodDataForExistMicroService).PodName == podName {
+// 								// glog.Infof("dwertent -- Adding UPDATE pod name: %s, id: %d", podName, id)
+// 								first = false
+// 								break
+// 							}
+// 							element = element.Next()
+// 						}
+// 					}
+// 				}
+// 				if !first {
+// 					break
+// 				}
+// 				// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
+// 				newPod := PodDataForExistMicroService{PodName: podName, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
+// 				wh.pdm[id].PushBack(newPod)
+// 				wh.jsonReport.AddToJsonFormat(newPod, PODS, CREATED)
+// 				informNewDataArrive(wh)
+
+// 			case watch.Modified:
+// 				if pod.DeletionTimestamp != nil { // the pod is terminating
+// 					break
+// 				}
+// 				podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
+// 				if podSpecID > -2 {
+// 					glog.Infof("Modified. name: %s, status: %s", podName, podStatus)
+// 					wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
+// 				}
+// 				if podSpecID > -1 {
+// 					wh.jsonReport.AddToJsonFormat(wh.pdm[podSpecID].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
+// 				}
+// 				if podSpecID > -2 {
+// 					informNewDataArrive(wh)
+// 				}
+// 			case watch.Deleted:
+// 				wh.DeletePod(pod, podName)
+// 			case watch.Bookmark:
+// 				glog.Infof("Bookmark. name: %s, status: %s", podName, podStatus)
+// 			case watch.Error:
+// 				glog.Infof("Error. name: %s, status: %s", podName, podStatus)
+// 			}
+// 		}
+
+// 	}
+// }
+
 // PodWatch - Stay updated starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
-WatchLoop:
 	for {
 		glog.Infof("Watching over pods starting")
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			glog.Errorf("Watch error: %s", err.Error())
+			time.Sleep(time.Duration(3) * time.Second)
+			continue
 		}
-	ChanLoop:
-		for {
-			var event watch.Event
-			select {
-			case event = <-podsWatcher.ResultChan():
-			case <-newStateChan:
-				podsWatcher.Stop()
-				glog.Errorf("pod watch - newStateChan signal")
-				continue WatchLoop
+		wh.handlePodWatch(podsWatcher)
+	}
+}
+
+func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface) {
+	for {
+		var event watch.Event
+		event = <-podsWatcher.ResultChan()
+		if event.Type == watch.Error {
+			glog.Errorf("Pod watch chan loop error: %v", event.Object)
+			podsWatcher.Stop()
+			return
+		}
+		pod, ok := event.Object.(*core.Pod)
+		if !ok {
+			glog.Errorf("Watch error: cannot convert to core.Pod")
+			return
+		}
+		pod.ManagedFields = []metav1.ManagedFieldsEntry{}
+		podName := pod.ObjectMeta.Name
+		if podName == "" {
+			podName = pod.ObjectMeta.GenerateName
+		}
+		podStatus := getPodStatus(pod)
+		switch event.Type {
+		case watch.Added:
+			glog.Infof("added. name: %s, status: %s", podName, podStatus)
+			od, err := GetAncestorOfPod(pod, wh)
+			if err != nil {
+				glog.Errorf("%s, ignoring pod report", err.Error())
+				break
 			}
-			if event.Type == watch.Error {
-				glog.Errorf("Pod watch chan loop error: %v", event.Object)
-				podsWatcher.Stop()
-				break ChanLoop
-			}
-			pod, ok := event.Object.(*core.Pod)
-			if !ok {
-				glog.Errorf("Watch error: cannot convert to  core.Pod")
-				break ChanLoop
-			}
-			pod.ManagedFields = []metav1.ManagedFieldsEntry{}
-			podName := pod.ObjectMeta.Name
-			if podName == "" {
-				podName = pod.ObjectMeta.GenerateName
-			}
-			podStatus := getPodStatus(pod)
-			switch event.Type {
-			case watch.Added:
-				glog.Infof("added. name: %s, status: %s", podName, podStatus)
-				od, err := GetAncestorOfPod(pod, wh)
-				if err != nil {
-					glog.Errorf("%s, ignoring pod report", err.Error())
-					break
-				}
-				first := true
-				id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels["cyberarmor"], wh.pdm)
-				// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
-				if runnigPodNum <= 1 {
-					// glog.Infof("dwertent -- Adding NEW pod name: %s, id: %d", podName, id)
-					wh.pdm[id] = list.New()
-					nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
-					wh.pdm[id].PushBack(nms)
-					wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
-				} else { // Check if pod is already reported
-					if wh.pdm[id].Front() != nil {
-						element := wh.pdm[id].Front().Next()
-						for element != nil {
-							if element.Value.(PodDataForExistMicroService).PodName == podName {
-								// glog.Infof("dwertent -- Adding UPDATE pod name: %s, id: %d", podName, id)
-								first = false
-								break
-							}
-							element = element.Next()
+			first := true
+			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels["cyberarmor"], wh.pdm)
+			// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
+			if runnigPodNum <= 1 {
+				// glog.Infof("dwertent -- Adding NEW pod name: %s, id: %d", podName, id)
+				wh.pdm[id] = list.New()
+				nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
+				wh.pdm[id].PushBack(nms)
+				wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
+			} else { // Check if pod is already reported
+				if wh.pdm[id].Front() != nil {
+					element := wh.pdm[id].Front().Next()
+					for element != nil {
+						if element.Value.(PodDataForExistMicroService).PodName == podName {
+							// glog.Infof("dwertent -- Adding UPDATE pod name: %s, id: %d", podName, id)
+							first = false
+							break
 						}
+						element = element.Next()
 					}
 				}
-				if !first {
-					break
-				}
-				// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
-				newPod := PodDataForExistMicroService{PodName: podName, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
-				wh.pdm[id].PushBack(newPod)
-				wh.jsonReport.AddToJsonFormat(newPod, PODS, CREATED)
-				informNewDataArrive(wh)
-
-			case watch.Modified:
-				if pod.DeletionTimestamp != nil { // the pod is terminating
-					break
-				}
-				podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
-				if podSpecID > -2 {
-					glog.Infof("Modified. name: %s, status: %s", podName, podStatus)
-					wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
-				}
-				if podSpecID > -1 {
-					wh.jsonReport.AddToJsonFormat(wh.pdm[podSpecID].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
-				}
-				if podSpecID > -2 {
-					informNewDataArrive(wh)
-				}
-			case watch.Deleted:
-				wh.DeletePod(pod, podName)
-			case watch.Bookmark:
-				glog.Infof("Bookmark. name: %s, status: %s", podName, podStatus)
-			case watch.Error:
-				glog.Infof("Error. name: %s, status: %s", podName, podStatus)
 			}
-		}
+			if !first {
+				break
+			}
+			// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
+			newPod := PodDataForExistMicroService{PodName: podName, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
+			wh.pdm[id].PushBack(newPod)
+			wh.jsonReport.AddToJsonFormat(newPod, PODS, CREATED)
+			informNewDataArrive(wh)
 
+		case watch.Modified:
+			if pod.DeletionTimestamp != nil { // the pod is terminating
+				break
+			}
+			podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
+			if podSpecID > -2 {
+				glog.Infof("Modified. name: %s, status: %s", podName, podStatus)
+				wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
+			}
+			if podSpecID > -1 {
+				wh.jsonReport.AddToJsonFormat(wh.pdm[podSpecID].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
+			}
+			if podSpecID > -2 {
+				informNewDataArrive(wh)
+			}
+		case watch.Deleted:
+			wh.DeletePod(pod, podName)
+		case watch.Bookmark:
+			glog.Infof("Bookmark. name: %s, status: %s", podName, podStatus)
+		case watch.Error:
+			glog.Infof("Error. name: %s, status: %s", podName, podStatus)
+			return
+		}
 	}
 }
 

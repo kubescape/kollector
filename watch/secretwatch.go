@@ -18,17 +18,57 @@ type SecretData struct {
 	Secret *corev1.Secret `json:",inline"`
 }
 
+// // SecretWatch watch over secrets
+// func (wh *WatchHandler) SecretWatch() {
+// 	defer func() {
+// 		if err := recover(); err != nil {
+// 			log.Printf("RECOVER SecretWatch. error: %v\n %s", err, string(debug.Stack()))
+// 		}
+// 	}()
+// 	newStateChan := make(chan bool)
+// 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
+// WatchLoop:
+// 	for {
+// 		log.Printf("Watching over secrets starting")
+// 		secretsWatcher, err := wh.RestAPIClient.CoreV1().Secrets("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
+// 		if err != nil {
+// 			glog.Errorf("Failed watching over secrets. %s", err.Error())
+// 			time.Sleep(time.Duration(3) * time.Second)
+// 			continue
+// 		}
+// 		secretsChan := secretsWatcher.ResultChan()
+// 		log.Printf("Watching over secrets started")
+// 	ChanLoop:
+// 		for {
+// 			var event watch.Event
+// 			select {
+// 			case event = <-secretsChan:
+// 			case <-newStateChan:
+// 				secretsWatcher.Stop()
+// 				glog.Errorf("Secrets watch - newStateChan signal")
+// 				continue WatchLoop
+// 			}
+// 			if event.Type == watch.Error {
+// 				glog.Errorf("Secrets watch chan loop error: %v", event.Object)
+// 				secretsWatcher.Stop()
+// 				break ChanLoop
+// 			}
+// 			if nil != wh.SecretEventHandler(&event) {
+// 				break WatchLoop
+// 			}
+// 		}
+// 		log.Printf("Watching over secrets ended - timeout")
+// 	}
+// }
+
 // SecretWatch watch over secrets
 func (wh *WatchHandler) SecretWatch() {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("RECOVER SecretWatch. error: %v\n %s", err, string(debug.Stack()))
-		}
-	}()
-	newStateChan := make(chan bool)
-	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
-WatchLoop:
 	for {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("RECOVER SecretWatch. error: %v\n %s", err, string(debug.Stack()))
+			}
+		}()
 		log.Printf("Watching over secrets starting")
 		secretsWatcher, err := wh.RestAPIClient.CoreV1().Secrets("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
@@ -38,23 +78,17 @@ WatchLoop:
 		}
 		secretsChan := secretsWatcher.ResultChan()
 		log.Printf("Watching over secrets started")
-	ChanLoop:
 		for {
 			var event watch.Event
-			select {
-			case event = <-secretsChan:
-			case <-newStateChan:
-				secretsWatcher.Stop()
-				glog.Errorf("Secrets watch - newStateChan signal")
-				continue WatchLoop
-			}
+			event = <-secretsChan
+
 			if event.Type == watch.Error {
 				glog.Errorf("Secrets watch chan loop error: %v", event.Object)
 				secretsWatcher.Stop()
-				break ChanLoop
+				break
 			}
-			if nil != wh.SecretEventHandler(&event) {
-				break WatchLoop
+			if err := wh.SecretEventHandler(&event); err != nil {
+				break
 			}
 		}
 		log.Printf("Watching over secrets ended - timeout")
@@ -87,7 +121,7 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event) error {
 			return fmt.Errorf("while watching over secrets we got an error")
 		}
 	} else {
-		log.Printf("Got unexpected secret from chan: %t, %v", event.Object, event.Object)
+		log.Printf("Got unexpected secret from chan: %v", event.Object)
 		return fmt.Errorf("Got unexpected secret from chan")
 	}
 	return nil

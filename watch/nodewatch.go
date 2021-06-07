@@ -75,17 +75,99 @@ func (wh *WatchHandler) CheckInstanceMetadataAPIVendor() string {
 	return res
 }
 
+// // NodeWatch Watching over nodes
+// func (wh *WatchHandler) NodeWatch() {
+// 	defer func() {
+// 		if err := recover(); err != nil {
+// 			log.Printf("RECOVER NodeWatch. error: %v", err)
+// 		}
+// 	}()
+// 	newStateChan := make(chan bool)
+// 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
+// WatchLoop:
+// 	for {
+// 		log.Printf("Taking k8s API version")
+// 		serverVersion, err := wh.RestAPIClient.Discovery().ServerVersion()
+// 		if err != nil {
+// 			glog.Errorf("Failed to get API server version, %v", err)
+// 			serverVersion = &version.Info{GitVersion: "Unknown"}
+// 		} else {
+// 			log.Printf("K8s API version :%v", serverVersion)
+// 		}
+// 		wh.clusterAPIServerVersion = serverVersion
+// 		wh.cloudVendor = wh.CheckInstanceMetadataAPIVendor()
+// 		if wh.cloudVendor != "" {
+// 			wh.clusterAPIServerVersion.GitVersion += ";" + wh.cloudVendor
+// 		}
+// 		log.Printf("K8s Cloud Vendor : %s", wh.cloudVendor)
+// 		log.Printf("Watching over nodes starting")
+// 		nodesWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
+// 		if err != nil {
+// 			log.Printf("Cannot wathch over pods. %v", err)
+// 			time.Sleep(time.Duration(10) * time.Second)
+// 			continue
+// 		}
+// 		nodesChan := nodesWatcher.ResultChan()
+// 		log.Printf("Watching over nodes started")
+// 	ChanLoop:
+// 		for {
+// 			var event watch.Event
+// 			select {
+// 			case event = <-nodesChan:
+// 			case <-newStateChan:
+// 				nodesWatcher.Stop()
+// 				glog.Errorf("Node watch - newStateChan signal")
+// 				continue WatchLoop
+// 			}
+// 			if event.Type == watch.Error {
+// 				glog.Errorf("Node watch chan loop error: %v", event.Object)
+// 				nodesWatcher.Stop()
+// 				break ChanLoop
+// 			}
+// 			if node, ok := event.Object.(*core.Node); ok {
+// 				node.ManagedFields = []metav1.ManagedFieldsEntry{}
+// 				switch event.Type {
+// 				case "ADDED":
+// 					id := CreateID()
+// 					if wh.ndm[id] == nil {
+// 						wh.ndm[id] = list.New()
+// 					}
+// 					nd := &NodeData{Name: node.ObjectMeta.Name,
+// 						NodeStatus: node.Status,
+// 					}
+// 					wh.ndm[id].PushBack(nd)
+// 					informNewDataArrive(wh)
+// 					wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
+// 				case "MODIFY":
+// 					updateNode := UpdateNode(node, wh.ndm)
+// 					informNewDataArrive(wh)
+// 					wh.jsonReport.AddToJsonFormat(updateNode, NODE, UPDATED)
+// 				case "DELETED":
+// 					name := RemoveNode(node, wh.ndm)
+// 					informNewDataArrive(wh)
+// 					wh.jsonReport.AddToJsonFormat(name, NODE, DELETED)
+// 				case "BOOKMARK": //only the resource version is changed but it's the same workload
+// 					continue
+// 				case "ERROR":
+// 					log.Printf("while watching over nodes we got an error")
+// 				}
+// 			} else {
+// 				log.Printf("Got unexpected node from chan: %t, %v", event.Object, event.Object)
+// 				break
+// 			}
+// 		}
+// 		log.Printf("Wathching over nodes ended - since we got timeout")
+// 	}
+// }
+
 // NodeWatch Watching over nodes
 func (wh *WatchHandler) NodeWatch() {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("RECOVER NodeWatch. error: %v", err)
-		}
-	}()
-	newStateChan := make(chan bool)
-	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
-WatchLoop:
 	for {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("RECOVER NodeWatch. error: %v", err)
+			}
+		}()
 		log.Printf("Taking k8s API version")
 		serverVersion, err := wh.RestAPIClient.Discovery().ServerVersion()
 		if err != nil {
@@ -103,59 +185,57 @@ WatchLoop:
 		log.Printf("Watching over nodes starting")
 		nodesWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			log.Printf("Cannot wathch over pods. %v", err)
-			time.Sleep(time.Duration(10) * time.Second)
+			log.Printf("Cannot watch over nodes. %v", err)
+			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
-		nodesChan := nodesWatcher.ResultChan()
-		log.Printf("Watching over nodes started")
-	ChanLoop:
-		for {
-			var event watch.Event
-			select {
-			case event = <-nodesChan:
-			case <-newStateChan:
-				nodesWatcher.Stop()
-				glog.Errorf("Node watch - newStateChan signal")
-				continue WatchLoop
-			}
-			if event.Type == watch.Error {
-				glog.Errorf("Node watch chan loop error: %v", event.Object)
-				nodesWatcher.Stop()
-				break ChanLoop
-			}
-			if node, ok := event.Object.(*core.Node); ok {
-				node.ManagedFields = []metav1.ManagedFieldsEntry{}
-				switch event.Type {
-				case "ADDED":
-					id := CreateID()
-					if wh.ndm[id] == nil {
-						wh.ndm[id] = list.New()
-					}
-					nd := &NodeData{Name: node.ObjectMeta.Name,
-						NodeStatus: node.Status,
-					}
-					wh.ndm[id].PushBack(nd)
-					informNewDataArrive(wh)
-					wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
-				case "MODIFY":
-					updateNode := UpdateNode(node, wh.ndm)
-					informNewDataArrive(wh)
-					wh.jsonReport.AddToJsonFormat(updateNode, NODE, UPDATED)
-				case "DELETED":
-					name := RemoveNode(node, wh.ndm)
-					informNewDataArrive(wh)
-					wh.jsonReport.AddToJsonFormat(name, NODE, DELETED)
-				case "BOOKMARK": //only the resource version is changed but it's the same workload
-					continue
-				case "ERROR":
-					log.Printf("while watching over nodes we got an error")
-				}
-			} else {
-				log.Printf("Got unexpected node from chan: %t, %v", event.Object, event.Object)
-				break
-			}
+		wh.handleNodeWatch(nodesWatcher)
+
+		log.Printf("Watching over nodes ended - since we got timeout")
+	}
+}
+
+func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface) {
+	log.Printf("Watching over nodes started")
+	nodesChan := nodesWatcher.ResultChan()
+	for {
+		event := <-nodesChan
+		if event.Type == watch.Error {
+			glog.Errorf("Node watch chan loop error: %v", event.Object)
+			nodesWatcher.Stop()
+			return
 		}
-		log.Printf("Wathching over nodes ended - since we got timeout")
+		if node, ok := event.Object.(*core.Node); ok {
+			node.ManagedFields = []metav1.ManagedFieldsEntry{}
+			switch event.Type {
+			case "ADDED":
+				id := CreateID()
+				if wh.ndm[id] == nil {
+					wh.ndm[id] = list.New()
+				}
+				nd := &NodeData{Name: node.ObjectMeta.Name,
+					NodeStatus: node.Status,
+				}
+				wh.ndm[id].PushBack(nd)
+				informNewDataArrive(wh)
+				wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
+			case "MODIFY":
+				updateNode := UpdateNode(node, wh.ndm)
+				informNewDataArrive(wh)
+				wh.jsonReport.AddToJsonFormat(updateNode, NODE, UPDATED)
+			case "DELETED":
+				name := RemoveNode(node, wh.ndm)
+				informNewDataArrive(wh)
+				wh.jsonReport.AddToJsonFormat(name, NODE, DELETED)
+			case "BOOKMARK": //only the resource version is changed but it's the same workload
+				continue
+			case "ERROR":
+				log.Printf("while watching over nodes we got an error")
+				return
+			}
+		} else {
+			log.Printf("Got unexpected node from chan: %v", event.Object)
+			return
+		}
 	}
 }

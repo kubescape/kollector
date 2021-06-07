@@ -60,7 +60,7 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 	tries := 5
 	for reconnectionCounter := 0; reconnectionCounter < tries; reconnectionCounter++ {
 		if conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
-			glog.Infof("connected successfully")
+			glog.Infof("connected successfully to: '%s", wsh.u.String())
 			wsh.setPingPongHandler(conn)
 			return conn, nil
 		}
@@ -77,20 +77,28 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 
 // SendReportRoutine function sending updates
 func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool, reconnectCallback func(bool)) error {
-	defer func() {
-		if err := recover(); err != nil {
-			glog.Errorf("RECOVER sendReportRoutine. %v", err)
+	for {
+		defer func() {
+			if err := recover(); err != nil {
+				glog.Errorf("RECOVER sendReportRoutine. %v", err)
+			}
+		}()
+		conn, err := wsh.connectToWebSocket(30 * time.Second)
+		if err != nil {
+			glog.Error(err)
+			return err
 		}
-	}()
-	conn, err := wsh.connectToWebSocket(0)
-	if err != nil {
-		glog.Error(err)
-		return err
+		*isServerReady = true
+
+		wsh.handleSendReportRoutine(conn, reconnectCallback)
+
+		// wsh.closeConnection(conn, "")
 	}
-	defer conn.Close()
-	*isServerReady = true
 
 	// use mutex for writing message that way if write failed only the failed writing will reconnect
+
+}
+func (wsh *WebSocketHandler) handleSendReportRoutine(conn *websocket.Conn, reconnectCallback func(bool)) error {
 	for {
 		data := <-wsh.data
 		wsh.mutex.Lock()
@@ -107,6 +115,7 @@ func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool, reconnectCal
 					reconnectCallback(true)
 				}
 				if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
+					//TODO - handle retries
 					glog.Errorf("sendReportRoutine. %s", err.Error())
 					break
 				}
@@ -114,25 +123,26 @@ func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool, reconnectCal
 					glog.Infof("resending message. %d", timeID)
 					err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 					if err != nil {
+						wsh.mutex.Unlock()
 						glog.Errorf("WriteMessage, %d, %v", timeID, err)
-						break
+						return fmt.Errorf("failed to connect to websocket")
 					}
 					glog.Infof("message resent, %d", timeID)
 				}
 			} else {
 				glog.Infof("message sent, %d", timeID)
 			}
-
 		case EXIT:
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
-			if reconnectCallback != nil {
-				reconnectCallback(true)
-			}
-			if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
-				glog.Errorf("connectToWebSocket. %s", err.Error())
-				wsh.mutex.Unlock()
-				return err
-			}
+			wsh.mutex.Unlock()
+			return nil
+			// if reconnectCallback != nil {
+			// 	reconnectCallback(true)
+			// }
+			// if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
+			// 	glog.Errorf("connectToWebSocket. %s", err.Error())
+			// 	return err
+			// }
 		}
 		wsh.mutex.Unlock()
 	}
@@ -205,7 +215,7 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 					return
 				}
 				glog.Errorf("ping closed connection")
-				wsh.closeConnection(conn, "ping pong error")
+				wsh.closeConnection(conn, "ping error")
 				end = true
 				return
 			}
@@ -226,7 +236,7 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 				}
 				end = true
 				glog.Errorf("pong closed connection")
-				wsh.closeConnection(conn, "ping pong error")
+				wsh.closeConnection(conn, "pong error")
 				return
 			}
 			//			wsh.mutex.Unlock()
@@ -237,8 +247,10 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 }
 
 func (wsh *WebSocketHandler) closeConnection(conn *websocket.Conn, message string) {
+	glog.Infof("closing connection: %s", message)
 	wsh.mutex.Lock()
 	conn.Close()
 	wsh.mutex.Unlock()
+	glog.Infof("connection closed: %s", message)
 	wsh.data <- DataSocket{RType: EXIT, message: message}
 }
