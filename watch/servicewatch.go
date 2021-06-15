@@ -3,6 +3,7 @@ package watch
 import (
 	"container/list"
 	"log"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -59,12 +60,14 @@ func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 
 // ServiceWatch watch over servises
 func (wh *WatchHandler) ServiceWatch(namespace string) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("RECOVER ServiceWatch. error: %v, stack: %s", err, debug.Stack())
+		}
+	}()
+	newStateChan := make(chan bool)
+	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
-		defer func() {
-			if err := recover(); err != nil {
-				log.Printf("RECOVER ServiceWatch. error: %v", err)
-			}
-		}()
 		log.Printf("Watching over services starting")
 		serviceWatcher, err := wh.RestAPIClient.CoreV1().Services(namespace).Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
@@ -72,17 +75,24 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
-		wh.handleServiceWatch(serviceWatcher)
+		wh.handleServiceWatch(serviceWatcher, newStateChan)
 
 		log.Printf("Watching over services ended - since we got timeout")
 	}
 }
-func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface) {
+
+func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newStateChan <-chan bool) {
 	serviceChan := serviceWatcher.ResultChan()
 	log.Printf("Watching over services started")
 	for {
 		var event watch.Event
-		event = <-serviceChan
+		select {
+		case event = <-serviceChan:
+		case <-newStateChan:
+			serviceWatcher.Stop()
+			glog.Errorf("Service watch - newStateChan signal")
+			return
+		}
 		if event.Type == watch.Error {
 			glog.Errorf("Service watch chan loop error: %v", event.Object)
 			return
@@ -119,72 +129,3 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface) {
 		}
 	}
 }
-
-// // ServiceWatch watch over servises
-// func (wh *WatchHandler) ServiceWatch(namespace string) {
-// 	defer func() {
-// 		if err := recover(); err != nil {
-// 			log.Printf("RECOVER ServiceWatch. error: %v", err)
-// 		}
-// 	}()
-// 	newStateChan := make(chan bool)
-// 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
-// WatchLoop:
-// 	for {
-// 		log.Printf("Watching over services starting")
-// 		serviceWatcher, err := wh.RestAPIClient.CoreV1().Services(namespace).Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
-// 		if err != nil {
-// 			log.Printf("Cannot watch over services. %v", err)
-// 			time.Sleep(time.Duration(3) * time.Second)
-// 			continue
-// 		}
-// 		serviceChan := serviceWatcher.ResultChan()
-// 		log.Printf("Watching over services started")
-// 	ChanLoop:
-// 		for {
-// 			var event watch.Event
-// 			select {
-// 			case event = <-serviceChan:
-// 			case <-newStateChan:
-// 				serviceWatcher.Stop()
-// 				glog.Errorf("Service watch - newStateChan signal")
-// 				continue WatchLoop
-// 			}
-// 			if event.Type == watch.Error {
-// 				glog.Errorf("Service watch chan loop error: %v", event.Object)
-// 				serviceWatcher.Stop()
-// 				break ChanLoop
-// 			}
-// 			if service, ok := event.Object.(*core.Service); ok {
-// 				service.ManagedFields = []metav1.ManagedFieldsEntry{}
-// 				switch event.Type {
-// 				case "ADDED":
-// 					id := CreateID()
-// 					if wh.sdm[id] == nil {
-// 						wh.sdm[id] = list.New()
-// 					}
-// 					sd := ServiceData{Service: service}
-// 					wh.sdm[id].PushBack(sd)
-// 					informNewDataArrive(wh)
-// 					wh.jsonReport.AddToJsonFormat(service, SERVICES, CREATED)
-// 				case "MODIFY":
-// 					UpdateService(service, wh.sdm)
-// 					informNewDataArrive(wh)
-// 					wh.jsonReport.AddToJsonFormat(service, SERVICES, UPDATED)
-// 				case "DELETED":
-// 					RemoveService(service, wh.sdm)
-// 					informNewDataArrive(wh)
-// 					wh.jsonReport.AddToJsonFormat(service, SERVICES, DELETED)
-// 				case "BOOKMARK": //only the resource version is changed but it's the same workload
-// 					continue
-// 				case "ERROR":
-// 					log.Printf("while watching over services we got an error: ")
-// 				}
-// 			} else {
-// 				log.Printf("Got unexpected service from chan: %t, %v", event.Object, event.Object)
-// 				break
-// 			}
-// 		}
-// 		log.Printf("Watching over services ended - since we got timeout")
-// 	}
-// }

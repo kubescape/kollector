@@ -29,23 +29,33 @@ func main() {
 	// }
 
 	go func() {
-		wh.ListenerAndSender()
+		for {
+			wh.ListenerAndSender()
+		}
 	}()
 
 	go func() {
-		wh.PodWatch()
+		for {
+			wh.PodWatch()
+		}
 	}()
 
 	go func() {
-		wh.NodeWatch()
+		for {
+			wh.NodeWatch()
+		}
 	}()
 
 	go func() {
-		wh.ServiceWatch("")
+		for {
+			wh.ServiceWatch("")
+		}
 	}()
 
 	go func() {
-		wh.SecretWatch()
+		for {
+			wh.SecretWatch()
+		}
 	}()
 	glog.Error(wh.WebSocketHandle.SendReportRoutine(&isServerReady, wh.SetFirstReportFlag))
 

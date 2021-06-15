@@ -3,8 +3,10 @@ package watch
 import (
 	"crypto/tls"
 	"fmt"
+	"math/rand"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -53,23 +55,24 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 	var err error
 	var conn *websocket.Conn
 
-	time.Sleep(sleepBeforeConnection)
+	// time.Sleep(sleepBeforeConnection)
 	if v, ok := os.LookupEnv("CA_IGNORE_VERIFY_CACLI"); ok && v != "" {
 		websocket.DefaultDialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	tries := 5
 	for reconnectionCounter := 0; reconnectionCounter < tries; reconnectionCounter++ {
+		randomDelay := rand.Int63n(int64(reconnectionCounter+1)*int64(sleepBeforeConnection)) / int64(time.Second)
+		glog.Infof("connect try: %d, waiting for %d seconds", reconnectionCounter, randomDelay)
+		time.Sleep(time.Second * time.Duration(randomDelay))
 		if conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
 			glog.Infof("connected successfully to: '%s", wsh.u.String())
 			wsh.setPingPongHandler(conn)
 			return conn, nil
 		}
 		glog.Error(err)
-		glog.Infof("connect try: %d", reconnectionCounter)
-		time.Sleep(time.Second * 5)
 	}
 
-	err = fmt.Errorf("cant connect to wbsocket after %d tries", tries)
+	err = fmt.Errorf("cant connect to websocket after %d tries", tries)
 	glog.Error(err)
 	return nil, err
 
@@ -77,12 +80,12 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 
 // SendReportRoutine function sending updates
 func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool, reconnectCallback func(bool)) error {
+	defer func() {
+		if err := recover(); err != nil {
+			glog.Errorf("RECOVER sendReportRoutine. %v, stack: %s", err, debug.Stack())
+		}
+	}()
 	for {
-		defer func() {
-			if err := recover(); err != nil {
-				glog.Errorf("RECOVER sendReportRoutine. %v", err)
-			}
-		}()
 		conn, err := wsh.connectToWebSocket(30 * time.Second)
 		if err != nil {
 			glog.Error(err)
@@ -99,6 +102,7 @@ func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool, reconnectCal
 
 }
 func (wsh *WebSocketHandler) handleSendReportRoutine(conn *websocket.Conn, reconnectCallback func(bool)) error {
+ReconnectLoop:
 	for {
 		data := <-wsh.data
 		wsh.mutex.Lock()
@@ -110,6 +114,9 @@ func (wsh *WebSocketHandler) handleSendReportRoutine(conn *websocket.Conn, recon
 
 			err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
+				// count on K8s pod lifecycle logic to restart the process again and then reconnect
+				os.Exit(2)
+
 				glog.Errorf("In sendReportRoutine, %d, WriteMessage to websocket: %v", data.RType, err)
 				if reconnectCallback != nil {
 					reconnectCallback(true)
@@ -117,7 +124,8 @@ func (wsh *WebSocketHandler) handleSendReportRoutine(conn *websocket.Conn, recon
 				if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
 					//TODO - handle retries
 					glog.Errorf("sendReportRoutine. %s", err.Error())
-					break
+					wsh.mutex.Unlock()
+					break ReconnectLoop
 				}
 				if reconnectCallback == nil {
 					glog.Infof("resending message. %d", timeID)
@@ -134,6 +142,8 @@ func (wsh *WebSocketHandler) handleSendReportRoutine(conn *websocket.Conn, recon
 			}
 		case EXIT:
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
+			// count on K8s pod lifecycle logic to restart the process again and then reconnect
+			os.Exit(2)
 			wsh.mutex.Unlock()
 			return nil
 			// if reconnectCallback != nil {
@@ -146,6 +156,7 @@ func (wsh *WebSocketHandler) handleSendReportRoutine(conn *websocket.Conn, recon
 		}
 		wsh.mutex.Unlock()
 	}
+	return nil
 }
 
 //SendMessageToWebSocket -
@@ -159,13 +170,13 @@ func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
 func (wh *WatchHandler) ListenerAndSender() {
 	defer func() {
 		if err := recover(); err != nil {
-			glog.Errorf("RECOVER ListnerAndSender. %v", err)
+			glog.Errorf("RECOVER ListnerAndSender. %v, stack: %s", err, debug.Stack())
 		}
 	}()
-	waitingSeconds := time.Duration(5)
+	waitingDelay := time.Duration(5) * time.Second
 	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
-	glog.Infof("wait %d seconds for aggragate the first data from the cluster\n", waitingSeconds)
-	time.Sleep(waitingSeconds * time.Second)
+	glog.Infof("wait %d seconds for aggragate the first data from the cluster\n", waitingDelay)
+	time.Sleep(waitingDelay)
 	wh.SetFirstReportFlag(true)
 	for {
 		jsonData := PrepareDataToSend(wh)

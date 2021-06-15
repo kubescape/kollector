@@ -3,6 +3,7 @@ package watch
 import (
 	"container/list"
 	"log"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -162,12 +163,14 @@ func (wh *WatchHandler) CheckInstanceMetadataAPIVendor() string {
 
 // NodeWatch Watching over nodes
 func (wh *WatchHandler) NodeWatch() {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("RECOVER NodeWatch. error: %v, stack: %s", err, debug.Stack())
+		}
+	}()
+	newStateChan := make(chan bool)
+	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
-		defer func() {
-			if err := recover(); err != nil {
-				log.Printf("RECOVER NodeWatch. error: %v", err)
-			}
-		}()
 		log.Printf("Taking k8s API version")
 		serverVersion, err := wh.RestAPIClient.Discovery().ServerVersion()
 		if err != nil {
@@ -189,17 +192,24 @@ func (wh *WatchHandler) NodeWatch() {
 			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
-		wh.handleNodeWatch(nodesWatcher)
+		wh.handleNodeWatch(nodesWatcher, newStateChan)
 
 		log.Printf("Watching over nodes ended - since we got timeout")
 	}
 }
 
-func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface) {
+func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateChan <-chan bool) {
 	log.Printf("Watching over nodes started")
 	nodesChan := nodesWatcher.ResultChan()
 	for {
-		event := <-nodesChan
+		var event watch.Event
+		select {
+		case event = <-nodesChan:
+		case <-newStateChan:
+			nodesWatcher.Stop()
+			glog.Errorf("Node watch - newStateChan signal")
+			return
+		}
 		if event.Type == watch.Error {
 			glog.Errorf("Node watch chan loop error: %v", event.Object)
 			nodesWatcher.Stop()

@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"time"
 
+	pkgcautils "github.com/armosec/capacketsgo/cautils"
 	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -61,111 +63,13 @@ func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly Owner
 	}
 }
 
-// // PodWatch - Stay updated starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
-// func (wh *WatchHandler) PodWatch() {
-// 	newStateChan := make(chan bool)
-// 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
-// WatchLoop:
-// 	for {
-// 		glog.Infof("Watching over pods starting")
-// 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
-// 		if err != nil {
-// 			glog.Errorf("Watch error: %s", err.Error())
-// 		}
-// 	ChanLoop:
-// 		for {
-// 			var event watch.Event
-// 			select {
-// 			case event = <-podsWatcher.ResultChan():
-// 			case <-newStateChan:
-// 				podsWatcher.Stop()
-// 				glog.Errorf("pod watch - newStateChan signal")
-// 				continue WatchLoop
-// 			}
-// 			if event.Type == watch.Error {
-// 				glog.Errorf("Pod watch chan loop error: %v", event.Object)
-// 				podsWatcher.Stop()
-// 				break ChanLoop
-// 			}
-// 			pod, ok := event.Object.(*core.Pod)
-// 			if !ok {
-// 				glog.Errorf("Watch error: cannot convert to  core.Pod")
-// 				break ChanLoop
-// 			}
-// 			pod.ManagedFields = []metav1.ManagedFieldsEntry{}
-// 			podName := pod.ObjectMeta.Name
-// 			if podName == "" {
-// 				podName = pod.ObjectMeta.GenerateName
-// 			}
-// 			podStatus := getPodStatus(pod)
-// 			switch event.Type {
-// 			case watch.Added:
-// 				glog.Infof("added. name: %s, status: %s", podName, podStatus)
-// 				od, err := GetAncestorOfPod(pod, wh)
-// 				if err != nil {
-// 					glog.Errorf("%s, ignoring pod report", err.Error())
-// 					break
-// 				}
-// 				first := true
-// 				id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels["cyberarmor"], wh.pdm)
-// 				// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
-// 				if runnigPodNum <= 1 {
-// 					// glog.Infof("dwertent -- Adding NEW pod name: %s, id: %d", podName, id)
-// 					wh.pdm[id] = list.New()
-// 					nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
-// 					wh.pdm[id].PushBack(nms)
-// 					wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
-// 				} else { // Check if pod is already reported
-// 					if wh.pdm[id].Front() != nil {
-// 						element := wh.pdm[id].Front().Next()
-// 						for element != nil {
-// 							if element.Value.(PodDataForExistMicroService).PodName == podName {
-// 								// glog.Infof("dwertent -- Adding UPDATE pod name: %s, id: %d", podName, id)
-// 								first = false
-// 								break
-// 							}
-// 							element = element.Next()
-// 						}
-// 					}
-// 				}
-// 				if !first {
-// 					break
-// 				}
-// 				// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
-// 				newPod := PodDataForExistMicroService{PodName: podName, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
-// 				wh.pdm[id].PushBack(newPod)
-// 				wh.jsonReport.AddToJsonFormat(newPod, PODS, CREATED)
-// 				informNewDataArrive(wh)
-
-// 			case watch.Modified:
-// 				if pod.DeletionTimestamp != nil { // the pod is terminating
-// 					break
-// 				}
-// 				podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
-// 				if podSpecID > -2 {
-// 					glog.Infof("Modified. name: %s, status: %s", podName, podStatus)
-// 					wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
-// 				}
-// 				if podSpecID > -1 {
-// 					wh.jsonReport.AddToJsonFormat(wh.pdm[podSpecID].Front().Value.(MicroServiceData), MICROSERVICES, UPDATED)
-// 				}
-// 				if podSpecID > -2 {
-// 					informNewDataArrive(wh)
-// 				}
-// 			case watch.Deleted:
-// 				wh.DeletePod(pod, podName)
-// 			case watch.Bookmark:
-// 				glog.Infof("Bookmark. name: %s, status: %s", podName, podStatus)
-// 			case watch.Error:
-// 				glog.Infof("Error. name: %s, status: %s", podName, podStatus)
-// 			}
-// 		}
-
-// 	}
-// }
-
 // PodWatch - Stay updated starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
+	defer func() {
+		if err := recover(); err != nil {
+			glog.Errorf("RECOVER ListnerAndSender. %v, stack: %s", err, debug.Stack())
+		}
+	}()
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
@@ -176,14 +80,20 @@ func (wh *WatchHandler) PodWatch() {
 			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
-		wh.handlePodWatch(podsWatcher)
+		wh.handlePodWatch(podsWatcher, newStateChan)
 	}
 }
 
-func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface) {
+func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan <-chan bool) {
 	for {
 		var event watch.Event
-		event = <-podsWatcher.ResultChan()
+		select {
+		case event = <-podsWatcher.ResultChan():
+		case <-newStateChan:
+			podsWatcher.Stop()
+			glog.Errorf("pod watch - newStateChan signal")
+			return
+		}
 		if event.Type == watch.Error {
 			glog.Errorf("Pod watch chan loop error: %v", event.Object)
 			podsWatcher.Stop()
@@ -209,7 +119,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface) {
 				break
 			}
 			first := true
-			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels["cyberarmor"], wh.pdm)
+			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels["cyberarmor"], pod.Labels[pkgcautils.ArmoAttach], wh.pdm)
 			// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
 			if runnigPodNum <= 1 {
 				// glog.Infof("dwertent -- Adding NEW pod name: %s, id: %d", podName, id)
@@ -319,25 +229,6 @@ func extractPodSpecFromOwner(ownerData interface{}) interface{} {
 		}
 		if fdSpec, ok := fd["spec"]; ok {
 			return fdSpec
-			// if fdSpecMap, ok := fdSpec.(map[string]interface{}); ok {
-			// 	if temp, ok := fdSpecMap["template"]; ok {
-			// 		if tempMap, ok := temp.(map[string]interface{}); ok {
-			// 			if tempSpec, ok := tempMap["spec"]; ok {
-			// 				if tempSpecMap, ok := tempSpec.(map[string]interface{}); ok {
-			// 					if serviceAccountNameI, ok := tempSpecMap["serviceAccount"]; ok {
-			// 						serviceAccountName := fmt.Sprintf("%v", serviceAccountNameI)
-			// 						if wlidsList, ok := sa2WLIDmap[serviceAccountName]; ok {
-			// 							wlidsList = append(wlidsList, wlid)
-			// 							sa2WLIDmap[serviceAccountName] = wlidsList
-			// 						} else {
-			// 							sa2WLIDmap[serviceAccountName] = []string{serviceAccountName}
-			// 						}
-			// 					}
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// }
 		}
 
 	}
@@ -345,7 +236,7 @@ func extractPodSpecFromOwner(ownerData interface{}) interface{} {
 }
 
 // IsPodSpecAlreadyExist -
-func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus string, pdm map[int]*list.List) (int, int) {
+func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus, newArmoAttached string, pdm map[int]*list.List) (int, int) {
 	newSpec := extractPodSpecFromOwner(podOwner.OwnerData)
 	for _, v := range pdm {
 		if v == nil || v.Len() <= 1 {
@@ -353,12 +244,14 @@ func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus string, pdm
 		}
 		p := v.Front().Value.(MicroServiceData)
 		existsSpec := extractPodSpecFromOwner(p.Owner.OwnerData)
-		//test owner data(if those exists)
-		if p.ObjectMeta.Namespace == namespace && armoStatus == p.Labels["cyberarmor"] && reflect.DeepEqual(newSpec, existsSpec) {
+		armoAttached := p.Labels[pkgcautils.ArmoAttach]
+		// NOTICE: the armoStatus / armoAttached  is a shortcut so we can save the DeepEqual of the pod spec which is very heavy.
+		// In addition, in case we didn't change the podspec of the OwnerRefrence of the pod, we cant count on the owner labels changes
+		//  but on the labels / volumes of the acutal pod we got to identify the changes
+		if p.ObjectMeta.Namespace == namespace && armoAttached == newArmoAttached && armoStatus == p.Labels["cyberarmor"] && reflect.DeepEqual(newSpec, existsSpec) {
 			return v.Front().Value.(MicroServiceData).PodSpecId, v.Len()
 		}
 	}
-
 	return CreateID(), 0
 }
 
