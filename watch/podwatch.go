@@ -77,7 +77,6 @@ func (wh *WatchHandler) PodWatch() {
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			glog.Errorf("Watch error: %s", err.Error())
-			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
 		wh.handlePodWatch(podsWatcher, newStateChan)

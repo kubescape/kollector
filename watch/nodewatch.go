@@ -5,7 +5,6 @@ import (
 	"log"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/golang/glog"
 	core "k8s.io/api/core/v1"
@@ -189,7 +188,6 @@ func (wh *WatchHandler) NodeWatch() {
 		nodesWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			log.Printf("Cannot watch over nodes. %v", err)
-			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
 		wh.handleNodeWatch(nodesWatcher, newStateChan)

@@ -5,7 +5,6 @@ import (
 	"log"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
@@ -33,7 +32,6 @@ WatchLoop:
 		secretsWatcher, err := wh.RestAPIClient.CoreV1().Secrets("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			glog.Errorf("Failed watching over secrets. %s", err.Error())
-			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
 		secretsChan := secretsWatcher.ResultChan()

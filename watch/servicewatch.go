@@ -5,7 +5,6 @@ import (
 	"log"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/golang/glog"
 	core "k8s.io/api/core/v1"
@@ -72,7 +71,6 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 		serviceWatcher, err := wh.RestAPIClient.CoreV1().Services(namespace).Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			log.Printf("Cannot watch over services. %v", err)
-			time.Sleep(time.Duration(3) * time.Second)
 			continue
 		}
 		wh.handleServiceWatch(serviceWatcher, newStateChan)
