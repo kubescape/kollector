@@ -5,6 +5,7 @@ import (
 	"log"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/golang/glog"
 	core "k8s.io/api/core/v1"
@@ -61,27 +62,30 @@ func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 func (wh *WatchHandler) ServiceWatch(namespace string) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("RECOVER ServiceWatch. error: %v, stack: %s", err, debug.Stack())
+			glog.Errorf("RECOVER ServiceWatch. error: %v, stack: %s", err, debug.Stack())
 		}
 	}()
 	newStateChan := make(chan bool)
+	resourceMap := make(map[string]string)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
 		log.Printf("Watching over services starting")
 		serviceWatcher, err := wh.RestAPIClient.CoreV1().Services(namespace).Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			log.Printf("Cannot watch over services. %v", err)
+			glog.Errorf("Cannot watch over services. %v", err)
+			time.Sleep(3 * time.Second)
 			continue
 		}
-		wh.handleServiceWatch(serviceWatcher, newStateChan)
+		wh.HandleDataMismatch("services", resourceMap)
+		wh.handleServiceWatch(serviceWatcher, newStateChan, resourceMap)
 
-		log.Printf("Watching over services ended - since we got timeout")
+		glog.Infof("Watching over services ended - since we got timeout")
 	}
 }
 
-func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newStateChan <-chan bool) {
+func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newStateChan <-chan bool, resourceMap map[string]string) {
 	serviceChan := serviceWatcher.ResultChan()
-	log.Printf("Watching over services started")
+	glog.Infof("Watching over services started")
 	for {
 		var event watch.Event
 		select {
@@ -99,6 +103,7 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 			service.ManagedFields = []metav1.ManagedFieldsEntry{}
 			switch event.Type {
 			case "ADDED":
+				resourceMap[string(service.GetUID())] = service.GetResourceVersion()
 				id := CreateID()
 				if wh.sdm[id] == nil {
 					wh.sdm[id] = list.New()
@@ -108,21 +113,23 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(service, SERVICES, CREATED)
 			case "MODIFY":
+				resourceMap[string(service.GetUID())] = service.GetResourceVersion()
 				UpdateService(service, wh.sdm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(service, SERVICES, UPDATED)
 			case "DELETED":
+				delete(resourceMap, string(service.GetUID()))
 				RemoveService(service, wh.sdm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(service, SERVICES, DELETED)
 			case "BOOKMARK": //only the resource version is changed but it's the same workload
 				continue
 			case "ERROR":
-				log.Printf("while watching over services we got an error")
+				glog.Errorf("while watching over services we got an error")
 				return
 			}
 		} else {
-			log.Printf("Got unexpected service from chan: %v", event.Object)
+			glog.Errorf("Got unexpected service from chan: %v", event.Object)
 			return
 		}
 	}

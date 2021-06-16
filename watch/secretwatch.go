@@ -5,6 +5,7 @@ import (
 	"log"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
@@ -25,17 +26,20 @@ func (wh *WatchHandler) SecretWatch() {
 		}
 	}()
 	newStateChan := make(chan bool)
+	resourceMap := make(map[string]string)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 WatchLoop:
 	for {
-		log.Printf("Watching over secrets starting")
+		glog.Infof("Watching over secrets starting")
 		secretsWatcher, err := wh.RestAPIClient.CoreV1().Secrets("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			glog.Errorf("Failed watching over secrets. %s", err.Error())
+			time.Sleep(3 * time.Second)
 			continue
 		}
+		wh.HandleDataMismatch("secrets", resourceMap)
 		secretsChan := secretsWatcher.ResultChan()
-		log.Printf("Watching over secrets started")
+		glog.Infof("Watching over secrets started")
 	ChanLoop:
 		for {
 			var event watch.Event
@@ -52,19 +56,20 @@ WatchLoop:
 				secretsWatcher.Stop()
 				break ChanLoop
 			}
-			if err := wh.SecretEventHandler(&event); err != nil {
+			if err := wh.SecretEventHandler(&event, resourceMap); err != nil {
 				break ChanLoop
 			}
 		}
-		log.Printf("Watching over secrets ended - timeout")
+		glog.Infof("Watching over secrets ended - timeout")
 	}
 }
-func (wh *WatchHandler) SecretEventHandler(event *watch.Event) error {
+func (wh *WatchHandler) SecretEventHandler(event *watch.Event, resourceMap map[string]string) error {
 	if secret, ok := event.Object.(*corev1.Secret); ok {
 		secret.ManagedFields = []metav1.ManagedFieldsEntry{}
 		removeSecretData(secret)
 		switch event.Type {
 		case "ADDED":
+			resourceMap[string(secret.GetUID())] = secret.GetResourceVersion()
 			secretdm := SecretData{Secret: secret}
 			id := CreateID()
 			wh.secretdm.Init(id)
@@ -72,10 +77,12 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event) error {
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, CREATED)
 		case "MODIFY":
+			resourceMap[string(secret.GetUID())] = secret.GetResourceVersion()
 			wh.UpdateSecret(secret)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, UPDATED)
 		case "DELETED":
+			delete(resourceMap, string(secret.GetUID()))
 			wh.RemoveSecret(secret)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, DELETED)

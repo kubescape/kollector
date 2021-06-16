@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/armosec/capacketsgo/k8sinterface"
+	"github.com/golang/glog"
+
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
@@ -89,6 +92,7 @@ func (rm *ResourceMap) IndexLen(index int) int {
 type WatchHandler struct {
 	extensionsClient apixv1beta1client.ApiextensionsV1beta1Interface
 	RestAPIClient    kubernetes.Interface
+	K8sApi           *k8sinterface.KubernetesApi
 	WebSocketHandle  *WebSocketHandler
 	// cluster info
 	clusterAPIServerVersion *version.Info
@@ -155,6 +159,7 @@ func CreateWatchHandler() *WatchHandler {
 	result := WatchHandler{RestAPIClient: clientset,
 		WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, cusGUID),
 		extensionsClient: extensionsClientSet,
+		K8sApi:           k8sinterface.NewKubernetesApi(),
 		pdm:              make(map[int]*list.List),
 		ndm:              make(map[int]*list.List),
 		sdm:              make(map[int]*list.List),
@@ -232,4 +237,40 @@ func (wh *WatchHandler) SetFirstReportFlag(first bool) {
 // GetFirstReportFlag get first report flag
 func (wh *WatchHandler) GetFirstReportFlag() bool {
 	return wh.jsonReport.FirstReport
+}
+
+func (wh *WatchHandler) HandleDataMismatch(resource string, resourceMap map[string]string) error {
+	if resourceMap == nil || len(resourceMap) == 0 { // ignore if map is empty
+		return nil
+	}
+	mismatch, err := wh.isDataMismatch(resource, resourceMap)
+	if err != nil || mismatch {
+		glog.Infof("mismatch found in resource: %s, exiting...", resource)
+		os.Exit(2)
+	}
+	return nil
+}
+func (wh *WatchHandler) isDataMismatch(resource string, resourceMap map[string]string) (bool, error) {
+	r, _ := k8sinterface.GetGroupVersionResource(resource)
+	workloadList, err := wh.K8sApi.ListWorkloads(&r, "", nil)
+	if err != nil {
+		return false, err
+	}
+
+	if len(workloadList) != len(resourceMap) {
+		glog.Infof("found 'resource len' mismatch, resource: '%s', current len: %d, received from server: %d", resource, len(workloadList), len(resourceMap))
+		return true, nil
+	}
+	for i := range workloadList {
+		if r, ok := resourceMap[workloadList[i].GetUID()]; ok {
+			if r != workloadList[i].GetResourceVersion() {
+				glog.Infof("found 'resource version' mismatch, resource: '%s', name: %s, uid: %s not found in current resource map", resource, workloadList[i].GetName(), workloadList[i].GetUID())
+				return true, nil
+			}
+		} else {
+			glog.Infof("found 'uid' mismatch, resource: '%s', name: '%s', uid: %s not found in current resource map", resource, workloadList[i].GetName(), workloadList[i].GetUID())
+			return true, nil
+		}
+	}
+	return false, nil
 }

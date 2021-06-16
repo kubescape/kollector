@@ -5,6 +5,7 @@ import (
 	"log"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/golang/glog"
 	core "k8s.io/api/core/v1"
@@ -164,39 +165,42 @@ func (wh *WatchHandler) CheckInstanceMetadataAPIVendor() string {
 func (wh *WatchHandler) NodeWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("RECOVER NodeWatch. error: %v, stack: %s", err, debug.Stack())
+			glog.Errorf("RECOVER NodeWatch. error: %v, stack: %s", err, debug.Stack())
 		}
 	}()
+	resourceMap := make(map[string]string)
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
-		log.Printf("Taking k8s API version")
+		glog.Infof("Taking k8s API version")
 		serverVersion, err := wh.RestAPIClient.Discovery().ServerVersion()
 		if err != nil {
 			glog.Errorf("Failed to get API server version, %v", err)
 			serverVersion = &version.Info{GitVersion: "Unknown"}
 		} else {
-			log.Printf("K8s API version :%v", serverVersion)
+			glog.Infof("K8s API version :%v", serverVersion)
 		}
 		wh.clusterAPIServerVersion = serverVersion
 		wh.cloudVendor = wh.CheckInstanceMetadataAPIVendor()
 		if wh.cloudVendor != "" {
 			wh.clusterAPIServerVersion.GitVersion += ";" + wh.cloudVendor
 		}
-		log.Printf("K8s Cloud Vendor : %s", wh.cloudVendor)
-		log.Printf("Watching over nodes starting")
+		glog.Infof("K8s Cloud Vendor : %s", wh.cloudVendor)
+		glog.Infof("Watching over nodes starting")
 		nodesWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			log.Printf("Cannot watch over nodes. %v", err)
+			glog.Errorf("Cannot watch over nodes. %v", err)
+			time.Sleep(3 * time.Second)
 			continue
 		}
-		wh.handleNodeWatch(nodesWatcher, newStateChan)
+		wh.HandleDataMismatch("nodes", resourceMap)
+		wh.handleNodeWatch(nodesWatcher, newStateChan, resourceMap)
 
-		log.Printf("Watching over nodes ended - since we got timeout")
+		glog.Infof("Watching over nodes ended - since we got timeout")
 	}
 }
 
-func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateChan <-chan bool) {
+func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateChan <-chan bool, resourceMap map[string]string) {
 	log.Printf("Watching over nodes started")
 	nodesChan := nodesWatcher.ResultChan()
 	for {
@@ -217,6 +221,7 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 			node.ManagedFields = []metav1.ManagedFieldsEntry{}
 			switch event.Type {
 			case "ADDED":
+				resourceMap[string(node.GetUID())] = node.GetResourceVersion()
 				id := CreateID()
 				if wh.ndm[id] == nil {
 					wh.ndm[id] = list.New()
@@ -228,10 +233,12 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
 			case "MODIFY":
+				resourceMap[string(node.GetUID())] = node.GetResourceVersion()
 				updateNode := UpdateNode(node, wh.ndm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(updateNode, NODE, UPDATED)
 			case "DELETED":
+				delete(resourceMap, string(node.GetUID()))
 				name := RemoveNode(node, wh.ndm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(name, NODE, DELETED)

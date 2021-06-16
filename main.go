@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
@@ -63,7 +64,7 @@ func main() {
 
 func displayBuildTag() {
 	// flag.Parse()
-	// flag.Set("alsologtostderr", "1")
+	flag.Set("alsologtostderr", "1")
 	imageVersion := "local build"
 	dat, err := ioutil.ReadFile("./build_number.txt")
 	if err == nil {
