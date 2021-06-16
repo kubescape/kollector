@@ -37,7 +37,7 @@ WatchLoop:
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		// wh.HandleDataMismatch("secrets", resourceMap)
+		wh.HandleDataMismatch("secrets", resourceMap)
 		secretsChan := secretsWatcher.ResultChan()
 		glog.Infof("Watching over secrets started")
 	ChanLoop:
