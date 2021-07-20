@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
 	"runtime/debug"
 	"strings"
@@ -123,9 +124,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			}
 			first := true
 			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[pkgcautils.CAAttachLabel], pod.Labels[pkgcautils.ArmoAttach], wh.pdm)
-			// glog.Infof("dwertent -- Adding IsPodSpecAlreadyExist name: %s, id: %d, runnigPodNum: %d", podName, id, runnigPodNum)
 			if runnigPodNum <= 1 {
-				// glog.Infof("dwertent -- Adding NEW pod name: %s, id: %d", podName, id)
 				wh.pdm[id] = list.New()
 				nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 				wh.pdm[id].PushBack(nms)
@@ -160,6 +159,9 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
 			if podSpecID > -2 {
 				glog.Infof("Modified. name: %s, status: %s, uid: %s", podName, podStatus, pod.GetUID())
+				if strings.Contains(strings.ToLower(podStatus), "crashloop") {
+					wh.printPodLogs(pod)
+				}
 				wh.jsonReport.AddToJsonFormat(newPodData, PODS, UPDATED)
 			}
 			if podSpecID > -1 {
@@ -175,6 +177,48 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		case watch.Error:
 			glog.Infof("Error. name: %s, status: %s", podName, podStatus)
 			return
+		}
+	}
+}
+
+// print all container logs. In case the RestartCount of one of the containers is greater than 2, skipping the print
+func (wh *WatchHandler) printPodLogs(pod *core.Pod) {
+	containerSlice := make([]core.ContainerStatus, 0, len(pod.Status.ContainerStatuses)+len(pod.Status.InitContainerStatuses))
+	containerSlice = append(containerSlice, pod.Status.ContainerStatuses...)
+	containerSlice = append(containerSlice, pod.Status.InitContainerStatuses...)
+	for contIdx := range containerSlice {
+		contName := containerSlice[contIdx].Name
+		if containerSlice[contIdx].RestartCount > 2 {
+			glog.Warningf("Crashed pod container '%s' restart count: %d", contName, containerSlice[contIdx].RestartCount)
+			continue
+		}
+	}
+	glog.Warningf("Crashed pod: %+v", pod)
+	for contIdx := range containerSlice {
+		contName := containerSlice[contIdx].Name
+		podLogOpts := core.PodLogOptions{Previous: true, Timestamps: true, Container: contName}
+		logsObj := wh.K8sApi.KubernetesClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
+		readerObj, err := logsObj.Stream(wh.K8sApi.Context)
+		if err != nil {
+			glog.Warningf("Crashed pod container '%s'. Failed to get previous logs stream: %v", contName, err)
+		} else {
+			if logs, err := io.ReadAll(readerObj); err != nil {
+				glog.Warningf("Crashed pod container '%s'. Failed to read previous logs stream: %v", contName, err)
+			} else {
+				glog.Warningf("Crashed pod container '%s' previous logs:\n %s", contName, string(logs))
+			}
+		}
+		podLogOpts.Previous = false
+		logsObj = wh.K8sApi.KubernetesClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
+		readerObj, err = logsObj.Stream(wh.K8sApi.Context)
+		if err != nil {
+			glog.Warningf("Crashed pod container '%s'. Failed to get logs stream: %v", contName, err)
+		} else {
+			if logs, err := io.ReadAll(readerObj); err != nil {
+				glog.Warningf("Crashed pod container '%s'. Failed to read logs stream: %v", contName, err)
+			} else {
+				glog.Warningf("Crashed pod container '%s' logs:\n %s", contName, string(logs))
+			}
 		}
 	}
 }
