@@ -221,7 +221,7 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 			node.ManagedFields = []metav1.ManagedFieldsEntry{}
 			switch event.Type {
 			case "ADDED":
-				resourceMap[string(node.GetUID())] = node.GetResourceVersion()
+				resourceMap[string(node.GetName())] = string(node.GetName())
 				id := CreateID()
 				if wh.ndm[id] == nil {
 					wh.ndm[id] = list.New()
@@ -233,12 +233,12 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
 			case "MODIFY":
-				resourceMap[string(node.GetUID())] = node.GetResourceVersion()
+				resourceMap[string(node.GetName())] = string(node.GetName())
 				updateNode := UpdateNode(node, wh.ndm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(updateNode, NODE, UPDATED)
 			case "DELETED":
-				delete(resourceMap, string(node.GetUID()))
+				delete(resourceMap, string(node.GetName()))
 				name := RemoveNode(node, wh.ndm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(name, NODE, DELETED)

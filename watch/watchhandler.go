@@ -165,11 +165,7 @@ func CreateWatchHandler() *WatchHandler {
 		sdm:              make(map[int]*list.List),
 		secretdm:         NewResourceMap(),
 		jsonReport: jsonFormat{
-			FirstReport:   true,
-			Nodes:         ObjectData{},
-			Services:      ObjectData{},
-			MicroServices: ObjectData{},
-			Pods:          ObjectData{},
+			FirstReport: true,
 		},
 		informNewDataChannel:   make(chan int),
 		aggregateFirstDataFlag: true,
@@ -262,15 +258,34 @@ func (wh *WatchHandler) isDataMismatch(resource string, resourceMap map[string]s
 		return true, nil
 	}
 	for i := range workloadList {
-		if r, ok := resourceMap[workloadList[i].GetUID()]; ok {
-			if r != workloadList[i].GetResourceVersion() {
-				glog.Infof("found 'resource version' mismatch, resource: '%s', name: %s, uid: %s not found in current resource map", resource, workloadList[i].GetName(), workloadList[i].GetUID())
+		resourceID := GetResourceID(&workloadList[i])
+		if r, ok := resourceMap[resourceID]; ok {
+			if r != GetResourceVersion(&workloadList[i]) {
+				glog.Infof("resource version mismatch, resource: '%s', name: %s, id: %s not found in current resource map", resource, resourceID, GetResourceVersion(&workloadList[i]))
 				return true, nil
 			}
 		} else {
-			glog.Infof("found 'uid' mismatch, resource: '%s', name: '%s', uid: %s not found in current resource map", resource, workloadList[i].GetName(), workloadList[i].GetUID())
+			glog.Infof("resource ID mismatch, resource: '%s', name: '%s', id: %s not found in current resource map", resource, resourceID, GetResourceVersion(&workloadList[i]))
 			return true, nil
 		}
 	}
 	return false, nil
+}
+
+func GetResourceID(workload *k8sinterface.Workload) string {
+	switch workload.GetKind() {
+	case "Node":
+		return workload.GetName()
+	default:
+		return workload.GetUID()
+	}
+}
+
+func GetResourceVersion(workload *k8sinterface.Workload) string {
+	switch workload.GetKind() {
+	case "Node":
+		return workload.GetName()
+	default:
+		return workload.GetResourceVersion()
+	}
 }
