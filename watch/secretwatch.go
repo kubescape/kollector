@@ -101,7 +101,7 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event, resourceMap map[s
 
 // UpdateSecret update websocket when secret is updated
 func (wh *WatchHandler) UpdateSecret(secret *corev1.Secret) {
-	for id := range wh.secretdm.GetIDs() {
+	for _, id := range wh.secretdm.GetIDs() {
 		front := wh.secretdm.Front(id)
 		if front == nil || front.Value == nil {
 			continue
@@ -128,7 +128,7 @@ func (wh *WatchHandler) UpdateSecret(secret *corev1.Secret) {
 
 // RemoveSecret update websocket when secret is removed
 func (wh *WatchHandler) RemoveSecret(secret *corev1.Secret) string {
-	for id := range wh.secretdm.GetIDs() {
+	for _, id := range wh.secretdm.GetIDs() {
 		front := wh.secretdm.Front(id)
 		if front == nil || front.Value == nil {
 			continue

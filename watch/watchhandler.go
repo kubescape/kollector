@@ -104,7 +104,10 @@ type WatchHandler struct {
 	// services list
 	sdm map[int]*list.List
 	// secrets list
-	secretdm               *ResourceMap
+	secretdm *ResourceMap
+	// namespaces list
+	namespacedm *ResourceMap
+
 	jsonReport             jsonFormat
 	informNewDataChannel   chan int
 	aggregateFirstDataFlag bool
@@ -164,6 +167,7 @@ func CreateWatchHandler() *WatchHandler {
 		ndm:              make(map[int]*list.List),
 		sdm:              make(map[int]*list.List),
 		secretdm:         NewResourceMap(),
+		namespacedm:      NewResourceMap(),
 		jsonReport: jsonFormat{
 			FirstReport: true,
 		},
@@ -224,6 +228,7 @@ func (wh *WatchHandler) SetFirstReportFlag(first bool) {
 		wh.pdm = make(map[int]*list.List)
 		wh.sdm = make(map[int]*list.List)
 		wh.secretdm = NewResourceMap()
+		wh.namespacedm = NewResourceMap()
 		for chanIdx := range wh.newStateReportChans {
 			wh.newStateReportChans[chanIdx] <- true
 		}
@@ -236,7 +241,7 @@ func (wh *WatchHandler) GetFirstReportFlag() bool {
 }
 
 func (wh *WatchHandler) HandleDataMismatch(resource string, resourceMap map[string]string) error {
-	if resourceMap == nil || len(resourceMap) == 0 { // ignore if map is empty
+	if len(resourceMap) == 0 { // ignore if map is empty / nil
 		return nil
 	}
 	mismatch, err := wh.isDataMismatch(resource, resourceMap)

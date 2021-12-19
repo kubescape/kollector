@@ -58,6 +58,11 @@ func main() {
 			wh.SecretWatch()
 		}
 	}()
+	go func() {
+		for {
+			wh.NamespaceWatch()
+		}
+	}()
 	glog.Error(wh.WebSocketHandle.SendReportRoutine(&isServerReady, wh.SetFirstReportFlag))
 
 }

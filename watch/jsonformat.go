@@ -16,6 +16,7 @@ const (
 	MICROSERVICES JsonType = 3
 	PODS          JsonType = 4
 	SECRETS       JsonType = 5
+	NAMESPACES    JsonType = 6
 )
 
 const (
@@ -39,6 +40,7 @@ type jsonFormat struct {
 	MicroServices           *ObjectData   `json:"microservice,omitempty"`
 	Pods                    *ObjectData   `json:"pod,omitempty"`
 	Secret                  *ObjectData   `json:"secret,omitempty"`
+	Namespace               *ObjectData   `json:"namespace,omitempty"`
 }
 
 func (obj *ObjectData) AddToJsonFormatByState(NewData interface{}, stype StateType) {
@@ -96,6 +98,11 @@ func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, 
 			jsonReport.Secret = &ObjectData{}
 		}
 		jsonReport.Secret.AddToJsonFormatByState(data, stype)
+	case NAMESPACES:
+		if jsonReport.Namespace == nil {
+			jsonReport.Namespace = &ObjectData{}
+		}
+		jsonReport.Namespace.AddToJsonFormatByState(data, stype)
 	}
 
 }
@@ -124,6 +131,9 @@ func PrepareDataToSend(wh *WatchHandler) []byte {
 	}
 	if jsonReport.MicroServices.Len() == 0 {
 		jsonReport.MicroServices = nil
+	}
+	if jsonReport.Namespace.Len() == 0 {
+		jsonReport.Namespace = nil
 	}
 	jsonReportToSend, err := json.Marshal(jsonReport)
 	if nil != err {
@@ -182,5 +192,11 @@ func deleteJsonData(wh *WatchHandler) {
 		deleteObjecData(&jsonReport.Secret.Created)
 		deleteObjecData(&jsonReport.Secret.Deleted)
 		deleteObjecData(&jsonReport.Secret.Updated)
+	}
+
+	if jsonReport.Namespace != nil {
+		deleteObjecData(&jsonReport.Namespace.Created)
+		deleteObjecData(&jsonReport.Namespace.Deleted)
+		deleteObjecData(&jsonReport.Namespace.Updated)
 	}
 }
