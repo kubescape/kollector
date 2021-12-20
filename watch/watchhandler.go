@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/armosec/capacketsgo/k8sinterface"
@@ -125,6 +126,7 @@ func (wh *WatchHandler) GetAggregateFirstDataFlag() *bool {
 //CreateWatchHandler -
 func CreateWatchHandler() *WatchHandler {
 
+	namespacesStr := flag.String("include-namespaces", "", "comma separated namespaces list to watch on. Empty list or omit to watch them all")
 	config := parseArgument()
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
@@ -175,7 +177,7 @@ func CreateWatchHandler() *WatchHandler {
 		},
 		informNewDataChannel:   make(chan int),
 		aggregateFirstDataFlag: true,
-		IncludeNamespaces:      []string{""},
+		IncludeNamespaces:      strings.Split(*namespacesStr, ","),
 	}
 	return &result
 }
@@ -198,6 +200,7 @@ func parseArgument() *restclient.Config {
 	} else {
 		kubeconfigpath = flag.String("kubeconfigpath", "", "absolute path to the kubeconfig file")
 	}
+
 	threFlag := flag.Lookup("stderrthreshold")
 	threFlag.DefValue = "WARNING"
 	flag.Parse()
