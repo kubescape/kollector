@@ -311,7 +311,7 @@ func (wh *WatchHandler) isNamespaceWatched(namespace string) bool {
 		}
 	}
 
-	glog.Info("Namespace '%s' isn't tracked", namespace)
+	glog.Infof("Namespace '%s' isn't tracked", namespace)
 	return false
 
 }
