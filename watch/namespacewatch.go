@@ -65,11 +65,8 @@ func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, resourceMap ma
 		case "ADDED":
 			resourceMap[string(namespace.GetUID())] = namespace.GetResourceVersion()
 			id := CreateID()
-			fmt.Printf("\n------------\n%v\n", wh.namespacedm)
 			wh.namespacedm.Init(id)
-			fmt.Printf("\n------------\n%v\n", wh.namespacedm)
 			wh.namespacedm.PushBack(id, namespace)
-			fmt.Printf("\n------------\n%v\n", wh.namespacedm)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(namespace, NAMESPACES, CREATED)
 		case "MODIFY":
@@ -128,7 +125,6 @@ func (wh *WatchHandler) RemoveNamespace(namespace *corev1.Namespace) string {
 		if !ok {
 			continue
 		}
-		log.Printf("Checking namespace %s", namespaceData.Name)
 
 		if strings.Compare(namespaceData.ObjectMeta.Name, namespace.Name) == 0 {
 			name := namespaceData.ObjectMeta.Name

@@ -65,6 +65,9 @@ WatchLoop:
 }
 func (wh *WatchHandler) SecretEventHandler(event *watch.Event, resourceMap map[string]string) error {
 	if secret, ok := event.Object.(*corev1.Secret); ok {
+		if !wh.isNamespaceWatched(secret.Namespace) {
+			return nil
+		}
 		secret.ManagedFields = []metav1.ManagedFieldsEntry{}
 		removeSecretData(secret)
 		switch event.Type {

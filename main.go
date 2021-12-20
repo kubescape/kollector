@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"k8s-ca-dashboard-aggregator/watch"
@@ -15,7 +14,6 @@ func main() {
 
 	isServerReady := false
 	go probes.InitReadinessV1(&isServerReady)
-
 	displayBuildTag()
 
 	wh := watch.CreateWatchHandler()
@@ -23,11 +21,6 @@ func main() {
 	if wh == nil {
 		return
 	}
-	//start websocket
-	// if err := wh.WebSocketHandle.StartWebSokcetClient(); err != nil {
-	// 	log.Print(err)
-	// 	return
-	// }
 
 	go func() {
 		for {
@@ -49,7 +42,7 @@ func main() {
 
 	go func() {
 		for {
-			wh.ServiceWatch("")
+			wh.ServiceWatch()
 		}
 	}()
 
@@ -68,8 +61,8 @@ func main() {
 }
 
 func displayBuildTag() {
-	// flag.Parse()
-	flag.Set("alsologtostderr", "1")
+	// flag.Set("alsologtostderr", "1")
+
 	imageVersion := "local build"
 	dat, err := ioutil.ReadFile("./build_number.txt")
 	if err == nil {
@@ -80,5 +73,5 @@ func displayBuildTag() {
 			imageVersion = fmt.Sprintf("%s, date: %s", imageVersion, string(dat))
 		}
 	}
-	glog.Infof("Image version: %s", imageVersion)
+	fmt.Printf("Image version: %s", imageVersion)
 }

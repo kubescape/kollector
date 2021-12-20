@@ -3,6 +3,7 @@ package watch
 import (
 	"container/list"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -113,6 +114,7 @@ type WatchHandler struct {
 	aggregateFirstDataFlag bool
 	// newStateReportChans is calling in a loop whenever new connection to ARMO BE is initialized
 	newStateReportChans []chan bool
+	IncludeNamespaces   []string
 }
 
 // GetAggregateFirstDataFlag return pointer
@@ -173,6 +175,7 @@ func CreateWatchHandler() *WatchHandler {
 		},
 		informNewDataChannel:   make(chan int),
 		aggregateFirstDataFlag: true,
+		IncludeNamespaces:      []string{""},
 	}
 	return &result
 }
@@ -195,7 +198,10 @@ func parseArgument() *restclient.Config {
 	} else {
 		kubeconfigpath = flag.String("kubeconfigpath", "", "absolute path to the kubeconfig file")
 	}
+	threFlag := flag.Lookup("stderrthreshold")
+	threFlag.DefValue = "WARNING"
 	flag.Parse()
+	fmt.Printf("Log level: %s, set -stderrthreshold=INFO for detailed logs", threFlag.Value)
 
 	switch *configtype {
 	case 0:
@@ -293,4 +299,16 @@ func GetResourceVersion(workload *k8sinterface.Workload) string {
 	default:
 		return workload.GetResourceVersion()
 	}
+}
+
+func (wh *WatchHandler) isNamespaceWatched(namespace string) bool {
+	for nsIdx := range wh.IncludeNamespaces {
+		if wh.IncludeNamespaces[nsIdx] == "" || wh.IncludeNamespaces[nsIdx] == namespace {
+			return true
+		}
+	}
+
+	glog.Info("Namespace '%s' isn't tracked", namespace)
+	return false
+
 }

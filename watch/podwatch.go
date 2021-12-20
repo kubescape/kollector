@@ -107,6 +107,9 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			glog.Errorf("Watch error: cannot convert to core.Pod")
 			return
 		}
+		if !wh.isNamespaceWatched(pod.Namespace) {
+			continue
+		}
 		pod.ManagedFields = []metav1.ManagedFieldsEntry{}
 		podName := pod.ObjectMeta.Name
 		if podName == "" {

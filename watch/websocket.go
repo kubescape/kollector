@@ -173,15 +173,18 @@ func (wh *WatchHandler) ListenerAndSender() {
 			glog.Errorf("RECOVER ListnerAndSender. %v, stack: %s", err, debug.Stack())
 		}
 	}()
-	waitingDelay := time.Duration(5) * time.Second
+	waitingDuration := time.Duration(5)
+	waitingDelay := waitingDuration * time.Second
 	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
-	glog.Infof("wait %d seconds for aggragate the first data from the cluster\n", waitingDelay)
+	glog.Infof("wait %d seconds for aggragate the first data from the cluster\n", waitingDuration)
 	time.Sleep(waitingDelay)
 	wh.SetFirstReportFlag(true)
 	for {
 		jsonData := PrepareDataToSend(wh)
 		if jsonData != nil {
-			glog.Infof("%s", string(jsonData))
+			if os.Getenv("PRINT_REPORT") == "true" {
+				glog.Infof("%s", string(jsonData))
+			}
 			wh.SendMessageToWebSocket(jsonData)
 		}
 		if wh.GetFirstReportFlag() {

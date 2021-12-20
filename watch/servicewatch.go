@@ -59,7 +59,7 @@ func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 }
 
 // ServiceWatch watch over servises
-func (wh *WatchHandler) ServiceWatch(namespace string) {
+func (wh *WatchHandler) ServiceWatch() {
 	defer func() {
 		if err := recover(); err != nil {
 			glog.Errorf("RECOVER ServiceWatch. error: %v, stack: %s", err, debug.Stack())
@@ -69,8 +69,8 @@ func (wh *WatchHandler) ServiceWatch(namespace string) {
 	resourceMap := make(map[string]string)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
-		log.Printf("Watching over services starting")
-		serviceWatcher, err := wh.RestAPIClient.CoreV1().Services(namespace).Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
+		glog.Info("Watching over services starting")
+		serviceWatcher, err := wh.RestAPIClient.CoreV1().Services("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
 			glog.Errorf("Cannot watch over services. %v", err)
 			time.Sleep(3 * time.Second)
@@ -100,6 +100,9 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 			return
 		}
 		if service, ok := event.Object.(*core.Service); ok {
+			if !wh.isNamespaceWatched(service.Namespace) {
+				continue
+			}
 			service.ManagedFields = []metav1.ManagedFieldsEntry{}
 			switch event.Type {
 			case "ADDED":
