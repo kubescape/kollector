@@ -2,7 +2,6 @@ package watch
 
 import (
 	"fmt"
-	"log"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -22,7 +21,7 @@ type SecretData struct {
 func (wh *WatchHandler) SecretWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("RECOVER SecretWatch. error: %v\n %s", err, string(debug.Stack()))
+			glog.Errorf("RECOVER SecretWatch. error: %v\n %s", err, string(debug.Stack()))
 		}
 	}()
 	newStateChan := make(chan bool)
@@ -92,11 +91,11 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event, resourceMap map[s
 		case "BOOKMARK": //only the resource version is changed but it's the same workload
 			return nil
 		case "ERROR":
-			log.Printf("while watching over secrets we got an error ")
+			glog.Errorf("while watching over secrets we got an error: %v", event)
 			return fmt.Errorf("while watching over secrets we got an error")
 		}
 	} else {
-		log.Printf("Got unexpected secret from chan: %v", event.Object)
+		glog.Errorf("Got unexpected secret from chan: %v", event)
 		return fmt.Errorf("got unexpected secret from chan")
 	}
 	return nil
@@ -118,12 +117,12 @@ func (wh *WatchHandler) UpdateSecret(secret *corev1.Secret) {
 		}
 		if strings.Compare(secretData.Secret.ObjectMeta.Name, secret.ObjectMeta.Name) == 0 {
 			*secretData.Secret = *secret
-			log.Printf("secret %s updated", secretData.Secret.ObjectMeta.Name)
+			glog.Infof("secret %s updated", secretData.Secret.ObjectMeta.Name)
 			break
 		}
 		if strings.Compare(secretData.Secret.ObjectMeta.GenerateName, secret.ObjectMeta.Name) == 0 {
 			*secretData.Secret = *secret
-			log.Printf("secret %s updated", secretData.Secret.ObjectMeta.Name)
+			glog.Infof("secret %s updated", secretData.Secret.ObjectMeta.Name)
 			break
 		}
 	}
@@ -146,13 +145,13 @@ func (wh *WatchHandler) RemoveSecret(secret *corev1.Secret) string {
 		if strings.Compare(secretData.Secret.ObjectMeta.Name, secret.ObjectMeta.Name) == 0 {
 			name := secretData.Secret.ObjectMeta.Name
 			wh.secretdm.Remove(id)
-			log.Printf("secret %s removed", name)
+			glog.Infof("secret %s removed", name)
 			return name
 		}
 		if strings.Compare(secretData.Secret.ObjectMeta.GenerateName, secret.ObjectMeta.Name) == 0 {
 			gName := secretData.Secret.ObjectMeta.Name
 			wh.secretdm.Remove(id)
-			log.Printf("secret %s removed", gName)
+			glog.Infof("secret %s removed", gName)
 			return gName
 		}
 	}

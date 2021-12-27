@@ -104,8 +104,8 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		}
 		pod, ok := event.Object.(*core.Pod)
 		if !ok {
-			glog.Errorf("Watch error: cannot convert to core.Pod")
-			return
+			glog.Errorf("Watch error: cannot convert to core.Pod: %v", event)
+			continue
 		}
 		if !wh.isNamespaceWatched(pod.Namespace) {
 			continue

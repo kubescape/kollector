@@ -2,7 +2,6 @@ package watch
 
 import (
 	"fmt"
-	"log"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -17,7 +16,7 @@ import (
 func (wh *WatchHandler) NamespaceWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Printf("RECOVER NamespaceWatch. error: %v\n %s", err, string(debug.Stack()))
+			glog.Errorf("RECOVER NamespaceWatch. error: %v\n %s", err, string(debug.Stack()))
 		}
 	}()
 	newStateChan := make(chan bool)
@@ -82,11 +81,11 @@ func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, resourceMap ma
 		case "BOOKMARK": //only the resource version is changed but it's the same object
 			return nil
 		case "ERROR":
-			log.Printf("while watching over namespaces we got an error ")
+			glog.Errorf("while watching over namespaces we got an error: %v", event)
 			return fmt.Errorf("while watching over namespaces we got an error")
 		}
 	} else {
-		log.Printf("Got unexpected namespace from chan: %v", event.Object)
+		glog.Errorf("Got unexpected namespace from chan: %v", event)
 		return fmt.Errorf("got unexpected namespace from chan")
 	}
 	return nil
@@ -129,7 +128,7 @@ func (wh *WatchHandler) RemoveNamespace(namespace *corev1.Namespace) string {
 		if strings.Compare(namespaceData.ObjectMeta.Name, namespace.Name) == 0 {
 			name := namespaceData.ObjectMeta.Name
 			wh.namespacedm.Remove(id)
-			log.Printf("namespace %s removed", name)
+			glog.Infof("namespace %s removed", name)
 			return name
 		}
 	}

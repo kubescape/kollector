@@ -2,7 +2,6 @@ package watch
 
 import (
 	"container/list"
-	"log"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -34,13 +33,13 @@ func UpdateNode(node *core.Node, ndm map[int]*list.List) NodeData {
 		}
 		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.Name) == 0 {
 			v.Front().Value.(*NodeData).UpdateNodeData(node)
-			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)
+			glog.Infof("node %s updated", v.Front().Value.(NodeData).Name)
 			nd = v.Front().Value.(NodeData)
 			break
 		}
 		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.GenerateName) == 0 {
 			v.Front().Value.(*NodeData).UpdateNodeData(node)
-			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)
+			glog.Infof("node %s updated", v.Front().Value.(NodeData).Name)
 			nd = v.Front().Value.(NodeData)
 			break
 		}
@@ -57,13 +56,13 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 		}
 		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.Name) == 0 {
 			v.Remove(v.Front())
-			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)
+			glog.Infof("node %s updated", v.Front().Value.(NodeData).Name)
 			nodeName = v.Front().Value.(NodeData).Name
 			break
 		}
 		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.GenerateName) == 0 {
 			v.Remove(v.Front())
-			log.Printf("node %s updated", v.Front().Value.(NodeData).Name)
+			glog.Infof("node %s updated", v.Front().Value.(NodeData).Name)
 			nodeName = v.Front().Value.(NodeData).Name
 			break
 		}
@@ -160,11 +159,11 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 			case "BOOKMARK": //only the resource version is changed but it's the same workload
 				continue
 			case "ERROR":
-				log.Printf("while watching over nodes we got an error")
+				glog.Errorf("while watching over nodes we got an error: %v", event)
 				return
 			}
 		} else {
-			log.Printf("Got unexpected node from chan: %v", event.Object)
+			glog.Errorf("Got unexpected node from chan: %v", event)
 			return
 		}
 	}

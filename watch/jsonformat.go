@@ -2,8 +2,8 @@ package watch
 
 import (
 	"encoding/json"
-	"log"
 
+	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/version"
 )
 
@@ -137,7 +137,7 @@ func PrepareDataToSend(wh *WatchHandler) []byte {
 	}
 	jsonReportToSend, err := json.Marshal(jsonReport)
 	if nil != err {
-		log.Printf("json.Marshal %v", err)
+		glog.Errorf("In PrepareDataToSend json.Marshal %v", err)
 		return nil
 	}
 	deleteJsonData(wh)

@@ -4,7 +4,6 @@ import (
 	"container/list"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -132,33 +131,33 @@ func CreateWatchHandler() *WatchHandler {
 	clientset, err := kubernetes.NewForConfig(config)
 
 	if err != nil {
-		log.Print(err.Error())
+		glog.Errorf("kubernetes.NewForConfig failed: %v", err)
 		return nil
 	}
 	extensionsClientSet, err := apixv1beta1client.NewForConfig(config)
 
 	if err != nil {
-		log.Print(err.Error())
+		glog.Errorf("apixv1beta1client.NewForConfig failed: %v", err)
 		return nil
 	}
 
 	var clusterName string
 	if clusterName = os.Getenv("CA_CLUSTER_NAME"); clusterName == "" {
-		log.Println("there is no cluster name environment variable, envKey:CA_CLUSTER_NAME")
+		glog.Error("there is no cluster name environment variable, envKey:CA_CLUSTER_NAME")
 		//clusterName = "superCluster"
 		return nil
 	}
 
 	var reportURL string
 	if reportURL = os.Getenv("CA_K8S_REPORT_URL"); reportURL == "" {
-		log.Println("there is no report url environment variable, envKey:CA_K8S_REPORT_URL")
+		glog.Error("there is no report url environment variable, envKey:CA_K8S_REPORT_URL")
 		//reportURL = "report.eudev2.cyberarmorsoft.com"
 		return nil
 	}
 
 	var cusGUID string
 	if cusGUID = os.Getenv("CA_CUSTOMER_GUID"); cusGUID == "" {
-		log.Println("there is no customer guid environment variable, envKey:CA_CUSTOMER_GUID")
+		glog.Error("there is no customer guid environment variable, envKey:CA_CUSTOMER_GUID")
 		//cusGUID = "1e3a88bf-92ce-44f8-914e-cbe71830d566"
 		return nil
 	}
@@ -211,14 +210,14 @@ func parseArgument() *restclient.Config {
 		// use the current context in kubeconfig
 		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfigpath)
 		if err != nil {
-			log.Printf("kubeconfig path is %s\n", *kubeconfigpath)
-			log.Print(err.Error())
+			glog.Infof("kubeconfig path is %s\n", *kubeconfigpath)
+			glog.Error(err.Error())
 			return nil
 		}
 	case 1:
 		config, err = restclient.InClusterConfig()
 		if err != nil {
-			log.Print(err.Error())
+			glog.Error(err.Error())
 			return nil
 		}
 	}

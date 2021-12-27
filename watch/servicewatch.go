@@ -2,7 +2,6 @@ package watch
 
 import (
 	"container/list"
-	"log"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -24,12 +23,12 @@ func UpdateService(service *core.Service, sdm map[int]*list.List) string {
 		}
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
 			*v.Front().Value.(ServiceData).Service = *service
-			log.Printf("service %s updated", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
+			glog.Infof("service %s updated", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
 			return v.Front().Value.(ServiceData).Service.ObjectMeta.Name
 		}
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
 			*v.Front().Value.(ServiceData).Service = *service
-			log.Printf("service %s updated", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
+			glog.Infof("service %s updated", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
 			return v.Front().Value.(ServiceData).Service.ObjectMeta.Name
 		}
 	}
@@ -45,13 +44,13 @@ func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
 			name := v.Front().Value.(ServiceData).Service.ObjectMeta.Name
 			v.Remove(v.Front())
-			log.Printf("service %s removed", name)
+			glog.Infof("service %s removed", name)
 			return name
 		}
 		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
 			gName := v.Front().Value.(ServiceData).Service.ObjectMeta.Name
 			v.Remove(v.Front())
-			log.Printf("service %s removed", gName)
+			glog.Infof("service %s removed", gName)
 			return gName
 		}
 	}
@@ -128,11 +127,11 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 			case "BOOKMARK": //only the resource version is changed but it's the same workload
 				continue
 			case "ERROR":
-				glog.Errorf("while watching over services we got an error")
+				glog.Errorf("while watching over services we got an error: %v", event)
 				return
 			}
 		} else {
-			glog.Errorf("Got unexpected service from chan: %v", event.Object)
+			glog.Errorf("Got unexpected service from chan: %v", event)
 			return
 		}
 	}
