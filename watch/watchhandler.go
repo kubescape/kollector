@@ -5,18 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
-	"github.com/armosec/capacketsgo/k8sinterface"
+	"github.com/armosec/k8s-interface/k8sinterface"
 	"github.com/golang/glog"
 
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type ResourceMap struct {
@@ -126,15 +123,15 @@ func (wh *WatchHandler) GetAggregateFirstDataFlag() *bool {
 func CreateWatchHandler() *WatchHandler {
 
 	namespacesStr := flag.String("include-namespaces", "", "comma separated namespaces list to watch on. Empty list or omit to watch them all")
-	config := parseArgument()
+	err := parseArgument()
 	// create the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	k8sAPiObj := k8sinterface.NewKubernetesApi()
 
 	if err != nil {
-		glog.Errorf("kubernetes.NewForConfig failed: %v", err)
+		glog.Errorf("k8sinterface.NewKubernetesApi failed: %v", err)
 		return nil
 	}
-	extensionsClientSet, err := apixv1beta1client.NewForConfig(config)
+	extensionsClientSet, err := apixv1beta1client.NewForConfig(k8sinterface.GetK8sConfig())
 
 	if err != nil {
 		glog.Errorf("apixv1beta1client.NewForConfig failed: %v", err)
@@ -162,7 +159,7 @@ func CreateWatchHandler() *WatchHandler {
 		return nil
 	}
 
-	result := WatchHandler{RestAPIClient: clientset,
+	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
 		WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, cusGUID),
 		extensionsClient: extensionsClientSet,
 		K8sApi:           k8sinterface.NewKubernetesApi(),
@@ -181,48 +178,14 @@ func CreateWatchHandler() *WatchHandler {
 	return &result
 }
 
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	return os.Getenv("USERPROFILE") // windows
-}
-func parseArgument() *restclient.Config {
-	var kubeconfigpath *string
-	var config *restclient.Config
-	var err error
-
-	home := homeDir()
-	configtype := flag.Int("configtype", 0, "newForConfig = 0, inClusterConfig = 1")
-	if len(os.Args) < 3 && home != "" {
-		kubeconfigpath = flag.String("kubeconfigpath", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfigpath = flag.String("kubeconfigpath", "", "absolute path to the kubeconfig file")
-	}
+func parseArgument() error {
 
 	threFlag := flag.Lookup("stderrthreshold")
 	threFlag.DefValue = "WARNING"
 	flag.Parse()
 	fmt.Printf("Log level: %s, set -stderrthreshold=INFO for detailed logs", threFlag.Value)
 
-	switch *configtype {
-	case 0:
-		// use the current context in kubeconfig
-		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfigpath)
-		if err != nil {
-			glog.Infof("kubeconfig path is %s\n", *kubeconfigpath)
-			glog.Error(err.Error())
-			return nil
-		}
-	case 1:
-		config, err = restclient.InClusterConfig()
-		if err != nil {
-			glog.Error(err.Error())
-			return nil
-		}
-	}
-
-	return config
+	return nil
 }
 
 // SetFirstReportFlag set first report flag
@@ -261,7 +224,7 @@ func (wh *WatchHandler) HandleDataMismatch(resource string, resourceMap map[stri
 }
 func (wh *WatchHandler) isDataMismatch(resource string, resourceMap map[string]string) (bool, error) {
 	r, _ := k8sinterface.GetGroupVersionResource(resource)
-	workloadList, err := wh.K8sApi.ListWorkloads(&r, "", nil)
+	workloadList, err := wh.K8sApi.ListWorkloads(&r, "", nil, nil)
 	if err != nil {
 		return false, err
 	}
@@ -271,21 +234,21 @@ func (wh *WatchHandler) isDataMismatch(resource string, resourceMap map[string]s
 		return true, nil
 	}
 	for i := range workloadList {
-		resourceID := GetResourceID(&workloadList[i])
+		resourceID := GetResourceID(workloadList[i])
 		if r, ok := resourceMap[resourceID]; ok {
-			if r != GetResourceVersion(&workloadList[i]) {
-				glog.Infof("resource version mismatch, resource: '%s', name: %s, id: %s not found in current resource map", resource, resourceID, GetResourceVersion(&workloadList[i]))
+			if r != GetResourceVersion(workloadList[i]) {
+				glog.Infof("resource version mismatch, resource: '%s', name: %s, id: %s not found in current resource map", resource, resourceID, GetResourceVersion(workloadList[i]))
 				return true, nil
 			}
 		} else {
-			glog.Infof("resource ID mismatch, resource: '%s', name: '%s', id: %s not found in current resource map", resource, resourceID, GetResourceVersion(&workloadList[i]))
+			glog.Infof("resource ID mismatch, resource: '%s', name: '%s', id: %s not found in current resource map", resource, resourceID, GetResourceVersion(workloadList[i]))
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-func GetResourceID(workload *k8sinterface.Workload) string {
+func GetResourceID(workload k8sinterface.IWorkload) string {
 	switch workload.GetKind() {
 	case "Node":
 		return workload.GetName()
@@ -294,7 +257,7 @@ func GetResourceID(workload *k8sinterface.Workload) string {
 	}
 }
 
-func GetResourceVersion(workload *k8sinterface.Workload) string {
+func GetResourceVersion(workload k8sinterface.IWorkload) string {
 	switch workload.GetKind() {
 	case "Node":
 		return workload.GetName()

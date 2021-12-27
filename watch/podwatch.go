@@ -470,6 +470,10 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 				}
 			}
 		case "Job":
+			od.Name = pod.OwnerReferences[0].Name
+			od.Kind = pod.OwnerReferences[0].Kind
+			//meanwhile owner reference must be in the same namespace, so owner reference doesn't have the namespace field(may be changed in the future)
+			od.OwnerData = GetOwnerData(pod.OwnerReferences[0].Name, pod.OwnerReferences[0].Kind, pod.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
 			jobItem, err := wh.RestAPIClient.BatchV1().Jobs(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if err != nil {
 				glog.Error(err)
@@ -493,7 +497,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 			for _, item := range depList.Items {
 				if selector.Empty() || !selector.Matches(labels.Set(pod.Labels)) {
 					continue
-				} else {
+				} else if item.Kind != "" && item.ObjectMeta.Name != "" {
 					od.Name = item.ObjectMeta.Name
 					od.Kind = item.Kind
 					od.OwnerData = GetOwnerData(od.Name, od.Kind, item.TypeMeta.APIVersion, pod.ObjectMeta.Namespace, wh)
