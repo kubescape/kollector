@@ -218,7 +218,7 @@ func (wh *WatchHandler) HandleDataMismatch(resource string, resourceMap map[stri
 	mismatch, err := wh.isDataMismatch(resource, resourceMap)
 	if err != nil || mismatch {
 		glog.Infof("mismatch found in resource: %s, exiting...", resource)
-		os.Exit(2)
+		os.Exit(4)
 	}
 	return nil
 }

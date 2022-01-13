@@ -10,7 +10,9 @@ LABEL vendor="Armo Ltd."
 COPY ./dist /.
 COPY ./opapolicies /opapolicies/
 COPY ./build_number.txt /
+COPY /docker-entrypoint.sh /docker-entrypoint.sh
 RUN echo $(date -u) > /tmp/build_date.txt
 
 CMD /k8s-ca-dashboard-aggregator
-ENTRYPOINT ["/k8s-ca-dashboard-aggregator"]
+
+ENTRYPOINT ["/docker-entrypoint.sh"]

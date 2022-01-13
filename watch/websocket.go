@@ -115,7 +115,7 @@ ReconnectLoop:
 			err := conn.WriteMessage(websocket.TextMessage, []byte(data.message))
 			if err != nil {
 				// count on K8s pod lifecycle logic to restart the process again and then reconnect
-				os.Exit(2)
+				os.Exit(4)
 
 				glog.Errorf("In sendReportRoutine, %d, WriteMessage to websocket: %v", data.RType, err)
 				if reconnectCallback != nil {
@@ -143,7 +143,7 @@ ReconnectLoop:
 		case EXIT:
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
 			// count on K8s pod lifecycle logic to restart the process again and then reconnect
-			os.Exit(2)
+			os.Exit(4)
 			wsh.mutex.Unlock()
 			return nil
 			// if reconnectCallback != nil {
