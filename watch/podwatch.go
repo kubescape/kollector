@@ -90,8 +90,14 @@ func (wh *WatchHandler) PodWatch() {
 func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan <-chan bool, resourceVersion map[string]string) {
 	for {
 		var event watch.Event
+		var chanActive bool
 		select {
-		case event = <-podsWatcher.ResultChan():
+		case event, chanActive = <-podsWatcher.ResultChan():
+			if !chanActive {
+				glog.Error("Pod watch chan loop error inactive channel")
+				podsWatcher.Stop()
+				return
+			}
 		case <-newStateChan:
 			podsWatcher.Stop()
 			glog.Errorf("pod watch - newStateChan signal")
