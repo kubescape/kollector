@@ -10,6 +10,7 @@ import (
 
 	"github.com/armosec/k8s-interface/k8sinterface"
 	"github.com/golang/glog"
+	restclient "k8s.io/client-go/rest"
 
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/version"
@@ -131,6 +132,8 @@ func CreateWatchHandler() *WatchHandler {
 		glog.Errorf("k8sinterface.NewKubernetesApi failed: %v", err)
 		return nil
 	}
+	restclient.SetDefaultWarningHandler(restclient.NoWarnings{})
+
 	extensionsClientSet, err := apixv1beta1client.NewForConfig(k8sinterface.GetK8sConfig())
 
 	if err != nil {
@@ -230,7 +233,7 @@ func (wh *WatchHandler) isDataMismatch(resource string, resourceMap map[string]s
 	}
 
 	if len(workloadList) != len(resourceMap) {
-		glog.Infof("found 'resource len' mismatch, resource: '%s', current len: %d, received from server: %d", resource, len(workloadList), len(resourceMap))
+		glog.Infof("found 'resource len' mismatch, resource: '%s', current kubeAPI content len: %d, cached len: %d", resource, len(workloadList), len(resourceMap))
 		return true, nil
 	}
 	for i := range workloadList {
