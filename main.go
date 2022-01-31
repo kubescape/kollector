@@ -56,6 +56,11 @@ func main() {
 			wh.NamespaceWatch()
 		}
 	}()
+	go func() {
+		for {
+			wh.CronJobWatch()
+		}
+	}()
 	glog.Error(wh.WebSocketHandle.SendReportRoutine(&isServerReady, wh.SetFirstReportFlag))
 
 }
