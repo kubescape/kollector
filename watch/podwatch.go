@@ -532,6 +532,10 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 	podDataForExistMicroService := PodDataForExistMicroService{}
 	for _, v := range pdm {
 		// glog.Infof("dwertent -- Modified UpdatePod name: %s, id: %d", jj)
+		if v == nil || v.Front() == nil {
+			glog.Errorf("Found nil element in pdm")
+			continue
+		}
 		element := v.Front().Next()
 		for element != nil {
 			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {

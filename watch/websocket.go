@@ -249,8 +249,8 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 					return
 				}
 				end = true
-				glog.Errorf("pong closed connection")
-				wsh.closeConnection(conn, "pong error")
+				glog.Errorf("read message closed connection :%v", err)
+				wsh.closeConnection(conn, "read message error")
 				return
 			}
 			//			wsh.mutex.Unlock()
