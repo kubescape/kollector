@@ -67,7 +67,7 @@ spec:
     spec:
       containers:
         - name: go-aggregator
-          image: dreg.eust0.cyberarmorsoft.com:443/k8s-ca-dashboard-aggregator:latest
+          image: dreg.eust0.cyberarmorsoft.com:443/k8s-armo-collector:latest
           args:
             - -configtype=1
           env:

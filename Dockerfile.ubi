@@ -13,6 +13,6 @@ COPY ./build_number.txt /
 COPY /docker-entrypoint.sh /docker-entrypoint.sh
 RUN echo $(date -u) > /tmp/build_date.txt
 
-CMD /k8s-ca-dashboard-aggregator
+CMD /k8s-armo-collector
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

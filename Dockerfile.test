@@ -1,6 +1,6 @@
-FROM quay.io/armosec/k8s-ca-dashboard-aggregator-ubi:latest
+FROM quay.io/armosec/k8s-armo-collector-ubi:latest
 RUN echo $(date -u) > /build_number.txt
 
-COPY ./k8s-ca-dashboard-aggregator . 
+COPY ./k8s-armo-collector . 
 
-ENTRYPOINT ["./k8s-ca-dashboard-aggregator"]
+ENTRYPOINT ["./k8s-armo-collector"]

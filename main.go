@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"k8s-ca-dashboard-aggregator/watch"
+	"k8s-armo-collector/watch"
 
 	"github.com/armosec/capacketsgo/k8sshared/probes"
 

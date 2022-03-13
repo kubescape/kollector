@@ -1,4 +1,4 @@
-module k8s-ca-dashboard-aggregator
+module k8s-armo-collector
 
 go 1.13
 

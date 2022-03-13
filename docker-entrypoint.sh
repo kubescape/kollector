@@ -7,7 +7,7 @@ if test -f "$1"; then
     echo "$1 exists."
 else
     echo "$1 not exists."
-    EXEC_COMMAND_ARGS="/k8s-ca-dashboard-aggregator "$@
+    EXEC_COMMAND_ARGS="/k8s-armo-collector "$@
 fi
 
 # exit code 2 means we have watch timeout just need to reconnect
