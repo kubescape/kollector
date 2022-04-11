@@ -113,9 +113,6 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			glog.Errorf("Watch error: cannot convert to core.Pod: %v", event)
 			continue
 		}
-		if !wh.isNamespaceWatched(pod.Namespace) {
-			continue
-		}
 		pod.ManagedFields = []metav1.ManagedFieldsEntry{}
 		podName := pod.ObjectMeta.Name
 		if podName == "" {
@@ -134,10 +131,19 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			first := true
 			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[pkgcautils.CAAttachLabel], pod.Labels[pkgcautils.ArmoAttach], wh.pdm)
 			if runnigPodNum <= 1 {
+				/*when new pod microservice(new pod that is running first in the cluster) arrived we want to scan it's vulnerbilities so we will use the trigger mechanizm for do it*/
+				if !wh.GetFirstReportFlag() {
+					NotifyNewMicroServiceCreatedInTheCluster(pod.Namespace, od.Kind, od.Name)
+				}
+				if !wh.isNamespaceWatched(pod.Namespace) {
+					continue
+				}
+
 				wh.pdm[id] = list.New()
 				nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 				wh.pdm[id].PushBack(nms)
 				wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
+
 			} else { // Check if pod is already reported
 				if wh.pdm[id].Front() != nil {
 					element := wh.pdm[id].Front().Next()
@@ -154,6 +160,9 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			if !first {
 				break
 			}
+			if !wh.isNamespaceWatched(pod.Namespace) {
+				continue
+			}
 			// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
 			newPod := PodDataForExistMicroService{PodName: podName, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
 			wh.pdm[id].PushBack(newPod)
@@ -161,6 +170,9 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			informNewDataArrive(wh)
 
 		case watch.Modified:
+			if !wh.isNamespaceWatched(pod.Namespace) {
+				continue
+			}
 			if pod.DeletionTimestamp != nil { // the pod is terminating
 				break
 			}
@@ -180,6 +192,9 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				informNewDataArrive(wh)
 			}
 		case watch.Deleted:
+			if !wh.isNamespaceWatched(pod.Namespace) {
+				continue
+			}
 			wh.DeletePod(pod, podName, resourceVersion)
 		case watch.Bookmark:
 			glog.Infof("Bookmark. name: %s, status: %s", podName, podStatus)
