@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	pkgcautils "github.com/armosec/capacketsgo/cautils"
 	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -132,7 +131,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				break
 			}
 			first := true
-			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[pkgcautils.CAAttachLabel], pod.Labels[pkgcautils.ArmoAttach], wh.pdm)
+			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[armometadata.CAAttachLabel], pod.Labels[armometadata.ArmoAttach], wh.pdm)
 			if runnigPodNum <= 1 {
 				wh.pdm[id] = list.New()
 				nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
@@ -302,11 +301,11 @@ func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus, newArmoAtt
 		}
 		p := v.Front().Value.(MicroServiceData)
 		existsSpec := extractPodSpecFromOwner(p.Owner.OwnerData)
-		armoAttached := p.Labels[pkgcautils.ArmoAttach]
+		armoAttached := p.Labels[armometadata.ArmoAttach]
 		// NOTICE: the armoStatus / armoAttached  is a shortcut so we can save the DeepEqual of the pod spec which is very heavy.
 		// In addition, in case we didn't change the podspec of the OwnerRefrence of the pod, we cant count on the owner labels changes
 		//  but on the labels / volumes of the acutal pod we got to identify the changes
-		if p.ObjectMeta.Namespace == namespace && armoAttached == newArmoAttached && armoStatus == p.Labels[pkgcautils.CAAttachLabel] && reflect.DeepEqual(newSpec, existsSpec) {
+		if p.ObjectMeta.Namespace == namespace && armoAttached == newArmoAttached && armoStatus == p.Labels[armometadata.CAAttachLabel] && reflect.DeepEqual(newSpec, existsSpec) {
 			return v.Front().Value.(MicroServiceData).PodSpecId, v.Len()
 		}
 	}

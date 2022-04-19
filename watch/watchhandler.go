@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/armosec/k8s-interface/k8sinterface"
+	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/golang/glog"
 	restclient "k8s.io/client-go/rest"
 
@@ -122,6 +123,10 @@ func (wh *WatchHandler) GetAggregateFirstDataFlag() *bool {
 
 //CreateWatchHandler -
 func CreateWatchHandler() *WatchHandler {
+
+	if _, err := armometadata.LoadConfig("/etc/config/clusterData.json", true); err != nil {
+		glog.Warning(err.Error())
+	}
 
 	namespacesStr := flag.String("include-namespaces", "", "comma separated namespaces list to watch on. Empty list or omit to watch them all")
 	err := parseArgument()
