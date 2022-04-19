@@ -22,7 +22,7 @@ jobs:
           prerelease: false
   test:
     name: Create cross-platform release build, tag and upload binaries
-    needs: once
+    needs: tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
