@@ -68,7 +68,7 @@ func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly Owner
 func (wh *WatchHandler) PodWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			glog.Errorf("RECOVER ListnerAndSender. %v, stack: %s", err, debug.Stack())
+			glog.Errorf("RECOVER ListenerAndSender. %v, stack: %s", err, debug.Stack())
 		}
 	}()
 	resourceVersion := make(map[string]string)
@@ -132,8 +132,8 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				break
 			}
 			first := true
-			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[armometadata.CAAttachLabel], pod.Labels[armometadata.ArmoAttach], wh.pdm)
-			if runnigPodNum <= 1 {
+			id, runningPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[armometadata.CAAttachLabel], pod.Labels[armometadata.ArmoAttach], wh.pdm)
+			if runningPodNum <= 1 {
 				wh.pdm[id] = list.New()
 				nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 				wh.pdm[id].PushBack(nms)
@@ -155,7 +155,18 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				break
 			}
 			// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
-			newPod := PodDataForExistMicroService{PodName: podName, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: od.Name, Kind: od.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
+			newPod := PodDataForExistMicroService{
+				PodName:   podName,
+				NodeName:  pod.Spec.NodeName,
+				PodIP:     pod.Status.PodIP,
+				Namespace: pod.ObjectMeta.Namespace,
+				Owner: OwnerDetNameAndKindOnly{
+					Name: od.Name,
+					Kind: od.Kind,
+				},
+				PodStatus:         podStatus,
+				CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339),
+			}
 			wh.pdm[id].PushBack(newPod)
 			wh.jsonReport.AddToJsonFormat(newPod, PODS, CREATED)
 			informNewDataArrive(wh)
@@ -531,9 +542,8 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 	id := -2
 	podDataForExistMicroService := PodDataForExistMicroService{}
 	for _, v := range pdm {
-		// glog.Infof("dwertent -- Modified UpdatePod name: %s, id: %d", jj)
 		if v == nil || v.Front() == nil {
-			glog.Errorf("Found nil element in pdm")
+			glog.Errorf("found nil element in list of pods. pod name: %s, generateName: %s, namespace: %s", pod.GetName(), pod.GetGenerateName(), pod.GetNamespace())
 			continue
 		}
 		element := v.Front().Next()
@@ -685,10 +695,6 @@ func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, b
 	}
 	return podSpecID, removed, owner
 }
-
-// func (wh *WatchHandler) AddPod(pod *core.Pod, pdm map[int]*list.List) (int, int, bool, OwnerDet) {
-
-// }
 func getPodStatus(pod *core.Pod) string {
 	containerStatuses := pod.Status.ContainerStatuses
 	status := ""
@@ -705,12 +711,6 @@ func getPodStatus(pod *core.Pod) string {
 					status = "Running"
 				}
 			}
-			// if pod.Namespace == "default" || pod.Namespace == "" {
-			// 	glog.Infof("----------------------------------------------------------------------------------------------------")
-			// 	neww, _ := json.Marshal(containerStatuses[i].State)
-			// 	glog.Infof("dwertent, containerStatuses: %s", string(neww))
-			// 	glog.Infof("----------------------------------------------------------------------------------------------------")
-			// }
 		}
 	}
 	if status == "" {
@@ -718,36 +718,3 @@ func getPodStatus(pod *core.Pod) string {
 	}
 	return status
 }
-
-// func (wh *WatchHandler) waitPodStateUpdate(pod *core.Pod) *core.Pod {
-// 	// begin := time.Now()
-// 	// log.Printf("waiting for pod %v enter desired state\n", pod.ObjectMeta.Name)
-// 	latestPodState := pod.Status.Phase
-
-// 	for {
-// 		desiredStatePod, err := wh.RestAPIClient.CoreV1().Pods(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.ObjectMeta.Name, metav1.GetOptions{})
-// 		if err != nil {
-// 			log.Printf("podEnterDesiredState fail while we Get the pod %v\n", pod.ObjectMeta.Name)
-// 			return nil
-// 		}
-// 		if desiredStatePod.Status.Phase != latestPodState {
-// 			return desiredStatePod
-// 		}
-// 		// if desiredStatePod.Namespace == "default" || desiredStatePod.Namespace == "" {
-// 		// 	podd, _ := json.Marshal(desiredStatePod)
-// 		// 	glog.Infof("dwertent, Status: %s, desiredStatePod: %s", string(desiredStatePod.Status.Phase), string(podd))
-// 		// }
-// 		// if desiredStatePod.Status.Phase == core.PodRunning || strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodSucceeded)) == 0 {
-// 		// 	log.Printf("pod %v enter desired state\n", pod.ObjectMeta.Name)
-// 		// 	return desiredStatePod, true
-// 		// } else if strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodFailed)) == 0 || strings.Compare(string(desiredStatePod.Status.Phase), string(core.PodUnknown)) == 0 {
-// 		// 	log.Printf("pod %v State is %v\n", pod.ObjectMeta.Name, pod.Status.Phase)
-// 		// 	return desiredStatePod, true
-// 		// } else {
-// 		// 	if time.Now().Sub(begin) > 5*time.Minute {
-// 		// 		log.Printf("we wait for 5 nimutes pod %v to change his state to desired state and it's too long\n", pod.ObjectMeta.Name)
-// 		// 		return nil, false
-// 		// 	}
-// 		// }
-// 	}
-// }

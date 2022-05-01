@@ -122,9 +122,10 @@ func (wh *WatchHandler) GetAggregateFirstDataFlag() *bool {
 }
 
 //CreateWatchHandler -
-func CreateWatchHandler() *WatchHandler {
+func CreateWatchHandler() (*WatchHandler, error) {
 
-	if _, err := armometadata.LoadConfig("/etc/config/clusterData.json", true); err != nil {
+	confFilePath := os.Getenv("CA_CONFIG")
+	if _, err := armometadata.LoadConfig(confFilePath, true); err != nil {
 		glog.Warning(err.Error())
 	}
 
@@ -134,37 +135,28 @@ func CreateWatchHandler() *WatchHandler {
 	k8sAPiObj := k8sinterface.NewKubernetesApi()
 
 	if err != nil {
-		glog.Errorf("k8sinterface.NewKubernetesApi failed: %v", err)
-		return nil
+		return nil, fmt.Errorf("k8sinterface.NewKubernetesApi failed: %s", err.Error())
 	}
 	restclient.SetDefaultWarningHandler(restclient.NoWarnings{})
 
 	extensionsClientSet, err := apixv1beta1client.NewForConfig(k8sinterface.GetK8sConfig())
-
 	if err != nil {
-		glog.Errorf("apixv1beta1client.NewForConfig failed: %v", err)
-		return nil
+		return nil, fmt.Errorf("apiV1beta1client.NewForConfig failed: %s", err.Error())
 	}
 
 	var clusterName string
 	if clusterName = os.Getenv("CA_CLUSTER_NAME"); clusterName == "" {
-		glog.Error("there is no cluster name environment variable, envKey:CA_CLUSTER_NAME")
-		//clusterName = "superCluster"
-		return nil
+		return nil, fmt.Errorf("there is no cluster name environment variable, envKey:CA_CLUSTER_NAME")
 	}
 
 	var reportURL string
 	if reportURL = os.Getenv("CA_K8S_REPORT_URL"); reportURL == "" {
-		glog.Error("there is no report url environment variable, envKey:CA_K8S_REPORT_URL")
-		//reportURL = "report.eudev2.cyberarmorsoft.com"
-		return nil
+		return nil, fmt.Errorf("there is no report url environment variable, envKey:CA_K8S_REPORT_URL")
 	}
 
 	var cusGUID string
 	if cusGUID = os.Getenv("CA_CUSTOMER_GUID"); cusGUID == "" {
-		glog.Error("there is no customer guid environment variable, envKey:CA_CUSTOMER_GUID")
-		//cusGUID = "1e3a88bf-92ce-44f8-914e-cbe71830d566"
-		return nil
+		return nil, fmt.Errorf("there is no customer guid environment variable, envKey:CA_CUSTOMER_GUID")
 	}
 
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
@@ -183,7 +175,7 @@ func CreateWatchHandler() *WatchHandler {
 		aggregateFirstDataFlag: true,
 		IncludeNamespaces:      strings.Split(*namespacesStr, ","),
 	}
-	return &result
+	return &result, nil
 }
 
 func parseArgument() error {

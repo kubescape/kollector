@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/armosec/utils-k8s-go/probes"
 	"io/ioutil"
 	"k8s-armo-collector/watch"
+	"log"
+
+	"github.com/armosec/utils-k8s-go/probes"
 
 	"github.com/golang/glog"
 )
@@ -15,10 +17,9 @@ func main() {
 	go probes.InitReadinessV1(&isServerReady)
 	displayBuildTag()
 
-	wh := watch.CreateWatchHandler()
-
-	if wh == nil {
-		return
+	wh, err := watch.CreateWatchHandler()
+	if err != nil {
+		log.Fatalf("failed to initialize the WatchHandler, reason: %s", err.Error())
 	}
 
 	go func() {
