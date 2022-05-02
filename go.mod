@@ -3,6 +3,8 @@ module k8s-armo-collector
 go 1.13
 
 require (
+	github.com/armosec/armoapi-go v0.0.2
+	github.com/armosec/cluster-notifier-api-go v0.0.2
 	github.com/armosec/k8s-interface v0.0.70
 	github.com/armosec/utils-k8s-go v0.0.7
 	github.com/francoispqt/gojay v1.2.13
