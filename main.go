@@ -6,10 +6,9 @@ import (
 	"io/ioutil"
 	"k8s-armo-collector/watch"
 	"os"
-
-	"github.com/armosec/capacketsgo/k8sshared/probes"
 	"github.com/armosec/utils-k8s-go/armometadata"
-
+	"log"
+	"github.com/armosec/utils-k8s-go/probes"
 	"github.com/golang/glog"
 )
 
@@ -29,11 +28,9 @@ func main() {
 	} else if err := LoadEnvironmentVaribles(); err != nil {
 		glog.Error(err)
 	}
-
-	wh := watch.CreateWatchHandler()
-
-	if wh == nil {
-		return
+	wh, err := watch.CreateWatchHandler()
+	if err != nil {
+		log.Fatalf("failed to initialize the WatchHandler, reason: %s", err.Error())
 	}
 
 	go func() {
