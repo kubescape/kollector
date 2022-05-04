@@ -24,23 +24,23 @@ func (updateNode *NodeData) UpdateNodeData(node *core.Node) {
 	updateNode.NodeStatus = node.Status
 }
 
-func UpdateNode(node *core.Node, ndm map[int]*list.List) NodeData {
+func UpdateNode(node *core.Node, ndm map[int]*list.List) *NodeData {
 
-	var nd NodeData
+	var nd *NodeData
 	for _, v := range ndm {
 		if v == nil || v.Len() == 0 {
 			continue
 		}
-		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.Name) == 0 {
+		if strings.Compare(v.Front().Value.(*NodeData).Name, node.ObjectMeta.Name) == 0 {
 			v.Front().Value.(*NodeData).UpdateNodeData(node)
-			glog.Infof("node %s updated", v.Front().Value.(NodeData).Name)
-			nd = v.Front().Value.(NodeData)
+			glog.Infof("node %s updated", v.Front().Value.(*NodeData).Name)
+			nd = v.Front().Value.(*NodeData)
 			break
 		}
-		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.GenerateName) == 0 {
+		if strings.Compare(v.Front().Value.(*NodeData).Name, node.ObjectMeta.GenerateName) == 0 {
 			v.Front().Value.(*NodeData).UpdateNodeData(node)
-			glog.Infof("node %s updated", v.Front().Value.(NodeData).Name)
-			nd = v.Front().Value.(NodeData)
+			glog.Infof("node %s updated", v.Front().Value.(*NodeData).Name)
+			nd = v.Front().Value.(*NodeData)
 			break
 		}
 	}
@@ -54,16 +54,16 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 		if v == nil || v.Len() == 0 {
 			continue
 		}
-		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.Name) == 0 {
+		if strings.Compare(v.Front().Value.(*NodeData).Name, node.ObjectMeta.Name) == 0 {
 			v.Remove(v.Front())
-			glog.Infof("node %s updated", v.Front().Value.(NodeData).Name)
-			nodeName = v.Front().Value.(NodeData).Name
+			glog.Infof("node %s updated", v.Front().Value.(*NodeData).Name)
+			nodeName = v.Front().Value.(*NodeData).Name
 			break
 		}
-		if strings.Compare(v.Front().Value.(NodeData).Name, node.ObjectMeta.GenerateName) == 0 {
+		if strings.Compare(v.Front().Value.(*NodeData).Name, node.ObjectMeta.GenerateName) == 0 {
 			v.Remove(v.Front())
-			glog.Infof("node %s updated", v.Front().Value.(NodeData).Name)
-			nodeName = v.Front().Value.(NodeData).Name
+			glog.Infof("node %s updated", v.Front().Value.(*NodeData).Name)
+			nodeName = v.Front().Value.(*NodeData).Name
 			break
 		}
 	}
