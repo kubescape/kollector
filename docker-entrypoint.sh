@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 EXIT_CODE=0
 
 EXEC_COMMAND_ARGS=$@
@@ -7,7 +7,7 @@ if test -f "$1"; then
     echo "$1 exists."
 else
     echo "$1 not exists."
-    EXEC_COMMAND_ARGS="/k8s-armo-collector "$@
+    EXEC_COMMAND_ARGS="/usr/bin/collector "$@
 fi
 
 # exit code 2 means we have watch timeout just need to reconnect

@@ -1,15 +1,21 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"k8s-armo-collector/watch"
+	"os"
+	"github.com/armosec/utils-k8s-go/armometadata"
 	"log"
-
 	"github.com/armosec/utils-k8s-go/probes"
-
 	"github.com/golang/glog"
 )
+
+func LoadEnvironmentVaribles() error {
+	_, err := armometadata.LoadConfig("", true)
+	return err
+}
 
 func main() {
 
@@ -17,6 +23,11 @@ func main() {
 	go probes.InitReadinessV1(&isServerReady)
 	displayBuildTag()
 
+	if _, err := os.Stat("/etc/config/clusterData.json"); errors.Is(err, os.ErrNotExist) {
+		glog.Error("file /etc/config/clusterData.json is not exist, some features will not work(for example: scan new image)")
+	} else if err := LoadEnvironmentVaribles(); err != nil {
+		glog.Error(err)
+	}
 	wh, err := watch.CreateWatchHandler()
 	if err != nil {
 		log.Fatalf("failed to initialize the WatchHandler, reason: %s", err.Error())
