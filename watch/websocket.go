@@ -144,15 +144,6 @@ ReconnectLoop:
 			glog.Warningf("websocket received exit code exit. message: %s", data.message)
 			// count on K8s pod lifecycle logic to restart the process again and then reconnect
 			os.Exit(4)
-			wsh.mutex.Unlock()
-			return nil
-			// if reconnectCallback != nil {
-			// 	reconnectCallback(true)
-			// }
-			// if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
-			// 	glog.Errorf("connectToWebSocket. %s", err.Error())
-			// 	return err
-			// }
 		}
 		wsh.mutex.Unlock()
 	}
@@ -170,13 +161,13 @@ func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
 func (wh *WatchHandler) ListenerAndSender() {
 	defer func() {
 		if err := recover(); err != nil {
-			glog.Errorf("RECOVER ListnerAndSender. %v, stack: %s", err, debug.Stack())
+			glog.Errorf("RECOVER ListenerAndSender. %v, stack: %s", err, debug.Stack())
 		}
 	}()
 	waitingDuration := time.Duration(5)
 	waitingDelay := waitingDuration * time.Second
 	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
-	glog.Infof("wait %d seconds for aggragate the first data from the cluster\n", waitingDuration)
+	glog.Infof("wait %d seconds for aggregate the first data from the cluster\n", waitingDuration)
 	time.Sleep(waitingDelay)
 	wh.SetFirstReportFlag(true)
 	for {
@@ -216,14 +207,12 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 		// test ping-pong
 		for {
 			if end {
-				return
+				break
 			}
-			//			wsh.mutex.Lock()
 			err := conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(timeout))
 			if err != nil {
 				glog.Errorf("WriteControl error: %s", err.Error())
 			}
-			//			wsh.mutex.Unlock()
 			if counter > 2 {
 				if end {
 					return
@@ -240,21 +229,17 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 	go func() {
 		for {
 			if end {
-				return
+				break
 			}
-			//			wsh.mutex.Lock()
 			if _, _, err := conn.ReadMessage(); err != nil {
-				//				wsh.mutex.Unlock()
 				if end {
-					return
+					break
 				}
 				end = true
 				glog.Errorf("read message closed connection :%v", err)
 				wsh.closeConnection(conn, "read message error")
-				return
+				break
 			}
-			//			wsh.mutex.Unlock()
-
 			time.Sleep(timeout)
 		}
 	}()
