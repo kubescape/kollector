@@ -21,5 +21,6 @@ USER armo
 WORKDIR /home/armo/
 
 COPY --from=builder /work/build/collector /usr/bin/collector
+COPY ./docker-entrypoint.sh /home/armo/
 
-ENTRYPOINT ["collector"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
