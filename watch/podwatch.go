@@ -53,6 +53,15 @@ type PodDataForExistMicroService struct {
 	DeletionTimestamp string                  `json:"terminatedAt,omitempty"`
 }
 
+type ScanNewImageData struct {
+	Pod        *core.Pod
+	Owner      OwnerDet
+	PodsNumber int
+}
+
+var collectorCreationTime time.Time
+var scanNotificationCandidateList []*ScanNewImageData
+
 func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly OwnerDetNameAndKindOnly, numberOfRunnigPods int, podStatus string) PodDataForExistMicroService {
 	return PodDataForExistMicroService{
 		PodName:   pod.ObjectMeta.Name,
@@ -64,6 +73,79 @@ func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly Owner
 	}
 }
 
+func addPodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
+	found := false
+	for i := range scanNotificationCandidateList {
+		data := scanNotificationCandidateList[i]
+		if pod.Namespace == data.Pod.Namespace && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
+			scanNotificationCandidateList[i].PodsNumber++
+			found = true
+		}
+	}
+	if !found {
+		glog.Infof("addPodScanNotificationCandidateList: pod %s is added to scan list candidate", pod.Name)
+		nms := &ScanNewImageData{Pod: pod, Owner: *od, PodsNumber: 1}
+		scanNotificationCandidateList = append(scanNotificationCandidateList, nms)
+	} else {
+		glog.Infof("addPodScanNotificationCandidateList: pod %s already exist", pod.Name)
+	}
+}
+
+func removePodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
+	for i := range scanNotificationCandidateList {
+		data := scanNotificationCandidateList[i]
+		if pod.Namespace == data.Pod.Namespace && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
+			scanNotificationCandidateList[i].PodsNumber--
+			if scanNotificationCandidateList[i].PodsNumber == 0 {
+				glog.Infof("pod %s is removed to scan list candidate", pod.Name)
+				scanNotificationCandidateList = append(scanNotificationCandidateList[:i], scanNotificationCandidateList[i+1:]...)
+				return
+			}
+		}
+	}
+}
+
+func isContainersIDSChanged(podWithNewState []core.ContainerStatus, oldPod []core.ContainerStatus) bool {
+	if len(podWithNewState) > len(oldPod) {
+		glog.Infof("isContainersIDSChanged: len(podWithNewState) %d len(oldPod) %d", len(podWithNewState), len(oldPod))
+		glog.Infof("isContainersIDSChanged: return true")
+		return true
+	}
+
+	length := len(podWithNewState)
+
+	for i := 0; i < length; i++ {
+		glog.Infof("isContainersIDSChanged: newPod %s oldPod %s", podWithNewState[i].ImageID, oldPod[i].ImageID)
+		if podWithNewState[i].ImageID != oldPod[i].ImageID {
+			glog.Infof("isContainersIDSChanged: return true")
+			return true
+		}
+	}
+	glog.Infof("isContainersIDSChanged: return false")
+	return false
+}
+
+func checkNotificationCandidateList(pod *core.Pod, od *OwnerDet, podStatus string) bool {
+	if podStatus != "Running" {
+		return false
+	}
+	for i := range scanNotificationCandidateList {
+		data := scanNotificationCandidateList[i]
+		if pod.Namespace == data.Pod.Namespace && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
+			if (pod.CreationTimestamp.Time.Equal(data.Pod.CreationTimestamp.Time) || pod.CreationTimestamp.After(data.Pod.CreationTimestamp.Time)) && isContainersIDSChanged(pod.Status.ContainerStatuses, data.Pod.Status.ContainerStatuses) {
+				scanNotificationCandidateList[i].Pod = pod
+				glog.Infof("checkNotificationCandidateList: pod %s return true", pod.Name)
+				return true
+			} else {
+				glog.Infof("checkNotificationCandidateList: pod %s return false", pod.Name)
+				return false
+			}
+		}
+	}
+	glog.Infof("checkNotificationCandidateList: pod %s return false", pod.Name)
+	return false
+}
+
 // PodWatch - Stay updated starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
 func (wh *WatchHandler) PodWatch() {
 	defer func() {
@@ -71,6 +153,7 @@ func (wh *WatchHandler) PodWatch() {
 			glog.Errorf("RECOVER ListenerAndSender. %v, stack: %s", err, debug.Stack())
 		}
 	}()
+	collectorCreationTime = time.Now()
 	resourceVersion := make(map[string]string)
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
@@ -119,29 +202,25 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			podName = pod.ObjectMeta.GenerateName
 		}
 		podStatus := getPodStatus(pod)
+		glog.Infof("event.Type %s. name: %s, status: %s", event.Type, podName, podStatus)
+		od, err := GetAncestorOfPod(pod, wh)
+		if err != nil {
+			glog.Errorf("%s, ignoring pod report", err.Error())
+			break
+		}
 		switch event.Type {
 		case watch.Added:
-			glog.Infof("added. name: %s, status: %s", podName, podStatus)
 			resourceVersion[string(pod.GetUID())] = pod.GetResourceVersion()
-			od, err := GetAncestorOfPod(pod, wh)
-			if err != nil {
-				glog.Errorf("%s, ignoring pod report", err.Error())
-				break
-			}
 			first := true
 			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[armometadata.CAAttachLabel], pod.Labels[armometadata.ArmoAttach], wh.pdm)
 			if runnigPodNum <= 1 {
 				/*when new pod microservice(new pod that is running first in the cluster) arrived we want to scan it's vulnerbilities so we will use the trigger mechanizm for do it*/
-				if !wh.GetFirstReportFlag() {
-					NotifyNewMicroServiceCreatedInTheCluster(pod.Namespace, od.Kind, od.Name)
-				}
-				if !wh.isNamespaceWatched(pod.Namespace) {
-					continue
-				}
 				wh.pdm[id] = list.New()
 				nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 				wh.pdm[id].PushBack(nms)
-				wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
+				if wh.isNamespaceWatched(pod.Namespace) {
+					wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
+				}
 
 			} else { // Check if pod is already reported
 				if wh.pdm[id].Front() != nil {
@@ -159,9 +238,6 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			if !first {
 				break
 			}
-			if !wh.isNamespaceWatched(pod.Namespace) {
-				continue
-			}
 			// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
 			newPod := PodDataForExistMicroService{
 				PodName:   podName,
@@ -176,10 +252,17 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339),
 			}
 			wh.pdm[id].PushBack(newPod)
-			wh.jsonReport.AddToJsonFormat(newPod, PODS, CREATED)
-			informNewDataArrive(wh)
-
+			if !wh.isNamespaceWatched(pod.Namespace) {
+				wh.jsonReport.AddToJsonFormat(newPod, PODS, CREATED)
+				informNewDataArrive(wh)
+			}
+			if pod.CreationTimestamp.Time.After(collectorCreationTime) {
+				addPodScanNotificationCandidateList(&od, pod)
+			}
 		case watch.Modified:
+			if checkNotificationCandidateList(pod, &od, podStatus) {
+				NotifyNewMicroServiceCreatedInTheCluster(pod.Namespace, od.Kind, od.Name)
+			}
 			if !wh.isNamespaceWatched(pod.Namespace) {
 				continue
 			}
@@ -202,6 +285,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				informNewDataArrive(wh)
 			}
 		case watch.Deleted:
+			removePodScanNotificationCandidateList(&od, pod)
 			if !wh.isNamespaceWatched(pod.Namespace) {
 				continue
 			}
@@ -209,6 +293,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		case watch.Bookmark:
 			glog.Infof("Bookmark. name: %s, status: %s", podName, podStatus)
 		case watch.Error:
+			removePodScanNotificationCandidateList(&od, pod)
 			glog.Infof("Error. name: %s, status: %s", podName, podStatus)
 			return
 		}
