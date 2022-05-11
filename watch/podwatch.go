@@ -212,8 +212,8 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		case watch.Added:
 			resourceVersion[string(pod.GetUID())] = pod.GetResourceVersion()
 			first := true
-			id, runnigPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[armometadata.CAAttachLabel], pod.Labels[armometadata.ArmoAttach], wh.pdm)
-			if runnigPodNum <= 1 {
+			id, runningPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[armometadata.CAAttachLabel], pod.Labels[armometadata.ArmoAttach], wh.pdm)
+			if runningPodNum <= 1 {
 				/*when new pod microservice(new pod that is running first in the cluster) arrived we want to scan it's vulnerbilities so we will use the trigger mechanizm for do it*/
 				wh.pdm[id] = list.New()
 				nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
@@ -227,7 +227,6 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 					element := wh.pdm[id].Front().Next()
 					for element != nil {
 						if element.Value.(PodDataForExistMicroService).PodName == podName {
-							// glog.Infof("dwertent -- Adding UPDATE pod name: %s, id: %d", podName, id)
 							first = false
 							break
 						}
@@ -414,8 +413,8 @@ func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus, newArmoAtt
 		existsSpec := extractPodSpecFromOwner(p.Owner.OwnerData)
 		armoAttached := p.Labels[armometadata.ArmoAttach]
 		// NOTICE: the armoStatus / armoAttached  is a shortcut so we can save the DeepEqual of the pod spec which is very heavy.
-		// In addition, in case we didn't change the podspec of the OwnerRefrence of the pod, we cant count on the owner labels changes
-		//  but on the labels / volumes of the acutal pod we got to identify the changes
+		// In addition, in case we didn't change the podspec of the OwnerReference of the pod, we cant count on the owner labels changes
+		//  but on the labels / volumes of the actual pod we got to identify the changes
 		if p.ObjectMeta.Namespace == namespace && armoAttached == newArmoAttached && armoStatus == p.Labels[armometadata.CAAttachLabel] && reflect.DeepEqual(newSpec, existsSpec) {
 			return v.Front().Value.(MicroServiceData).PodSpecId, v.Len()
 		}
@@ -806,7 +805,7 @@ func getPodStatus(pod *core.Pod) string {
 				status = containerStatuses[i].State.Waiting.Reason
 			}
 			if containerStatuses[i].State.Running != nil {
-				if status == "" { // if none of the conatainers report a error
+				if status == "" { // if none of the containers report a error
 					status = "Running"
 				}
 			}

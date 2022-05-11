@@ -67,6 +67,10 @@ func executeTriggeredNotification(body *bytes.Buffer) error {
 }
 
 func NotifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error {
+	return nil
+
+	// the notification is triggered every time, needs to be fixed
+
 	var body *bytes.Buffer
 	var err error
 
