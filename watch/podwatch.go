@@ -80,14 +80,14 @@ func addPodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
 		if pod.Namespace == data.Pod.Namespace && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
 			scanNotificationCandidateList[i].PodsNumber++
 			found = true
+			glog.Infof("addPodScanNotificationCandidateList: pod %s already exist", pod.Name)
+			break
 		}
 	}
 	if !found {
 		glog.Infof("addPodScanNotificationCandidateList: pod %s is added to scan list candidate", pod.Name)
 		nms := &ScanNewImageData{Pod: pod, Owner: *od, PodsNumber: 1}
 		scanNotificationCandidateList = append(scanNotificationCandidateList, nms)
-	} else {
-		glog.Infof("addPodScanNotificationCandidateList: pod %s already exist", pod.Name)
 	}
 }
 

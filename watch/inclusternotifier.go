@@ -67,8 +67,9 @@ func executeTriggeredNotification(body *bytes.Buffer) error {
 }
 
 func NotifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error {
-	return nil
-
+	if os.Getenv("ACTIVATE_CVE_SCAN_ON_NEW_IMAGE_FEATURE") != "enable" {
+		return nil
+	}
 	// the notification is triggered every time, needs to be fixed
 
 	var body *bytes.Buffer
