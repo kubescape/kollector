@@ -55,7 +55,7 @@ type PodDataForExistMicroService struct {
 
 type ScanNewImageData struct {
 	Pod        *core.Pod
-	Owner      OwnerDet
+	Owner      *OwnerDet
 	PodsNumber int
 }
 
@@ -73,28 +73,30 @@ func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly Owner
 	}
 }
 
-func addPodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
-	found := false
-	for i := range scanNotificationCandidateList {
-		data := scanNotificationCandidateList[i]
-		if pod.Namespace == data.Pod.Namespace && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
-			scanNotificationCandidateList[i].PodsNumber++
-			found = true
+func isPodAlreadexistInScanCandidateList(od *OwnerDet, pod *core.Pod) (bool, int) {
+	for i, data := range scanNotificationCandidateList {
+		if pod.GetNamespace() == data.Pod.GetNamespace() && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
 			glog.Infof("addPodScanNotificationCandidateList: pod %s already exist", pod.Name)
-			break
+			return true, i
 		}
 	}
-	if !found {
+	return false, -1
+}
+
+func addPodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
+	if exist, index := isPodAlreadexistInScanCandidateList(od, pod); !exist {
 		glog.Infof("addPodScanNotificationCandidateList: pod %s is added to scan list candidate", pod.Name)
-		nms := &ScanNewImageData{Pod: pod, Owner: *od, PodsNumber: 1}
+		nms := &ScanNewImageData{Pod: pod, Owner: od, PodsNumber: 1}
 		scanNotificationCandidateList = append(scanNotificationCandidateList, nms)
+	} else {
+		scanNotificationCandidateList[index].PodsNumber++
 	}
 }
 
 func removePodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
 	for i := range scanNotificationCandidateList {
 		data := scanNotificationCandidateList[i]
-		if pod.Namespace == data.Pod.Namespace && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
+		if pod.GetNamespace() == data.Pod.GetNamespace() && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
 			scanNotificationCandidateList[i].PodsNumber--
 			if scanNotificationCandidateList[i].PodsNumber == 0 {
 				glog.Infof("pod %s is removed to scan list candidate", pod.Name)
@@ -107,13 +109,11 @@ func removePodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
 
 func isContainersIDSChanged(podWithNewState []core.ContainerStatus, oldPod []core.ContainerStatus) bool {
 	if len(podWithNewState) > len(oldPod) {
-		glog.Infof("isContainersIDSChanged: len(podWithNewState) %d len(oldPod) %d", len(podWithNewState), len(oldPod))
-		glog.Infof("isContainersIDSChanged: return true")
+		glog.Infof("isContainersIDSChanged: len(podWithNewState) %d len(oldPod) %d, return true", len(podWithNewState), len(oldPod))
 		return true
 	}
 
 	length := len(podWithNewState)
-
 	for i := 0; i < length; i++ {
 		glog.Infof("isContainersIDSChanged: newPod %s oldPod %s", podWithNewState[i].ImageID, oldPod[i].ImageID)
 		if podWithNewState[i].ImageID != oldPod[i].ImageID {
@@ -125,14 +125,17 @@ func isContainersIDSChanged(podWithNewState []core.ContainerStatus, oldPod []cor
 	return false
 }
 
+func isPodIsTheNewOne(pod *core.Pod) bool {
+	return pod.CreationTimestamp.Time.Equal(pod.CreationTimestamp.Time) || pod.CreationTimestamp.After(pod.CreationTimestamp.Time)
+}
+
 func checkNotificationCandidateList(pod *core.Pod, od *OwnerDet, podStatus string) bool {
 	if podStatus != "Running" {
 		return false
 	}
-	for i := range scanNotificationCandidateList {
-		data := scanNotificationCandidateList[i]
-		if pod.Namespace == data.Pod.Namespace && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
-			if (pod.CreationTimestamp.Time.Equal(data.Pod.CreationTimestamp.Time) || pod.CreationTimestamp.After(data.Pod.CreationTimestamp.Time)) && isContainersIDSChanged(pod.Status.ContainerStatuses, data.Pod.Status.ContainerStatuses) {
+	for i, data := range scanNotificationCandidateList {
+		if pod.GetNamespace() == data.Pod.GetNamespace() && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
+			if isPodIsTheNewOne(data.Pod) && isContainersIDSChanged(pod.Status.ContainerStatuses, data.Pod.Status.ContainerStatuses) {
 				scanNotificationCandidateList[i].Pod = pod
 				glog.Infof("checkNotificationCandidateList: pod %s return true", pod.Name)
 				return true
