@@ -104,3 +104,318 @@ func TestCheckNotificationCandidateList(t *testing.T) {
 		t.Fatalf("pod should reported")
 	}
 }
+
+/*
+use case:
+	use case:	              will add to list:	wil reported:   will remove to list:  supported:
+	new microsevice created	  yes	            yes	            no                    yes
+*/
+func TestNewNicroserviceCreated(t *testing.T) {
+
+	scanNotificationCandidateList = []*ScanNewImageData{}
+	od := OwnerDet{}
+	pod := core.Pod{}
+
+	err := json.Unmarshal([]byte(podJson), &pod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(podOD), &od)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	addPodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+	runningOd := OwnerDet{}
+	runningPod := core.Pod{}
+
+	err = json.Unmarshal([]byte(runningPodJson), &runningPod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(runningPodOD), &runningOd)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	if !checkNotificationCandidateList(&runningPod, &runningOd, "Running") {
+		t.Fatalf("pod should reported")
+	}
+}
+
+/*
+use case:
+	use case:	                                              will add to list:	wil reported:   will remove to list:  supported:
+	new microsevice created with bad configuration or error	  yes	            no	            yes                   yes
+*/
+func TestNewNicroserviceCreatedWithBadConfiguration(t *testing.T) {
+
+	scanNotificationCandidateList = []*ScanNewImageData{}
+	od := OwnerDet{}
+	pod := core.Pod{}
+
+	err := json.Unmarshal([]byte(podJson), &pod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(podOD), &od)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	addPodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+	runningOd := OwnerDet{}
+	runningPod := core.Pod{}
+
+	err = json.Unmarshal([]byte(runningPodJson), &runningPod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(runningPodOD), &runningOd)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	if checkNotificationCandidateList(&runningPod, &runningOd, "Failed") {
+		t.Fatalf("pod should reported")
+	}
+
+	removePodScanNotificationCandidateList(&runningOd, &runningPod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); exist {
+		t.Fatalf("pod should not exist")
+	}
+
+}
+
+/*
+use case:
+	use case:	                     will add to list:	               wil reported:   will remove to list:                supported:
+	microservice changed it's image  no(the pod counter will increase) yes	           no(the pod counter will decrease)   yes
+*/
+func TestMicroserviceChangedItsImage(t *testing.T) {
+
+	scanNotificationCandidateList = []*ScanNewImageData{}
+	od := OwnerDet{}
+	pod := core.Pod{}
+
+	err := json.Unmarshal([]byte(podJson), &pod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(podOD), &od)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	addPodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+	runningOd := OwnerDet{}
+	runningPod := core.Pod{}
+
+	err = json.Unmarshal([]byte(runningPodJson), &runningPod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(runningPodOD), &runningOd)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	if !checkNotificationCandidateList(&runningPod, &runningOd, "Running") {
+		t.Fatalf("pod should reported")
+	}
+
+	addPodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+	runningNewOd := OwnerDet{}
+	runningNewPod := core.Pod{}
+
+	err = json.Unmarshal([]byte(runningPodJson), &runningNewPod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(runningPodOD), &runningNewOd)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	runningNewPod.Status.ContainerStatuses[0].Image = "nginx:perl"
+	runningNewPod.Status.ContainerStatuses[0].ImageID = "nginx:perlImageID"
+	if !checkNotificationCandidateList(&runningNewPod, &runningNewOd, "Running") {
+		t.Fatalf("pod should reported")
+	}
+
+	removePodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+}
+
+/*
+use case:
+	use case:	                                              will add to list:	                will reported:   will remove to list:                supported:
+	microservice changed it's image with bad config or error  no(the pod counter will increase) no               no(the pod counter will decrease)   yes
+*/
+func TestMicroserviceChangedItsImageWithBadConfig(t *testing.T) {
+
+	scanNotificationCandidateList = []*ScanNewImageData{}
+	od := OwnerDet{}
+	pod := core.Pod{}
+
+	err := json.Unmarshal([]byte(podJson), &pod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(podOD), &od)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	addPodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+	runningOd := OwnerDet{}
+	runningPod := core.Pod{}
+
+	err = json.Unmarshal([]byte(runningPodJson), &runningPod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(runningPodOD), &runningOd)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	if !checkNotificationCandidateList(&runningPod, &runningOd, "Running") {
+		t.Fatalf("pod should reported")
+	}
+
+	addPodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+	runningNewOd := OwnerDet{}
+	runningNewPod := core.Pod{}
+
+	err = json.Unmarshal([]byte(runningPodJson), &runningNewPod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(runningPodOD), &runningNewOd)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	runningNewPod.Status.ContainerStatuses[0].Image = "nginx:perl"
+	runningNewPod.Status.ContainerStatuses[0].ImageID = "nginx:perlImageID"
+	if checkNotificationCandidateList(&runningNewPod, &runningNewOd, "Failed") {
+		t.Fatalf("pod should not reported")
+	}
+
+	removePodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+}
+
+/*
+use case:
+	use case:	                                              will add to list:	                will reported:   will remove to list:                supported:
+	microservice changed it's something but the image tag     no(the pod counter will increase) no               no(the pod counter will decrease)   yes
+*/
+func TestMicroserviceChangedSomethingButItsImage(t *testing.T) {
+
+	scanNotificationCandidateList = []*ScanNewImageData{}
+	od := OwnerDet{}
+	pod := core.Pod{}
+
+	err := json.Unmarshal([]byte(podJson), &pod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(podOD), &od)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	addPodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+	runningOd := OwnerDet{}
+	runningPod := core.Pod{}
+
+	err = json.Unmarshal([]byte(runningPodJson), &runningPod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(runningPodOD), &runningOd)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	if !checkNotificationCandidateList(&runningPod, &runningOd, "Running") {
+		t.Fatalf("pod should reported")
+	}
+
+	addPodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+	runningNewOd := OwnerDet{}
+	runningNewPod := core.Pod{}
+
+	err = json.Unmarshal([]byte(runningPodJson), &runningNewPod)
+	if err != nil {
+		t.Fatalf("failed convert pod to json: %v", err)
+	}
+
+	err = json.Unmarshal([]byte(runningPodOD), &runningNewOd)
+	if err != nil {
+		t.Fatalf("failed convert od to json: %v", err)
+	}
+
+	runningNewPod.Spec.Containers[0].ImagePullPolicy = "IfNotPresent"
+	if checkNotificationCandidateList(&runningNewPod, &runningNewOd, "Running") {
+		t.Fatalf("pod should not reported")
+	}
+
+	removePodScanNotificationCandidateList(&od, &pod)
+	if exist, _ := isPodAlreadexistInScanCandidateList(&od, &pod); !exist {
+		t.Fatalf("pod should exist")
+	}
+
+}
