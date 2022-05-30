@@ -544,6 +544,24 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 	return nil
 }
 
+func GetAncestorFromLocalPodsList(pod *core.Pod, wh *WatchHandler) (*OwnerDet, error) {
+	for _, v := range wh.pdm {
+		if v == nil || v.Front() == nil {
+			glog.Errorf("found nil element in list of pods. pod name: %s, generateName: %s, namespace: %s", pod.GetName(), pod.GetGenerateName(), pod.GetNamespace())
+			continue
+		}
+		element := v.Front().Next()
+		for element != nil {
+			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
+				pdm := v.Front().Value.(MicroServiceData)
+				return &pdm.Owner, nil
+			}
+			element = element.Next()
+		}
+	}
+	return nil, fmt.Errorf("error getting owner reference")
+}
+
 // GetAncestorOfPod -
 func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 	od := OwnerDet{}
@@ -560,6 +578,9 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 		case "ReplicaSet":
 			repItem, err := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if err != nil {
+				if localOD, inner_err := GetAncestorFromLocalPodsList(pod, wh); inner_err == nil {
+					return *localOD, nil
+				}
 				return od, fmt.Errorf("error getting owner reference: %s", err.Error())
 			}
 			if repItem.OwnerReferences != nil {
@@ -594,6 +615,9 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 			od.OwnerData = GetOwnerData(pod.OwnerReferences[0].Name, pod.OwnerReferences[0].Kind, pod.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
 			jobItem, err := wh.RestAPIClient.BatchV1().Jobs(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if err != nil {
+				if localOD, inner_err := GetAncestorFromLocalPodsList(pod, wh); inner_err == nil {
+					return *localOD, nil
+				}
 				glog.Error(err)
 				return od, err
 			}
