@@ -64,7 +64,7 @@ func (wh *WatchHandler) ServiceWatch() {
 			glog.Errorf("RECOVER ServiceWatch. error: %v, stack: %s", err, debug.Stack())
 		}
 	}()
-	var last_watch_event_creation_time time.Time
+	var lastWatchEventCreationTime time.Time
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
@@ -73,16 +73,16 @@ func (wh *WatchHandler) ServiceWatch() {
 		if err != nil {
 			glog.Errorf("Cannot watch over services. %v", err)
 			time.Sleep(3 * time.Second)
-			last_watch_event_creation_time = time.Now()
+			lastWatchEventCreationTime = time.Now()
 			continue
 		}
-		wh.handleServiceWatch(serviceWatcher, newStateChan, &last_watch_event_creation_time)
+		wh.handleServiceWatch(serviceWatcher, newStateChan, &lastWatchEventCreationTime)
 
 		glog.Infof("Watching over services ended - since we got timeout")
 	}
 }
 
-func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newStateChan <-chan bool, last_watch_event_creation_time *time.Time) {
+func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
 	serviceChan := serviceWatcher.ResultChan()
 	glog.Infof("Watching over services started")
 	for {
@@ -92,12 +92,12 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 		case <-newStateChan:
 			serviceWatcher.Stop()
 			glog.Errorf("Service watch - newStateChan signal")
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if event.Type == watch.Error {
 			glog.Errorf("Service watch chan loop error: %v", event.Object)
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if service, ok := event.Object.(*core.Service); ok {
@@ -107,8 +107,8 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 			service.ManagedFields = []metav1.ManagedFieldsEntry{}
 			switch event.Type {
 			case "ADDED":
-				if service.CreationTimestamp.Time.Before(*last_watch_event_creation_time) {
-					glog.Infof("service %s already exist, will not reported", service.Name)
+				if service.CreationTimestamp.Time.Before(*lastWatchEventCreationTime) {
+					glog.Infof("service %s already exist, will not be reported", service.Name)
 					continue
 				}
 				id := CreateID()
@@ -131,12 +131,12 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 				continue
 			case "ERROR":
 				glog.Errorf("while watching over services we got an error: %v", event)
-				*last_watch_event_creation_time = time.Now()
+				*lastWatchEventCreationTime = time.Now()
 				return
 			}
 		} else {
 			glog.Errorf("Got unexpected service from chan: %v", event)
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 	}

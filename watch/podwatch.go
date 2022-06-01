@@ -156,7 +156,7 @@ func (wh *WatchHandler) PodWatch() {
 			glog.Errorf("RECOVER ListenerAndSender. %v, stack: %s", err, debug.Stack())
 		}
 	}()
-	var last_watch_event_creation_time time.Time
+	var lastWatchEventCreationTime time.Time
 	collectorCreationTime = time.Now()
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
@@ -168,11 +168,11 @@ func (wh *WatchHandler) PodWatch() {
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		wh.handlePodWatch(podsWatcher, newStateChan, &last_watch_event_creation_time)
+		wh.handlePodWatch(podsWatcher, newStateChan, &lastWatchEventCreationTime)
 	}
 }
 
-func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan <-chan bool, last_watch_event_creation_time *time.Time) {
+func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
 	for {
 		var event watch.Event
 		var chanActive bool
@@ -181,19 +181,19 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			if !chanActive {
 				glog.Error("Pod watch chan loop error inactive channel")
 				podsWatcher.Stop()
-				*last_watch_event_creation_time = time.Now()
+				*lastWatchEventCreationTime = time.Now()
 				return
 			}
 		case <-newStateChan:
 			podsWatcher.Stop()
 			glog.Errorf("pod watch - newStateChan signal")
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if event.Type == watch.Error {
 			glog.Errorf("Pod watch chan loop error: %v", event.Object)
 			podsWatcher.Stop()
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		pod, ok := event.Object.(*core.Pod)
@@ -211,13 +211,13 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		od, err := GetAncestorOfPod(pod, wh)
 		if err != nil {
 			glog.Errorf("%s, ignoring pod report", err.Error())
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			break
 		}
 		switch event.Type {
 		case watch.Added:
-			if pod.CreationTimestamp.Time.Before(*last_watch_event_creation_time) {
-				glog.Infof("pod %s already exist, will not reported", podName)
+			if pod.CreationTimestamp.Time.Before(*lastWatchEventCreationTime) {
+				glog.Infof("pod %s already exist, will not be reported", podName)
 				continue
 			}
 			first := true
@@ -244,7 +244,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				}
 			}
 			if !first {
-				*last_watch_event_creation_time = time.Now()
+				*lastWatchEventCreationTime = time.Now()
 				break
 			}
 			// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
@@ -276,7 +276,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				continue
 			}
 			if pod.DeletionTimestamp != nil { // the pod is terminating
-				*last_watch_event_creation_time = time.Now()
+				*lastWatchEventCreationTime = time.Now()
 				break
 			}
 			podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
@@ -304,7 +304,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		case watch.Error:
 			removePodScanNotificationCandidateList(&od, pod)
 			glog.Infof("Error. name: %s, status: %s", podName, podStatus)
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 	}

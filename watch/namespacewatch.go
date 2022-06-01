@@ -19,7 +19,7 @@ func (wh *WatchHandler) NamespaceWatch() {
 			glog.Errorf("RECOVER NamespaceWatch. error: %v\n %s", err, string(debug.Stack()))
 		}
 	}()
-	var last_watch_event_creation_time time.Time
+	var lastWatchEventCreationTime time.Time
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 WatchLoop:
@@ -49,21 +49,21 @@ WatchLoop:
 				namespacesWatcher.Stop()
 				break ChanLoop
 			}
-			if err := wh.NamespaceEventHandler(&event, last_watch_event_creation_time); err != nil {
+			if err := wh.NamespaceEventHandler(&event, lastWatchEventCreationTime); err != nil {
 				break ChanLoop
 			}
 		}
-		last_watch_event_creation_time = time.Now()
+		lastWatchEventCreationTime = time.Now()
 		glog.Infof("Watching over namespaces ended - timeout")
 	}
 }
-func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, last_watch_event_creation_time time.Time) error {
+func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, lastWatchEventCreationTime time.Time) error {
 	if namespace, ok := event.Object.(*corev1.Namespace); ok {
 		namespace.ManagedFields = []metav1.ManagedFieldsEntry{}
 		switch event.Type {
 		case "ADDED":
-			if namespace.CreationTimestamp.Time.Before(last_watch_event_creation_time) {
-				glog.Infof("namespace %s already exist, will not reported", namespace.ObjectMeta.Name)
+			if namespace.CreationTimestamp.Time.Before(lastWatchEventCreationTime) {
+				glog.Infof("namespace %s already exist, will not be reported", namespace.ObjectMeta.Name)
 				return nil
 			}
 			id := CreateID()

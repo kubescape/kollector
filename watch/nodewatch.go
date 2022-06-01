@@ -82,7 +82,7 @@ func (wh *WatchHandler) NodeWatch() {
 			glog.Errorf("RECOVER NodeWatch. error: %v, stack: %s", err, debug.Stack())
 		}
 	}()
-	var last_watch_event_creation_time time.Time
+	var lastWatchEventCreationTime time.Time
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
@@ -107,13 +107,13 @@ func (wh *WatchHandler) NodeWatch() {
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		wh.handleNodeWatch(nodesWatcher, newStateChan, &last_watch_event_creation_time)
+		wh.handleNodeWatch(nodesWatcher, newStateChan, &lastWatchEventCreationTime)
 
 		glog.Infof("Watching over nodes ended - since we got timeout")
 	}
 }
 
-func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateChan <-chan bool, last_watch_event_creation_time *time.Time) {
+func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
 	glog.Info("Watching over nodes started")
 	nodesChan := nodesWatcher.ResultChan()
 	for {
@@ -123,21 +123,21 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 		case <-newStateChan:
 			nodesWatcher.Stop()
 			glog.Errorf("Node watch - newStateChan signal")
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if event.Type == watch.Error {
 			glog.Errorf("Node watch chan loop error: %v", event.Object)
 			nodesWatcher.Stop()
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if node, ok := event.Object.(*core.Node); ok {
 			node.ManagedFields = []metav1.ManagedFieldsEntry{}
 			switch event.Type {
 			case "ADDED":
-				if node.CreationTimestamp.Time.Before(*last_watch_event_creation_time) {
-					glog.Infof("node %s already exist, will not reported", node.ObjectMeta.Name)
+				if node.CreationTimestamp.Time.Before(*lastWatchEventCreationTime) {
+					glog.Infof("node %s already exist, will not be reported", node.ObjectMeta.Name)
 					continue
 				}
 				id := CreateID()
@@ -162,12 +162,12 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 				continue
 			case "ERROR":
 				glog.Errorf("while watching over nodes we got an error: %v", event)
-				*last_watch_event_creation_time = time.Now()
+				*lastWatchEventCreationTime = time.Now()
 				return
 			}
 		} else {
 			glog.Errorf("Got unexpected node from chan: %v", event)
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 	}

@@ -24,7 +24,7 @@ func (wh *WatchHandler) SecretWatch() {
 			glog.Errorf("RECOVER SecretWatch. error: %v\n %s", err, string(debug.Stack()))
 		}
 	}()
-	var last_watch_event_creation_time time.Time
+	var lastWatchEventCreationTime time.Time
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 WatchLoop:
@@ -54,15 +54,15 @@ WatchLoop:
 				secretsWatcher.Stop()
 				break ChanLoop
 			}
-			if err := wh.SecretEventHandler(&event, last_watch_event_creation_time); err != nil {
+			if err := wh.SecretEventHandler(&event, lastWatchEventCreationTime); err != nil {
 				break ChanLoop
 			}
 		}
-		last_watch_event_creation_time = time.Now()
+		lastWatchEventCreationTime = time.Now()
 		glog.Infof("Watching over secrets ended - timeout")
 	}
 }
-func (wh *WatchHandler) SecretEventHandler(event *watch.Event, last_watch_event_creation_time time.Time) error {
+func (wh *WatchHandler) SecretEventHandler(event *watch.Event, lastWatchEventCreationTime time.Time) error {
 	if secret, ok := event.Object.(*corev1.Secret); ok {
 		if !wh.isNamespaceWatched(secret.Namespace) {
 			return nil
@@ -71,8 +71,8 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event, last_watch_event_
 		removeSecretData(secret)
 		switch event.Type {
 		case "ADDED":
-			if secret.CreationTimestamp.Time.Before(last_watch_event_creation_time) {
-				glog.Infof("secret %s already exist, will not reported", secret.ObjectMeta.Name)
+			if secret.CreationTimestamp.Time.Before(lastWatchEventCreationTime) {
+				glog.Infof("secret %s already exist, will not be reported", secret.ObjectMeta.Name)
 				return nil
 			}
 			secretdm := SecretData{Secret: secret}

@@ -19,7 +19,7 @@ func (wh *WatchHandler) CronJobWatch() {
 			glog.Errorf("RECOVER CronJobWatch. error: %v, stack: %s", err, debug.Stack())
 		}
 	}()
-	var last_watch_event_creation_time time.Time
+	var lastWatchEventCreationTime time.Time
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
@@ -30,13 +30,13 @@ func (wh *WatchHandler) CronJobWatch() {
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		wh.handleCronJobWatch(cronjobWatcher, newStateChan, &last_watch_event_creation_time)
+		wh.handleCronJobWatch(cronjobWatcher, newStateChan, &lastWatchEventCreationTime)
 
 		glog.Infof("Watching over cronjobs ended - since we got timeout")
 	}
 }
 
-func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newStateChan <-chan bool, last_watch_event_creation_time *time.Time) {
+func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
 	cronjobChan := cronjobWatcher.ResultChan()
 	cronJobIDs := make(map[string]int)
 	glog.Infof("Watching over cronjobs started")
@@ -47,12 +47,12 @@ func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newSt
 		case <-newStateChan:
 			cronjobWatcher.Stop()
 			glog.Errorf("CronJob watch - newStateChan signal")
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if event.Type == watch.Error {
 			glog.Errorf("CronJob watch chan loop error: %v", event.Object)
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if cronjob, ok := event.Object.(*batchv1.CronJob); ok {
@@ -67,8 +67,8 @@ func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newSt
 			cronjob.ManagedFields = []metav1.ManagedFieldsEntry{}
 			switch event.Type {
 			case watch.Added:
-				if cronjob.CreationTimestamp.Time.Before(*last_watch_event_creation_time) {
-					glog.Infof("cronjob %s already exist, will not reported", cronjob.Name)
+				if cronjob.CreationTimestamp.Time.Before(*lastWatchEventCreationTime) {
+					glog.Infof("cronjob %s already exist, will not be reported", cronjob.Name)
 					continue
 				}
 				id := CreateID()
@@ -109,12 +109,12 @@ func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newSt
 				continue
 			case watch.Error:
 				glog.Errorf("while watching over cronjobs we got an error: %v", event)
-				*last_watch_event_creation_time = time.Now()
+				*lastWatchEventCreationTime = time.Now()
 				return
 			}
 		} else {
 			glog.Errorf("Got unexpected cronjob from chan: %v", event)
-			*last_watch_event_creation_time = time.Now()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 	}
