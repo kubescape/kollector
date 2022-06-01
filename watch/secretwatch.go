@@ -24,8 +24,8 @@ func (wh *WatchHandler) SecretWatch() {
 			glog.Errorf("RECOVER SecretWatch. error: %v\n %s", err, string(debug.Stack()))
 		}
 	}()
+	var last_watch_event_creation_time time.Time
 	newStateChan := make(chan bool)
-	resourceMap := make(map[string]string)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 WatchLoop:
 	for {
@@ -36,7 +36,6 @@ WatchLoop:
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		wh.HandleDataMismatch("secrets", resourceMap)
 		secretsChan := secretsWatcher.ResultChan()
 		glog.Infof("Watching over secrets started")
 	ChanLoop:
@@ -55,14 +54,15 @@ WatchLoop:
 				secretsWatcher.Stop()
 				break ChanLoop
 			}
-			if err := wh.SecretEventHandler(&event, resourceMap); err != nil {
+			if err := wh.SecretEventHandler(&event, last_watch_event_creation_time); err != nil {
 				break ChanLoop
 			}
 		}
+		last_watch_event_creation_time = time.Now()
 		glog.Infof("Watching over secrets ended - timeout")
 	}
 }
-func (wh *WatchHandler) SecretEventHandler(event *watch.Event, resourceMap map[string]string) error {
+func (wh *WatchHandler) SecretEventHandler(event *watch.Event, last_watch_event_creation_time time.Time) error {
 	if secret, ok := event.Object.(*corev1.Secret); ok {
 		if !wh.isNamespaceWatched(secret.Namespace) {
 			return nil
@@ -71,7 +71,10 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event, resourceMap map[s
 		removeSecretData(secret)
 		switch event.Type {
 		case "ADDED":
-			resourceMap[string(secret.GetUID())] = secret.GetResourceVersion()
+			if secret.CreationTimestamp.Time.Before(last_watch_event_creation_time) {
+				glog.Infof("secret %s already exist, will not reported", secret.ObjectMeta.Name)
+				return nil
+			}
 			secretdm := SecretData{Secret: secret}
 			id := CreateID()
 			wh.secretdm.Init(id)
@@ -79,12 +82,10 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event, resourceMap map[s
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, CREATED)
 		case "MODIFY":
-			resourceMap[string(secret.GetUID())] = secret.GetResourceVersion()
 			wh.UpdateSecret(secret)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, UPDATED)
 		case "DELETED":
-			delete(resourceMap, string(secret.GetUID()))
 			wh.RemoveSecret(secret)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, DELETED)
