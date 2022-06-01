@@ -19,8 +19,8 @@ func (wh *WatchHandler) NamespaceWatch() {
 			glog.Errorf("RECOVER NamespaceWatch. error: %v\n %s", err, string(debug.Stack()))
 		}
 	}()
+	var lastWatchEventCreationTime time.Time
 	newStateChan := make(chan bool)
-	resourceMap := make(map[string]string)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 WatchLoop:
 	for {
@@ -31,7 +31,6 @@ WatchLoop:
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		wh.HandleDataMismatch("namespaces", resourceMap)
 		namespacesChan := namespacesWatcher.ResultChan()
 		glog.Infof("Watching over namespaces started")
 	ChanLoop:
@@ -50,31 +49,33 @@ WatchLoop:
 				namespacesWatcher.Stop()
 				break ChanLoop
 			}
-			if err := wh.NamespaceEventHandler(&event, resourceMap); err != nil {
+			if err := wh.NamespaceEventHandler(&event, lastWatchEventCreationTime); err != nil {
 				break ChanLoop
 			}
 		}
+		lastWatchEventCreationTime = time.Now()
 		glog.Infof("Watching over namespaces ended - timeout")
 	}
 }
-func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, resourceMap map[string]string) error {
+func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, lastWatchEventCreationTime time.Time) error {
 	if namespace, ok := event.Object.(*corev1.Namespace); ok {
 		namespace.ManagedFields = []metav1.ManagedFieldsEntry{}
 		switch event.Type {
 		case "ADDED":
-			resourceMap[string(namespace.GetUID())] = namespace.GetResourceVersion()
+			if namespace.CreationTimestamp.Time.Before(lastWatchEventCreationTime) {
+				glog.Infof("namespace %s already exist, will not be reported", namespace.ObjectMeta.Name)
+				return nil
+			}
 			id := CreateID()
 			wh.namespacedm.Init(id)
 			wh.namespacedm.PushBack(id, namespace)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(namespace, NAMESPACES, CREATED)
 		case "MODIFY":
-			resourceMap[string(namespace.GetUID())] = namespace.GetResourceVersion()
 			wh.UpdateNamespace(namespace)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(namespace, NAMESPACES, UPDATED)
 		case "DELETED":
-			delete(resourceMap, string(namespace.GetUID()))
 			wh.RemoveNamespace(namespace)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(namespace, NAMESPACES, DELETED)

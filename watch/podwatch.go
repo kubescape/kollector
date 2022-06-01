@@ -156,8 +156,8 @@ func (wh *WatchHandler) PodWatch() {
 			glog.Errorf("RECOVER ListenerAndSender. %v, stack: %s", err, debug.Stack())
 		}
 	}()
+	var lastWatchEventCreationTime time.Time
 	collectorCreationTime = time.Now()
-	resourceVersion := make(map[string]string)
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
@@ -168,12 +168,11 @@ func (wh *WatchHandler) PodWatch() {
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		wh.HandleDataMismatch("pods", resourceVersion)
-		wh.handlePodWatch(podsWatcher, newStateChan, resourceVersion)
+		wh.handlePodWatch(podsWatcher, newStateChan, &lastWatchEventCreationTime)
 	}
 }
 
-func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan <-chan bool, resourceVersion map[string]string) {
+func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
 	for {
 		var event watch.Event
 		var chanActive bool
@@ -182,16 +181,19 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			if !chanActive {
 				glog.Error("Pod watch chan loop error inactive channel")
 				podsWatcher.Stop()
+				*lastWatchEventCreationTime = time.Now()
 				return
 			}
 		case <-newStateChan:
 			podsWatcher.Stop()
 			glog.Errorf("pod watch - newStateChan signal")
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if event.Type == watch.Error {
 			glog.Errorf("Pod watch chan loop error: %v", event.Object)
 			podsWatcher.Stop()
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		pod, ok := event.Object.(*core.Pod)
@@ -209,11 +211,15 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		od, err := GetAncestorOfPod(pod, wh)
 		if err != nil {
 			glog.Errorf("%s, ignoring pod report", err.Error())
+			*lastWatchEventCreationTime = time.Now()
 			break
 		}
 		switch event.Type {
 		case watch.Added:
-			resourceVersion[string(pod.GetUID())] = pod.GetResourceVersion()
+			if pod.CreationTimestamp.Time.Before(*lastWatchEventCreationTime) {
+				glog.Infof("pod %s already exist, will not be reported", podName)
+				continue
+			}
 			first := true
 			id, runningPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[armometadata.CAAttachLabel], pod.Labels[armometadata.ArmoAttach], wh.pdm)
 			if runningPodNum <= 1 {
@@ -238,6 +244,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				}
 			}
 			if !first {
+				*lastWatchEventCreationTime = time.Now()
 				break
 			}
 			// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
@@ -269,9 +276,9 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				continue
 			}
 			if pod.DeletionTimestamp != nil { // the pod is terminating
+				*lastWatchEventCreationTime = time.Now()
 				break
 			}
-			resourceVersion[string(pod.GetUID())] = pod.GetResourceVersion()
 			podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
 			if podSpecID > -2 {
 				glog.Infof("Modified. name: %s, status: %s, uid: %s", podName, podStatus, pod.GetUID())
@@ -291,12 +298,13 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			if !wh.isNamespaceWatched(pod.Namespace) {
 				continue
 			}
-			wh.DeletePod(pod, podName, resourceVersion)
+			wh.DeletePod(pod, podName)
 		case watch.Bookmark:
 			glog.Infof("Bookmark. name: %s, status: %s", podName, podStatus)
 		case watch.Error:
 			removePodScanNotificationCandidateList(&od, pod)
 			glog.Infof("Error. name: %s, status: %s", podName, podStatus)
+			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 	}
@@ -345,14 +353,13 @@ func (wh *WatchHandler) printPodLogs(pod *core.Pod) {
 }
 
 // DeletePod delete a pod
-func (wh *WatchHandler) DeletePod(pod *core.Pod, podName string, resourceVersion map[string]string) {
+func (wh *WatchHandler) DeletePod(pod *core.Pod, podName string) {
 	podStatus := "Terminating"
 	podSpecID, removeMicroServiceAsWell, owner := wh.RemovePod(pod, wh.pdm)
 	if podSpecID == -1 {
 		return
 	}
 	glog.Infof("Deleted. name: %s, status: %s, uid: %s", podName, podStatus, pod.GetUID())
-	delete(resourceVersion, string(pod.GetUID()))
 	np := PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: owner.Name, Kind: owner.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
 	if pod.DeletionTimestamp != nil {
 		np.DeletionTimestamp = pod.DeletionTimestamp.Time.UTC().Format(time.RFC3339)
@@ -544,6 +551,24 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 	return nil
 }
 
+func GetAncestorFromLocalPodsList(pod *core.Pod, wh *WatchHandler) (*OwnerDet, error) {
+	for _, v := range wh.pdm {
+		if v == nil || v.Front() == nil {
+			glog.Errorf("found nil element in list of pods. pod name: %s, generateName: %s, namespace: %s", pod.GetName(), pod.GetGenerateName(), pod.GetNamespace())
+			continue
+		}
+		element := v.Front().Next()
+		for element != nil {
+			if strings.Compare(element.Value.(PodDataForExistMicroService).PodName, pod.ObjectMeta.Name) == 0 {
+				pdm := v.Front().Value.(MicroServiceData)
+				return &pdm.Owner, nil
+			}
+			element = element.Next()
+		}
+	}
+	return nil, fmt.Errorf("error getting owner reference")
+}
+
 // GetAncestorOfPod -
 func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 	od := OwnerDet{}
@@ -560,6 +585,9 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 		case "ReplicaSet":
 			repItem, err := wh.RestAPIClient.AppsV1().ReplicaSets(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if err != nil {
+				if localOD, inner_err := GetAncestorFromLocalPodsList(pod, wh); inner_err == nil {
+					return *localOD, nil
+				}
 				return od, fmt.Errorf("error getting owner reference: %s", err.Error())
 			}
 			if repItem.OwnerReferences != nil {
@@ -594,6 +622,9 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 			od.OwnerData = GetOwnerData(pod.OwnerReferences[0].Name, pod.OwnerReferences[0].Kind, pod.OwnerReferences[0].APIVersion, pod.ObjectMeta.Namespace, wh)
 			jobItem, err := wh.RestAPIClient.BatchV1().Jobs(pod.ObjectMeta.Namespace).Get(globalHTTPContext, pod.OwnerReferences[0].Name, metav1.GetOptions{})
 			if err != nil {
+				if localOD, inner_err := GetAncestorFromLocalPodsList(pod, wh); inner_err == nil {
+					return *localOD, nil
+				}
 				glog.Error(err)
 				return od, err
 			}
