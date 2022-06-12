@@ -77,10 +77,10 @@ func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newSt
 					Kind:      cronjob.Kind,
 					OwnerData: cronjob,
 				}
-				wh.pdm[id] = list.New()
+				wh.cjm[id] = list.New()
 				nms := MicroServiceData{Pod: &v1.Pod{Spec: cronjob.Spec.JobTemplate.Spec.Template.Spec, TypeMeta: cronjob.TypeMeta, ObjectMeta: cronjob.ObjectMeta},
 					Owner: od, PodSpecId: id}
-				// wh.pdm[id].PushBack(nms)
+				// wh.cjm[id].PushBack(nms)
 				wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
 				cronJobIDs[string(cronjob.GetUID())] = id
 				informNewDataArrive(wh)

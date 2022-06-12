@@ -103,6 +103,8 @@ type WatchHandler struct {
 	ndm map[int]*list.List
 	// services list
 	sdm map[int]*list.List
+	// pods list
+	cjm map[int]*list.List
 	// secrets list
 	secretdm *ResourceMap
 	// namespaces list
@@ -166,6 +168,7 @@ func CreateWatchHandler() (*WatchHandler, error) {
 		pdm:              make(map[int]*list.List),
 		ndm:              make(map[int]*list.List),
 		sdm:              make(map[int]*list.List),
+		cjm:              make(map[int]*list.List),
 		secretdm:         NewResourceMap(),
 		namespacedm:      NewResourceMap(),
 		jsonReport: jsonFormat{
@@ -198,6 +201,7 @@ func (wh *WatchHandler) SetFirstReportFlag(first bool) {
 		wh.ndm = make(map[int]*list.List)
 		wh.pdm = make(map[int]*list.List)
 		wh.sdm = make(map[int]*list.List)
+		wh.cjm = make(map[int]*list.List)
 		wh.secretdm = NewResourceMap()
 		wh.namespacedm = NewResourceMap()
 		for chanIdx := range wh.newStateReportChans {
