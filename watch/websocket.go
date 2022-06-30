@@ -236,7 +236,7 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 					break
 				}
 				end = true
-				glog.Errorf("read message closed connection :%v", err)
+				glog.Errorf("read message closed connection: %s", err.Error())
 				wsh.closeConnection(conn, "read message error")
 				break
 			}

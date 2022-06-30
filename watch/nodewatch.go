@@ -166,7 +166,6 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 				return
 			}
 		} else {
-			glog.Errorf("Got unexpected node from chan: %v", event)
 			*lastWatchEventCreationTime = time.Now()
 			return
 		}

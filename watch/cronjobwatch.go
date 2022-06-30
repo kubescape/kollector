@@ -77,7 +77,7 @@ func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newSt
 					Kind:      cronjob.Kind,
 					OwnerData: cronjob,
 				}
-				wh.cjm[id] = list.New()
+				wh.pdm[id] = list.New()
 				nms := MicroServiceData{Pod: &v1.Pod{Spec: cronjob.Spec.JobTemplate.Spec.Template.Spec, TypeMeta: cronjob.TypeMeta, ObjectMeta: cronjob.ObjectMeta},
 					Owner: od, PodSpecId: id}
 				// wh.cjm[id].PushBack(nms)
@@ -113,7 +113,6 @@ func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newSt
 				return
 			}
 		} else {
-			glog.Errorf("Got unexpected cronjob from chan: %v", event)
 			*lastWatchEventCreationTime = time.Now()
 			return
 		}

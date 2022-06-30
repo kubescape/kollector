@@ -96,7 +96,6 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event, lastWatchEventCre
 			return fmt.Errorf("while watching over secrets we got an error")
 		}
 	} else {
-		glog.Errorf("Got unexpected secret from chan: %v", event)
 		return fmt.Errorf("got unexpected secret from chan")
 	}
 	return nil

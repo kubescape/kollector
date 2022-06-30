@@ -86,7 +86,6 @@ func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, lastWatchEvent
 			return fmt.Errorf("while watching over namespaces we got an error")
 		}
 	} else {
-		glog.Errorf("Got unexpected namespace from chan: %v", event)
 		return fmt.Errorf("got unexpected namespace from chan")
 	}
 	return nil

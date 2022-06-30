@@ -135,7 +135,6 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 				return
 			}
 		} else {
-			glog.Errorf("Got unexpected service from chan: %v", event)
 			*lastWatchEventCreationTime = time.Now()
 			return
 		}

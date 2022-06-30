@@ -554,7 +554,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 func GetAncestorFromLocalPodsList(pod *core.Pod, wh *WatchHandler) (*OwnerDet, error) {
 	for _, v := range wh.pdm {
 		if v == nil || v.Front() == nil {
-			glog.Errorf("found nil element in list of pods. pod name: %s, generateName: %s, namespace: %s", pod.GetName(), pod.GetGenerateName(), pod.GetNamespace())
+			glog.Infof("found nil element in list of pods. pod name: %s, generateName: %s, namespace: %s", pod.GetName(), pod.GetGenerateName(), pod.GetNamespace())
 			continue
 		}
 		element := v.Front().Next()
@@ -675,7 +675,7 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 	podDataForExistMicroService := PodDataForExistMicroService{}
 	for _, v := range pdm {
 		if v == nil || v.Front() == nil {
-			glog.Errorf("found nil element in list of pods. pod name: %s, generateName: %s, namespace: %s", pod.GetName(), pod.GetGenerateName(), pod.GetNamespace())
+			glog.Infof("found nil element in list of pods. pod name: %s, generateName: %s, namespace: %s", pod.GetName(), pod.GetGenerateName(), pod.GetNamespace())
 			continue
 		}
 		element := v.Front().Next()
@@ -684,15 +684,12 @@ func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 				// newOwner := GetAncestorOfPod(pod, wh)
 
 				if reflect.DeepEqual(*v.Front().Value.(MicroServiceData).Pod, *pod) {
-					err := DeepCopy(*pod, *v.Front().Value.(MicroServiceData).Pod)
-					if err != nil {
+					if err := DeepCopy(*pod, *v.Front().Value.(MicroServiceData).Pod); err != nil {
 						glog.Errorf("error in DeepCopy 'Pod' in UpdatePod")
+						id = -1
+					} else {
+						id = v.Front().Value.(MicroServiceData).PodSpecId
 					}
-					// err = DeepCopy(newOwner, v.Front().Value.(MicroServiceData).Owner)
-					// if err != nil {
-					// 	glog.Errorf("error in DeepCopy B in UpdatePod")
-					// }
-					id = v.Front().Value.(MicroServiceData).PodSpecId
 				} else {
 					id = -1
 				}
