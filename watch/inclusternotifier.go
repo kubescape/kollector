@@ -9,6 +9,7 @@ import (
 
 	"github.com/armosec/armoapi-go/apis"
 	"github.com/armosec/cluster-notifier-api-go/notificationserver"
+	"github.com/armosec/utils-go/boolutils"
 	"github.com/golang/glog"
 )
 
@@ -67,10 +68,10 @@ func executeTriggeredNotification(body *bytes.Buffer) error {
 }
 
 func NotifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error {
-	if os.Getenv("ACTIVATE_CVE_SCAN_ON_NEW_IMAGE_FEATURE") != "enable" {
+	trigger := os.Getenv("ACTIVATE_CVE_SCAN_ON_NEW_IMAGE_FEATURE")
+	if trigger != "enable" && !boolutils.StringToBool(trigger) {
 		return nil
 	}
-	// the notification is triggered every time, needs to be fixed
 
 	var body *bytes.Buffer
 	var err error
