@@ -261,7 +261,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339),
 			}
 			wh.pdm[id].PushBack(newPod)
-			if !wh.isNamespaceWatched(pod.Namespace) {
+			if wh.isNamespaceWatched(pod.Namespace) {
 				wh.jsonReport.AddToJsonFormat(newPod, PODS, CREATED)
 				informNewDataArrive(wh)
 			}
