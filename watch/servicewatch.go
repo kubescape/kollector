@@ -57,7 +57,7 @@ func RemoveService(service *core.Service, sdm map[int]*list.List) string {
 	return ""
 }
 
-// ServiceWatch watch over servises
+// ServiceWatch watch over services
 func (wh *WatchHandler) ServiceWatch() {
 	defer func() {
 		if err := recover(); err != nil {

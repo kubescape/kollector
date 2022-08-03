@@ -17,7 +17,10 @@ import (
 
 type ReqType int
 
-const MAXPINGMESSAGE = 3
+const (
+	customerGuidQueryParamKey = "customerGUID"
+	clusterNameQueryParamKey  = "clusterName"
+)
 
 const (
 	PING    ReqType = 0
@@ -31,8 +34,7 @@ type DataSocket struct {
 }
 
 type WebSocketHandler struct {
-	data chan DataSocket
-	// conn             *websocket.Conn
+	data             chan DataSocket
 	u                url.URL
 	mutex            *sync.Mutex
 	SignalChan       chan os.Signal
@@ -44,8 +46,8 @@ func createWebSocketHandler(urlWS, path, clusterName, customerGUID string) *WebS
 	host := strings.Split(urlWS, "://")[1]
 	wsh := WebSocketHandler{data: make(chan DataSocket), keepAliveCounter: 0, u: url.URL{Scheme: scheme, Host: host, Path: path, ForceQuery: true}, mutex: &sync.Mutex{}, SignalChan: make(chan os.Signal)}
 	q := wsh.u.Query()
-	q.Add("customerGUID", customerGUID)
-	q.Add("clusterName", clusterName)
+	q.Add(customerGuidQueryParamKey, customerGUID)
+	q.Add(clusterNameQueryParamKey, clusterName)
 	wsh.u.RawQuery = q.Encode()
 	return &wsh
 }
@@ -55,8 +57,7 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 	var err error
 	var conn *websocket.Conn
 
-	// time.Sleep(sleepBeforeConnection)
-	if v, ok := os.LookupEnv("CA_IGNORE_VERIFY_CACLI"); ok && v != "" {
+	if v, ok := os.LookupEnv(skipVerifyEnvironmentVariable); ok && v != "" {
 		websocket.DefaultDialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	tries := 5
@@ -94,13 +95,11 @@ func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool, reconnectCal
 		*isServerReady = true
 
 		wsh.handleSendReportRoutine(conn, reconnectCallback)
-
-		// wsh.closeConnection(conn, "")
 	}
 
 	// use mutex for writing message that way if write failed only the failed writing will reconnect
-
 }
+
 func (wsh *WebSocketHandler) handleSendReportRoutine(conn *websocket.Conn, reconnectCallback func(bool)) error {
 ReconnectLoop:
 	for {
@@ -122,7 +121,7 @@ ReconnectLoop:
 					reconnectCallback(true)
 				}
 				if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
-					//TODO - handle retries
+					// TODO: handle retries
 					glog.Errorf("sendReportRoutine. %s", err.Error())
 					wsh.mutex.Unlock()
 					break ReconnectLoop
@@ -150,7 +149,6 @@ ReconnectLoop:
 	return nil
 }
 
-//SendMessageToWebSocket -
 func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
 	data := DataSocket{message: string(jsonData), RType: MESSAGE}
 
@@ -166,14 +164,14 @@ func (wh *WatchHandler) ListenerAndSender() {
 	}()
 	waitingDuration := time.Duration(5)
 	waitingDelay := waitingDuration * time.Second
-	//in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
+	// in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
 	glog.Infof("wait %d seconds for aggregate the first data from the cluster\n", waitingDuration)
 	time.Sleep(waitingDelay)
 	wh.SetFirstReportFlag(true)
 	for {
 		jsonData := PrepareDataToSend(wh)
 		if jsonData != nil {
-			if os.Getenv("PRINT_REPORT") == "true" {
+			if os.Getenv(printReportEnvironmentVariable) == "true" {
 				glog.Infof("%s", string(jsonData))
 			}
 			wh.SendMessageToWebSocket(jsonData)

@@ -1,0 +1,132 @@
+{
+    "metadata": {
+        "name": "nginx-6799fc88d8-pxgzz",
+        "generateName": "nginx-6799fc88d8-",
+        "namespace": "default",
+        "uid": "f5b3d4ba-24ff-46c1-ab93-b52af6b9b9bd",
+        "resourceVersion": "35746",
+        "creationTimestamp": "2022-05-15T11:43:25Z",
+        "labels": {
+            "app": "nginx",
+            "pod-template-hash": "6799fc88d8"
+        },
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "kind": "ReplicaSet",
+                "name": "nginx-6799fc88d8",
+                "uid": "0c3c7600-5c17-4d66-9411-3e7f752b90b8",
+                "controller": true,
+                "blockOwnerDeletion": true
+            }
+        ]
+    },
+    "spec": {
+        "volumes": [
+            {
+                "name": "default-token-hk8bb",
+                "secret": {
+                    "secretName": "default-token-hk8bb",
+                    "defaultMode": 420
+                }
+            }
+        ],
+        "containers": [
+            {
+                "name": "nginx",
+                "image": "nginx",
+                "resources": {},
+                "volumeMounts": [
+                    {
+                        "name": "default-token-hk8bb",
+                        "readOnly": true,
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+                    }
+                ],
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "imagePullPolicy": "Always"
+            }
+        ],
+        "restartPolicy": "Always",
+        "terminationGracePeriodSeconds": 30,
+        "dnsPolicy": "ClusterFirst",
+        "serviceAccountName": "default",
+        "serviceAccount": "default",
+        "nodeName": "virtualbox",
+        "securityContext": {},
+        "schedulerName": "default-scheduler",
+        "tolerations": [
+            {
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+            },
+            {
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+            }
+        ],
+        "priority": 0,
+        "enableServiceLinks": true,
+        "preemptionPolicy": "PreemptLowerPriority"
+    },
+    "status": {
+        "phase": "Running",
+        "conditions": [
+            {
+                "type": "Initialized",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2022-05-15T11:43:25Z"
+            },
+            {
+                "type": "Ready",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2022-05-15T11:43:30Z"
+            },
+            {
+                "type": "ContainersReady",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2022-05-15T11:43:30Z"
+            },
+            {
+                "type": "PodScheduled",
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2022-05-15T11:43:25Z"
+            }
+        ],
+        "hostIP": "1.1.1.1",
+        "podIP": "1.1.1.1",
+        "podIPs": [
+            {
+                "ip": "1.1.1.1"
+            }
+        ],
+        "startTime": "2022-05-15T11:43:25Z",
+        "containerStatuses": [
+            {
+                "name": "nginx",
+                "state": {
+                    "running": {
+                        "startedAt": "2022-05-15T11:43:30Z"
+                    }
+                },
+                "lastState": {},
+                "ready": true,
+                "restartCount": 0,
+                "image": "nginx:latest",
+                "imageID": "docker-pullable://nginx@sha256:19da26bd6ef0468ac8ef5c03f01ce1569a4dbfb82d4d7b7ffbd7aed16ad3eb46",
+                "containerID": "docker://de3d7bcf4aa3bfc2e33ad1d7d8e749b1fd7e36f700e8885b566c906827401f83",
+                "started": true
+            }
+        ],
+        "qosClass": "BestEffort"
+    }
+}

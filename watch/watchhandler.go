@@ -88,7 +88,6 @@ func (rm *ResourceMap) IndexLen(index int) int {
 	return rm.resourceMap[index].Len()
 }
 
-// WatchHandler -
 type WatchHandler struct {
 	extensionsClient apixv1beta1client.ApiextensionsV1beta1Interface
 	RestAPIClient    kubernetes.Interface
@@ -113,7 +112,7 @@ type WatchHandler struct {
 	jsonReport             jsonFormat
 	informNewDataChannel   chan int
 	aggregateFirstDataFlag bool
-	// newStateReportChans is calling in a loop whenever new connection to ARMO BE is initialized
+	// newStateReportChans is calling in a loop whenever new connection to BE is initialized
 	newStateReportChans []chan bool
 	IncludeNamespaces   []string
 }
@@ -123,10 +122,9 @@ func (wh *WatchHandler) GetAggregateFirstDataFlag() *bool {
 	return &wh.aggregateFirstDataFlag
 }
 
-//CreateWatchHandler -
 func CreateWatchHandler() (*WatchHandler, error) {
 
-	confFilePath := os.Getenv("CA_CONFIG")
+	confFilePath := os.Getenv(configEnvironmentVariable)
 	if _, err := armometadata.LoadConfig(confFilePath, true); err != nil {
 		glog.Warning(err.Error())
 	}
@@ -147,22 +145,22 @@ func CreateWatchHandler() (*WatchHandler, error) {
 	}
 
 	var clusterName string
-	if clusterName = os.Getenv("CA_CLUSTER_NAME"); clusterName == "" {
-		return nil, fmt.Errorf("there is no cluster name environment variable, envKey:CA_CLUSTER_NAME")
+	if clusterName = os.Getenv(clusterNameEnvironmentVariable); clusterName == "" {
+		return nil, fmt.Errorf("there is no cluster name environment variable, envKey:%s", clusterNameEnvironmentVariable)
 	}
 
 	var reportURL string
-	if reportURL = os.Getenv("CA_K8S_REPORT_URL"); reportURL == "" {
-		return nil, fmt.Errorf("there is no report url environment variable, envKey:CA_K8S_REPORT_URL")
+	if reportURL = os.Getenv(k8sReportUrlEnvironmentVariable); reportURL == "" {
+		return nil, fmt.Errorf("there is no report url environment variable, envKey:%s", k8sReportUrlEnvironmentVariable)
 	}
 
-	var cusGUID string
-	if cusGUID = os.Getenv("CA_CUSTOMER_GUID"); cusGUID == "" {
-		return nil, fmt.Errorf("there is no customer guid environment variable, envKey:CA_CUSTOMER_GUID")
+	var customerGUID string
+	if customerGUID = os.Getenv(customerGuidEnvironmentVariable); customerGUID == "" {
+		return nil, fmt.Errorf("there is no customer guid environment variable, envKey:%s", customerGuidEnvironmentVariable)
 	}
 
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
-		WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, cusGUID),
+		WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, customerGUID),
 		extensionsClient: extensionsClientSet,
 		K8sApi:           k8sinterface.NewKubernetesApi(),
 		pdm:              make(map[int]*list.List),
@@ -216,9 +214,11 @@ func (wh *WatchHandler) GetFirstReportFlag() bool {
 }
 
 func (wh *WatchHandler) HandleDataMismatch(resource string, resourceMap map[string]string) error {
-	if len(resourceMap) == 0 { // ignore if map is empty / nil
+	// ignore if map is empty / nil
+	if len(resourceMap) == 0 {
 		return nil
 	}
+
 	mismatch, err := wh.isDataMismatch(resource, resourceMap)
 	if err != nil || mismatch {
 		glog.Infof("mismatch found in resource: %s, exiting...", resource)

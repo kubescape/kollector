@@ -1,0 +1,80 @@
+{
+    "metadata": {
+        "name": "nginx-6799fc88d8-s6548",
+        "generateName": "nginx-6799fc88d8-",
+        "namespace": "default",
+        "uid": "9080f8b8-d79f-430e-9115-f3fe97920ed2",
+        "resourceVersion": "35582",
+        "creationTimestamp": "2022-05-15T11:40:42Z",
+        "labels": {
+            "app": "nginx",
+            "pod-template-hash": "6799fc88d8"
+        },
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "kind": "ReplicaSet",
+                "name": "nginx-6799fc88d8",
+                "uid": "4c7f11d1-321d-4363-9c6e-8842eb4d295f",
+                "controller": true,
+                "blockOwnerDeletion": true
+            }
+        ]
+    },
+    "spec": {
+        "volumes": [
+            {
+                "name": "default-token-hk8bb",
+                "secret": {
+                    "secretName": "default-token-hk8bb",
+                    "defaultMode": 420
+                }
+            }
+        ],
+        "containers": [
+            {
+                "name": "nginx",
+                "image": "nginx",
+                "resources": {},
+                "volumeMounts": [
+                    {
+                        "name": "default-token-hk8bb",
+                        "readOnly": true,
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+                    }
+                ],
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "imagePullPolicy": "Always"
+            }
+        ],
+        "restartPolicy": "Always",
+        "terminationGracePeriodSeconds": 30,
+        "dnsPolicy": "ClusterFirst",
+        "serviceAccountName": "default",
+        "serviceAccount": "default",
+        "securityContext": {},
+        "schedulerName": "default-scheduler",
+        "tolerations": [
+            {
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+            },
+            {
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+            }
+        ],
+        "priority": 0,
+        "enableServiceLinks": true,
+        "preemptionPolicy": "PreemptLowerPriority"
+    },
+    "status": {
+        "phase": "Pending",
+        "qosClass": "BestEffort"
+    }
+}

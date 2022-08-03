@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-// CronJobWatch watch over servises
+// CronJobWatch watch over services
 func (wh *WatchHandler) CronJobWatch() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -80,7 +80,6 @@ func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newSt
 				wh.pdm[id] = list.New()
 				nms := MicroServiceData{Pod: &v1.Pod{Spec: cronjob.Spec.JobTemplate.Spec.Template.Spec, TypeMeta: cronjob.TypeMeta, ObjectMeta: cronjob.ObjectMeta},
 					Owner: od, PodSpecId: id}
-				// wh.cjm[id].PushBack(nms)
 				wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, CREATED)
 				cronJobIDs[string(cronjob.GetUID())] = id
 				informNewDataArrive(wh)
