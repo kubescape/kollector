@@ -5,14 +5,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"k8s-armo-collector/watch"
-	"os"
-	"github.com/armosec/utils-k8s-go/armometadata"
 	"log"
+	"os"
+
+	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/armosec/utils-k8s-go/probes"
 	"github.com/golang/glog"
 )
 
-func LoadEnvironmentVaribles() error {
+func LoadEnvironmentVariables() error {
 	_, err := armometadata.LoadConfig("", true)
 	return err
 }
@@ -25,7 +26,7 @@ func main() {
 
 	if _, err := os.Stat("/etc/config/clusterData.json"); errors.Is(err, os.ErrNotExist) {
 		glog.Error("file /etc/config/clusterData.json is not exist, some features will not work(for example: scan new image)")
-	} else if err := LoadEnvironmentVaribles(); err != nil {
+	} else if err := LoadEnvironmentVariables(); err != nil {
 		glog.Error(err)
 	}
 	wh, err := watch.CreateWatchHandler()
@@ -77,8 +78,6 @@ func main() {
 }
 
 func displayBuildTag() {
-	// flag.Set("alsologtostderr", "1")
-
 	imageVersion := "local build"
 	dat, err := ioutil.ReadFile("./build_number.txt")
 	if err == nil {

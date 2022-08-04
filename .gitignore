@@ -1,5 +1,5 @@
-*.json
 *_tests_go.txt
 *_tests_xunit.xml
 main
 dist/*
+.vscode/

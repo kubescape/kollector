@@ -107,7 +107,6 @@ func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, 
 
 }
 
-//PrepareDataToSend -
 func PrepareDataToSend(wh *WatchHandler) []byte {
 	jsonReport := wh.jsonReport
 	if *wh.GetAggregateFirstDataFlag() {
@@ -157,7 +156,7 @@ func informNewDataArrive(wh *WatchHandler) {
 	}
 }
 
-func deleteObjecData(l *[]interface{}) {
+func deleteObjectData(l *[]interface{}) {
 	*l = []interface{}{}
 }
 
@@ -165,38 +164,38 @@ func deleteJsonData(wh *WatchHandler) {
 	jsonReport := &wh.jsonReport
 
 	if jsonReport.Nodes != nil {
-		deleteObjecData(&jsonReport.Nodes.Created)
-		deleteObjecData(&jsonReport.Nodes.Deleted)
-		deleteObjecData(&jsonReport.Nodes.Updated)
+		deleteObjectData(&jsonReport.Nodes.Created)
+		deleteObjectData(&jsonReport.Nodes.Deleted)
+		deleteObjectData(&jsonReport.Nodes.Updated)
 	}
 
 	if jsonReport.Pods != nil {
-		deleteObjecData(&jsonReport.Pods.Created)
-		deleteObjecData(&jsonReport.Pods.Deleted)
-		deleteObjecData(&jsonReport.Pods.Updated)
+		deleteObjectData(&jsonReport.Pods.Created)
+		deleteObjectData(&jsonReport.Pods.Deleted)
+		deleteObjectData(&jsonReport.Pods.Updated)
 	}
 
 	if jsonReport.Services != nil {
-		deleteObjecData(&jsonReport.Services.Created)
-		deleteObjecData(&jsonReport.Services.Deleted)
-		deleteObjecData(&jsonReport.Services.Updated)
+		deleteObjectData(&jsonReport.Services.Created)
+		deleteObjectData(&jsonReport.Services.Deleted)
+		deleteObjectData(&jsonReport.Services.Updated)
 	}
 
 	if jsonReport.MicroServices != nil {
-		deleteObjecData(&jsonReport.MicroServices.Created)
-		deleteObjecData(&jsonReport.MicroServices.Deleted)
-		deleteObjecData(&jsonReport.MicroServices.Updated)
+		deleteObjectData(&jsonReport.MicroServices.Created)
+		deleteObjectData(&jsonReport.MicroServices.Deleted)
+		deleteObjectData(&jsonReport.MicroServices.Updated)
 	}
 
 	if jsonReport.Secret != nil {
-		deleteObjecData(&jsonReport.Secret.Created)
-		deleteObjecData(&jsonReport.Secret.Deleted)
-		deleteObjecData(&jsonReport.Secret.Updated)
+		deleteObjectData(&jsonReport.Secret.Created)
+		deleteObjectData(&jsonReport.Secret.Deleted)
+		deleteObjectData(&jsonReport.Secret.Updated)
 	}
 
 	if jsonReport.Namespace != nil {
-		deleteObjecData(&jsonReport.Namespace.Created)
-		deleteObjecData(&jsonReport.Namespace.Deleted)
-		deleteObjecData(&jsonReport.Namespace.Updated)
+		deleteObjectData(&jsonReport.Namespace.Created)
+		deleteObjectData(&jsonReport.Namespace.Deleted)
+		deleteObjectData(&jsonReport.Namespace.Updated)
 	}
 }

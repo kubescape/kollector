@@ -3,24 +3,20 @@ package watch
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestIdsManagment1(test *testing.T) {
+func TestCreateID(t *testing.T) {
 	s0 := CreateID()
 	fmt.Printf("%d\n", s0)
 	s1 := CreateID()
 	fmt.Printf("%d\n", s1)
-	if s1 == s0 {
-		test.Errorf("ids equal s0 s1")
-	}
+
+	assert.NotEqual(t, s1, s0, "ids equal")
 
 	s2 := CreateID()
 	fmt.Printf("%d\n", s2)
-	if s1 == s2 {
-		test.Errorf("ids equal s2 s1")
-	}
-	if s2 == s0 {
-		test.Errorf("ids equal s0 s2")
-	}
-
+	assert.NotEqual(t, s1, s2, "ids equal")
+	assert.NotEqual(t, s2, s0, "ids equal")
 }

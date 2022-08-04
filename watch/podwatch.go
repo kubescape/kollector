@@ -62,18 +62,7 @@ type ScanNewImageData struct {
 var collectorCreationTime time.Time
 var scanNotificationCandidateList []*ScanNewImageData
 
-func NewPodDataForExistMicroService(pod *core.Pod, ownerDetNameAndKindOnly OwnerDetNameAndKindOnly, numberOfRunnigPods int, podStatus string) PodDataForExistMicroService {
-	return PodDataForExistMicroService{
-		PodName:   pod.ObjectMeta.Name,
-		NodeName:  pod.Spec.NodeName,
-		PodIP:     pod.Status.PodIP,
-		Namespace: pod.ObjectMeta.Namespace,
-		Owner:     ownerDetNameAndKindOnly,
-		PodStatus: podStatus,
-	}
-}
-
-func isPodAlreadexistInScanCandidateList(od *OwnerDet, pod *core.Pod) (bool, int) {
+func isPodAlreadyExistInScanCandidateList(od *OwnerDet, pod *core.Pod) (bool, int) {
 	for i, data := range scanNotificationCandidateList {
 		if pod.GetNamespace() == data.Pod.GetNamespace() && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
 			glog.Infof("addPodScanNotificationCandidateList: pod %s already exist", pod.Name)
@@ -84,7 +73,7 @@ func isPodAlreadexistInScanCandidateList(od *OwnerDet, pod *core.Pod) (bool, int
 }
 
 func addPodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
-	if exist, index := isPodAlreadexistInScanCandidateList(od, pod); !exist {
+	if exist, index := isPodAlreadyExistInScanCandidateList(od, pod); !exist {
 		glog.Infof("addPodScanNotificationCandidateList: pod %s is added to scan list candidate", pod.Name)
 		nms := &ScanNewImageData{Pod: pod, Owner: od, PodsNumber: 1}
 		scanNotificationCandidateList = append(scanNotificationCandidateList, nms)
@@ -149,7 +138,7 @@ func checkNotificationCandidateList(pod *core.Pod, od *OwnerDet, podStatus strin
 	return false
 }
 
-// PodWatch - Stay updated starts infinite loop which will observe changes in pods so we can know if they changed and acts accordinally
+// PodWatch - an infinite loop which will observe changes in pods and acts accordingly
 func (wh *WatchHandler) PodWatch() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -223,7 +212,8 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			first := true
 			id, runningPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[armometadata.CAAttachLabel], pod.Labels[armometadata.ArmoAttach], wh.pdm)
 			if runningPodNum <= 1 {
-				/*when new pod microservice(new pod that is running first in the cluster) arrived we want to scan it's vulnerbilities so we will use the trigger mechanizm for do it*/
+				// when a new pod microservice (a new pod that is running first in the cluster) is found
+				// we want to scan its vulnerabilities so we will use the trigger mechanism to do it
 				wh.pdm[id] = list.New()
 				nms := MicroServiceData{Pod: pod, Owner: od, PodSpecId: id}
 				wh.pdm[id].PushBack(nms)
@@ -247,7 +237,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				*lastWatchEventCreationTime = time.Now()
 				break
 			}
-			// glog.Infof("reporting added. name: %s, status: %s", podName, podStatus)
+
 			newPod := PodDataForExistMicroService{
 				PodName:   podName,
 				NodeName:  pod.Spec.NodeName,
@@ -412,7 +402,6 @@ func extractPodSpecFromOwner(ownerData interface{}) interface{} {
 	return ownerData
 }
 
-// IsPodSpecAlreadyExist -
 func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus, newArmoAttached string, pdm map[int]*list.List) (int, int) {
 	newSpec := extractPodSpecFromOwner(podOwner.OwnerData)
 	for _, v := range pdm {
@@ -430,32 +419,6 @@ func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus, newArmoAtt
 		}
 	}
 	return CreateID(), 0
-}
-
-// METHOD NOT IN USE
-// NumberOfRunningPods count number of running pods
-func NumberOfRunningPods(pod *core.Pod, pdm map[int]*list.List) int {
-	counter := 0
-	for _, v := range pdm {
-		if v == nil || v.Len() == 0 {
-			continue
-		}
-		p := v.Front().Value.(MicroServiceData)
-		//test owner references(if those exists)
-		if p.ObjectMeta.UID == pod.ObjectMeta.UID || (p.ObjectMeta.Namespace == pod.ObjectMeta.Namespace &&
-			(reflect.DeepEqual(p.OwnerReferences, pod.OwnerReferences))) {
-			element := v.Front()
-			for element != nil {
-				if _, k := element.Value.(PodDataForExistMicroService); k {
-					counter++
-				}
-				element = element.Next()
-			}
-			return counter
-		}
-	}
-
-	return counter
 }
 
 // GetOwnerData - get the data of pod owner
@@ -569,7 +532,6 @@ func GetAncestorFromLocalPodsList(pod *core.Pod, wh *WatchHandler) (*OwnerDet, e
 	return nil, fmt.Errorf("error getting owner reference")
 }
 
-// GetAncestorOfPod -
 func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 	od := OwnerDet{}
 
@@ -789,7 +751,6 @@ func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, b
 				continue
 			}
 			if podData.PodName == pod.ObjectMeta.Name {
-				//log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
 				owner = v.Front().Value.(MicroServiceData).Owner
 				v.Remove(element)
 				podSpecID = id
@@ -800,12 +761,9 @@ func (wh *WatchHandler) RemovePod(pod *core.Pod, pdm map[int]*list.List) (int, b
 						v.Remove(v.Front())
 						delete(pdm, id)
 					}
-					// return podSpecID, removed, owner
 				}
-				// remove before testing len?
 			}
 			if element.Value.(PodDataForExistMicroService).PodName == pod.ObjectMeta.GenerateName {
-				// log.Printf("microservice %s removed\n", element.Value.(PodDataForExistMicroService).PodName)
 				owner = v.Front().Value.(MicroServiceData).Owner
 				v.Remove(element)
 				if v.Len() <= 1 {

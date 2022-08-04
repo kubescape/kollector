@@ -20,14 +20,14 @@ func createNotificationPostJson(namespace string, k8sType string, name string) (
 	glog.Info("creating new in cluster trigger notification")
 
 	cmds := apis.Commands{}
-	clusterName := os.Getenv("CA_CLUSTER_NAME")
+	clusterName := os.Getenv(clusterNameEnvironmentVariable)
 	wlid := "wlid://cluster-" + clusterName + "/namespace-" + namespace + "/" + k8sType + "-" + name
 	cmds.Commands = append(cmds.Commands, apis.Command{CommandName: apis.SCAN, Wlid: wlid})
 
 	notification := notificationserver.Notification{
 		Target: map[string]string{
-			notificationserver.TargetCluster:   os.Getenv("CA_CLUSTER_NAME"),
-			notificationserver.TargetCustomer:  os.Getenv("CA_CUSTOMER_GUID"),
+			notificationserver.TargetCluster:   os.Getenv(clusterNameEnvironmentVariable),
+			notificationserver.TargetCustomer:  os.Getenv(customerGuidEnvironmentVariable),
 			notificationserver.TargetComponent: notificationserver.TargetComponentTriggerHandler,
 			"dest":                             "trigger",
 		},
@@ -44,19 +44,19 @@ func createNotificationPostJson(namespace string, k8sType string, name string) (
 
 func executeTriggeredNotification(body *bytes.Buffer) error {
 
-	url, exist := os.LookupEnv("CA_NOTIFICATION_SERVER_REST")
+	url, exist := os.LookupEnv(notificationServerRestEnvironmentVariable)
 	if !exist {
-		glog.Warning("CA_NOTIFICATION_SERVER_REST env var is missing, vuln scan on new pod will not work")
+		glog.Warningf("%s env var is missing, vulnerability scan on new pod will not work", notificationServerRestEnvironmentVariable)
 	}
 	inClusterTriggerURL = "http://" + url + notificationserver.PathRESTV1
 
 	glog.Info("post in cluster trigger notification")
-	req, err := http.NewRequest("POST", inClusterTriggerURL, body)
+	req, err := http.NewRequest(http.MethodPost, inClusterTriggerURL, body)
 	if err != nil {
 		return err
 	}
 
-	glog.Infof("send post to %s the json %v", inClusterTriggerURL, string(body.Bytes()))
+	glog.Infof("send post to %s the json %v", inClusterTriggerURL, body.String())
 	resp, err := defaultClientInClusterTrigger.Do(req)
 	if err != nil {
 		return err
@@ -68,7 +68,7 @@ func executeTriggeredNotification(body *bytes.Buffer) error {
 }
 
 func NotifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error {
-	trigger := os.Getenv("ACTIVATE_CVE_SCAN_ON_NEW_IMAGE_FEATURE")
+	trigger := os.Getenv(activateScanOnNewImageFeatureEnvironmentVariable)
 	if trigger != "enable" && !boolutils.StringToBool(trigger) {
 		return nil
 	}

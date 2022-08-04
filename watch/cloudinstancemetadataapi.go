@@ -11,8 +11,18 @@ var (
 	httpClient = http.Client{Timeout: 5 * time.Second}
 )
 
-func getAWSInstanceMetatadata() (string, error) {
-	resp, err := httpClient.Get("http://169.254.169.254/latest/meta-data/local-hostname")
+const (
+	awsInstanceMetadataUrl   = "http://169.254.169.254/latest/meta-data/local-hostname"
+	gcpInstanceMetadataUrl   = "http://169.254.169.254/computeMetadata/v1/?alt=json&recursive=true"
+	azureInstanceMetadataUrl = "http://169.254.169.254/metadata/instance?api-version=2020-09-01"
+
+	awsVendorName   = "AWS"
+	gcpVendorName   = "GCP"
+	azureVendorName = "Azure"
+)
+
+func getAWSInstanceMetadata() (string, error) {
+	resp, err := httpClient.Get(awsInstanceMetadataUrl)
 	if err != nil {
 		return "", err
 	}
@@ -23,11 +33,11 @@ func getAWSInstanceMetatadata() (string, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("http error: %s", resp.Status)
 	}
-	return "AWS", nil
+	return awsVendorName, nil
 }
 
-func getGCPInstanceMetatadata() (string, error) {
-	req, err := http.NewRequest("GET", "http://169.254.169.254/computeMetadata/v1/?alt=json&recursive=true", nil)
+func getGCPInstanceMetadata() (string, error) {
+	req, err := http.NewRequest(http.MethodGet, gcpInstanceMetadataUrl, nil)
 	if err != nil {
 		return "", err
 	}
@@ -43,11 +53,11 @@ func getGCPInstanceMetatadata() (string, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("http error: %s", resp.Status)
 	}
-	return "GCP", nil
+	return gcpVendorName, nil
 }
 
-func getAzureInstanceMetatadata() (string, error) {
-	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/instance?api-version=2020-09-01", nil)
+func getAzureInstanceMetadata() (string, error) {
+	req, err := http.NewRequest(http.MethodGet, azureInstanceMetadataUrl, nil)
 	if err != nil {
 		return "", err
 	}
@@ -63,17 +73,17 @@ func getAzureInstanceMetatadata() (string, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "", fmt.Errorf("http error: %s", resp.Status)
 	}
-	return "Azure", nil
+	return azureVendorName, nil
 }
 
 func getInstanceMetadata() (string, error) {
-	if resp, err := getAzureInstanceMetatadata(); err == nil {
+	if resp, err := getAzureInstanceMetadata(); err == nil {
 		return resp, nil
 	}
-	if resp, err := getGCPInstanceMetatadata(); err == nil {
+	if resp, err := getGCPInstanceMetadata(); err == nil {
 		return resp, nil
 	}
-	if resp, err := getAWSInstanceMetatadata(); err == nil {
+	if resp, err := getAWSInstanceMetadata(); err == nil {
 		return resp, nil
 	}
 	return "", nil

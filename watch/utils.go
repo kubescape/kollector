@@ -6,12 +6,12 @@ import (
 	"github.com/golang/glog"
 )
 
-// InterfaceToString conver interface to string
+// InterfaceToString convert interface to string
 func InterfaceToString(inter interface{}) string {
-	bytObj, err := json.Marshal(inter)
+	byteObj, err := json.Marshal(inter)
 	if err != nil {
 		glog.Errorf("InterfaceToString, error: %s", err.Error())
-		bytObj = []byte{}
+		byteObj = []byte{}
 	}
-	return string(bytObj)
+	return string(byteObj)
 }
