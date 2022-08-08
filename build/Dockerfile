@@ -21,6 +21,6 @@ USER ks
 WORKDIR /home/ks/
 
 COPY --from=builder /work/build/collector /usr/bin/collector
-COPY ./docker-entrypoint.sh /home/ks/
+COPY ./collector-entrypoint.sh /home/ks/
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["./collector-entrypoint.sh"]
