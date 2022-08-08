@@ -62,6 +62,28 @@ type ScanNewImageData struct {
 var collectorCreationTime time.Time
 var scanNotificationCandidateList []*ScanNewImageData
 
+// PodWatch - an infinite loop which will observe changes in pods and acts accordingly
+func (wh *WatchHandler) PodWatch() {
+	defer func() {
+		if err := recover(); err != nil {
+			glog.Errorf("RECOVER ListenerAndSender. %v, stack: %s", err, debug.Stack())
+		}
+	}()
+	var lastWatchEventCreationTime time.Time
+	collectorCreationTime = time.Now()
+	newStateChan := make(chan bool)
+	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
+	for {
+		glog.Infof("Watching over pods starting")
+		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
+		if err != nil {
+			glog.Errorf("Watch error: %s", err.Error())
+			time.Sleep(3 * time.Second)
+			continue
+		}
+		wh.handlePodWatch(podsWatcher, newStateChan, &lastWatchEventCreationTime)
+	}
+}
 func isPodAlreadyExistInScanCandidateList(od *OwnerDet, pod *core.Pod) (bool, int) {
 	for i, data := range scanNotificationCandidateList {
 		if pod.GetNamespace() == data.Pod.GetNamespace() && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
@@ -138,29 +160,6 @@ func checkNotificationCandidateList(pod *core.Pod, od *OwnerDet, podStatus strin
 	return false
 }
 
-// PodWatch - an infinite loop which will observe changes in pods and acts accordingly
-func (wh *WatchHandler) PodWatch() {
-	defer func() {
-		if err := recover(); err != nil {
-			glog.Errorf("RECOVER ListenerAndSender. %v, stack: %s", err, debug.Stack())
-		}
-	}()
-	var lastWatchEventCreationTime time.Time
-	collectorCreationTime = time.Now()
-	newStateChan := make(chan bool)
-	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
-	for {
-		glog.Infof("Watching over pods starting")
-		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
-		if err != nil {
-			glog.Errorf("Watch error: %s", err.Error())
-			time.Sleep(3 * time.Second)
-			continue
-		}
-		wh.handlePodWatch(podsWatcher, newStateChan, &lastWatchEventCreationTime)
-	}
-}
-
 func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
 	for {
 		var event watch.Event
@@ -188,6 +187,9 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		pod, ok := event.Object.(*core.Pod)
 		if !ok {
 			glog.Errorf("Watch error: cannot convert to core.Pod: %v", event)
+			continue
+		}
+		if !wh.isNamespaceWatched(pod.Namespace) {
 			continue
 		}
 		pod.ManagedFields = []metav1.ManagedFieldsEntry{}
@@ -260,7 +262,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			}
 		case watch.Modified:
 			if checkNotificationCandidateList(pod, &od, podStatus) {
-				NotifyNewMicroServiceCreatedInTheCluster(pod.Namespace, od.Kind, od.Name)
+				notifyNewMicroServiceCreatedInTheCluster(pod.Namespace, od.Kind, od.Name)
 			}
 			if !wh.isNamespaceWatched(pod.Namespace) {
 				continue
@@ -269,7 +271,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				*lastWatchEventCreationTime = time.Now()
 				break
 			}
-			podSpecID, newPodData := wh.UpdatePod(pod, wh.pdm, podStatus)
+			podSpecID, newPodData := wh.updatePod(pod, wh.pdm, podStatus)
 			if podSpecID > -2 {
 				glog.Infof("Modified. name: %s, status: %s, uid: %s", podName, podStatus, pod.GetUID())
 				if strings.Contains(strings.ToLower(podStatus), "crashloop") {
@@ -632,7 +634,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 	return od, nil
 }
 
-func (wh *WatchHandler) UpdatePod(pod *core.Pod, pdm map[int]*list.List, podStatus string) (int, PodDataForExistMicroService) {
+func (wh *WatchHandler) updatePod(pod *core.Pod, pdm map[int]*list.List, podStatus string) (int, PodDataForExistMicroService) {
 	id := -2
 	podDataForExistMicroService := PodDataForExistMicroService{}
 	for _, v := range pdm {

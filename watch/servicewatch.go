@@ -12,49 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-type ServiceData struct {
+type serviceData struct {
 	Service *core.Service `json:",inline"`
-}
-
-func UpdateService(service *core.Service, sdm map[int]*list.List) string {
-	for _, v := range sdm {
-		if v == nil || v.Len() == 0 {
-			continue
-		}
-		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
-			*v.Front().Value.(ServiceData).Service = *service
-			glog.Infof("service %s updated", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
-			return v.Front().Value.(ServiceData).Service.ObjectMeta.Name
-		}
-		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
-			*v.Front().Value.(ServiceData).Service = *service
-			glog.Infof("service %s updated", v.Front().Value.(ServiceData).Service.ObjectMeta.Name)
-			return v.Front().Value.(ServiceData).Service.ObjectMeta.Name
-		}
-	}
-	return ""
-}
-
-// RemoveService update websocket when service is removed
-func RemoveService(service *core.Service, sdm map[int]*list.List) string {
-	for _, v := range sdm {
-		if v == nil || v.Len() == 0 {
-			continue
-		}
-		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
-			name := v.Front().Value.(ServiceData).Service.ObjectMeta.Name
-			v.Remove(v.Front())
-			glog.Infof("service %s removed", name)
-			return name
-		}
-		if strings.Compare(v.Front().Value.(ServiceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
-			gName := v.Front().Value.(ServiceData).Service.ObjectMeta.Name
-			v.Remove(v.Front())
-			glog.Infof("service %s removed", gName)
-			return gName
-		}
-	}
-	return ""
 }
 
 // ServiceWatch watch over services
@@ -80,6 +39,46 @@ func (wh *WatchHandler) ServiceWatch() {
 
 		glog.Infof("Watching over services ended - since we got timeout")
 	}
+}
+func updateService(service *core.Service, sdm map[int]*list.List) string {
+	for _, v := range sdm {
+		if v == nil || v.Len() == 0 {
+			continue
+		}
+		if strings.Compare(v.Front().Value.(serviceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
+			*v.Front().Value.(serviceData).Service = *service
+			glog.Infof("service %s updated", v.Front().Value.(serviceData).Service.ObjectMeta.Name)
+			return v.Front().Value.(serviceData).Service.ObjectMeta.Name
+		}
+		if strings.Compare(v.Front().Value.(serviceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
+			*v.Front().Value.(serviceData).Service = *service
+			glog.Infof("service %s updated", v.Front().Value.(serviceData).Service.ObjectMeta.Name)
+			return v.Front().Value.(serviceData).Service.ObjectMeta.Name
+		}
+	}
+	return ""
+}
+
+// RemoveService update websocket when service is removed
+func removeService(service *core.Service, sdm map[int]*list.List) string {
+	for _, v := range sdm {
+		if v == nil || v.Len() == 0 {
+			continue
+		}
+		if strings.Compare(v.Front().Value.(serviceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
+			name := v.Front().Value.(serviceData).Service.ObjectMeta.Name
+			v.Remove(v.Front())
+			glog.Infof("service %s removed", name)
+			return name
+		}
+		if strings.Compare(v.Front().Value.(serviceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
+			gName := v.Front().Value.(serviceData).Service.ObjectMeta.Name
+			v.Remove(v.Front())
+			glog.Infof("service %s removed", gName)
+			return gName
+		}
+	}
+	return ""
 }
 
 func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
@@ -115,16 +114,16 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 				if wh.sdm[id] == nil {
 					wh.sdm[id] = list.New()
 				}
-				sd := ServiceData{Service: service}
+				sd := serviceData{Service: service}
 				wh.sdm[id].PushBack(sd)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(service, SERVICES, CREATED)
 			case "MODIFY":
-				UpdateService(service, wh.sdm)
+				updateService(service, wh.sdm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(service, SERVICES, UPDATED)
 			case "DELETED":
-				RemoveService(service, wh.sdm)
+				removeService(service, wh.sdm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(service, SERVICES, DELETED)
 			case "BOOKMARK": //only the resource version is changed but it's the same workload

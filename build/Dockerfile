@@ -16,11 +16,11 @@ RUN go build -o build/collector
 
 FROM alpine
 
-RUN addgroup -S armo && adduser -S armo -G armo
-USER armo
-WORKDIR /home/armo/
+RUN addgroup -S ks && adduser -S ks -G ks
+USER ks
+WORKDIR /home/ks/
 
 COPY --from=builder /work/build/collector /usr/bin/collector
-COPY ./docker-entrypoint.sh /home/armo/
+COPY ./docker-entrypoint.sh /home/ks/
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

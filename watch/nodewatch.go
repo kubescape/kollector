@@ -70,11 +70,6 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 	return nodeName
 }
 
-func (wh *WatchHandler) CheckInstanceMetadataAPIVendor() string {
-	res, _ := getInstanceMetadata()
-	return res
-}
-
 // NodeWatch Watching over nodes
 func (wh *WatchHandler) NodeWatch() {
 	defer func() {
@@ -86,35 +81,25 @@ func (wh *WatchHandler) NodeWatch() {
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
-		glog.Infof("Taking k8s API version")
-		serverVersion, err := wh.RestAPIClient.Discovery().ServerVersion()
-		if err != nil {
-			glog.Errorf("Failed to get API server version, %v", err)
-			serverVersion = &version.Info{GitVersion: "Unknown"}
-		} else {
-			glog.Infof("K8s API version :%v", serverVersion)
-		}
-		wh.clusterAPIServerVersion = serverVersion
-		wh.cloudVendor = wh.CheckInstanceMetadataAPIVendor()
+		wh.clusterAPIServerVersion = wh.getClusterVersion()
+		wh.cloudVendor = wh.checkInstanceMetadataAPIVendor()
 		if wh.cloudVendor != "" {
 			wh.clusterAPIServerVersion.GitVersion += ";" + wh.cloudVendor
 		}
 		glog.Infof("K8s Cloud Vendor : %s", wh.cloudVendor)
+
 		glog.Infof("Watching over nodes starting")
 		nodesWatcher, err := wh.RestAPIClient.CoreV1().Nodes().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			glog.Errorf("Cannot watch over nodes. %v", err)
+			glog.Errorf("cannot watch over nodes. %v", err)
 			time.Sleep(3 * time.Second)
 			continue
 		}
 		wh.handleNodeWatch(nodesWatcher, newStateChan, &lastWatchEventCreationTime)
 
-		glog.Infof("Watching over nodes ended - since we got timeout")
 	}
 }
-
 func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
-	glog.Info("Watching over nodes started")
 	nodesChan := nodesWatcher.ResultChan()
 	for {
 		var event watch.Event
@@ -170,4 +155,19 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 			return
 		}
 	}
+}
+
+func (wh *WatchHandler) checkInstanceMetadataAPIVendor() string {
+	res, _ := getInstanceMetadata()
+	return res
+}
+
+func (wh *WatchHandler) getClusterVersion() *version.Info {
+	glog.Infof("Taking k8s API version")
+	serverVersion, err := wh.RestAPIClient.Discovery().ServerVersion()
+	if err != nil {
+		serverVersion = &version.Info{GitVersion: "Unknown"}
+	}
+	glog.Infof("K8s API version: %v", serverVersion)
+	return serverVersion
 }

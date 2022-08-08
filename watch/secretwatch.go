@@ -12,8 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-// SecretData -
-type SecretData struct {
+// secretData -
+type secretData struct {
 	Secret *corev1.Secret `json:",inline"`
 }
 
@@ -54,7 +54,7 @@ WatchLoop:
 				secretsWatcher.Stop()
 				break ChanLoop
 			}
-			if err := wh.SecretEventHandler(&event, lastWatchEventCreationTime); err != nil {
+			if err := wh.secretEventHandler(&event, lastWatchEventCreationTime); err != nil {
 				break ChanLoop
 			}
 		}
@@ -62,7 +62,7 @@ WatchLoop:
 		glog.Infof("Watching over secrets ended - timeout")
 	}
 }
-func (wh *WatchHandler) SecretEventHandler(event *watch.Event, lastWatchEventCreationTime time.Time) error {
+func (wh *WatchHandler) secretEventHandler(event *watch.Event, lastWatchEventCreationTime time.Time) error {
 	if secret, ok := event.Object.(*corev1.Secret); ok {
 		if !wh.isNamespaceWatched(secret.Namespace) {
 			return nil
@@ -75,18 +75,18 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event, lastWatchEventCre
 				glog.Infof("secret %s already exist, will not be reported", secret.ObjectMeta.Name)
 				return nil
 			}
-			secretdm := SecretData{Secret: secret}
+			secretdm := secretData{Secret: secret}
 			id := CreateID()
 			wh.secretdm.Init(id)
 			wh.secretdm.PushBack(id, secretdm)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, CREATED)
 		case "MODIFY":
-			wh.UpdateSecret(secret)
+			wh.updateSecret(secret)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, UPDATED)
 		case "DELETED":
-			wh.RemoveSecret(secret)
+			wh.removeSecret(secret)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, DELETED)
 		case "BOOKMARK": //only the resource version is changed but it's the same workload
@@ -102,13 +102,13 @@ func (wh *WatchHandler) SecretEventHandler(event *watch.Event, lastWatchEventCre
 }
 
 // UpdateSecret update websocket when secret is updated
-func (wh *WatchHandler) UpdateSecret(secret *corev1.Secret) {
+func (wh *WatchHandler) updateSecret(secret *corev1.Secret) {
 	for _, id := range wh.secretdm.GetIDs() {
 		front := wh.secretdm.Front(id)
 		if front == nil || front.Value == nil {
 			continue
 		}
-		secretData, ok := front.Value.(SecretData)
+		secretData, ok := front.Value.(secretData)
 		if !ok || secretData.Secret == nil {
 			continue
 		}
@@ -129,13 +129,13 @@ func (wh *WatchHandler) UpdateSecret(secret *corev1.Secret) {
 }
 
 // RemoveSecret update websocket when secret is removed
-func (wh *WatchHandler) RemoveSecret(secret *corev1.Secret) string {
+func (wh *WatchHandler) removeSecret(secret *corev1.Secret) string {
 	for _, id := range wh.secretdm.GetIDs() {
 		front := wh.secretdm.Front(id)
 		if front == nil || front.Value == nil {
 			continue
 		}
-		secretData, ok := front.Value.(SecretData)
+		secretData, ok := front.Value.(secretData)
 		if !ok || secretData.Secret == nil {
 			continue
 		}

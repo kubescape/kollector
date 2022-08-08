@@ -22,14 +22,14 @@ func createNotificationPostJson(namespace string, k8sType string, name string) (
 	cmds := apis.Commands{}
 	clusterName := os.Getenv(clusterNameEnvironmentVariable)
 	wlid := "wlid://cluster-" + clusterName + "/namespace-" + namespace + "/" + k8sType + "-" + name
-	cmds.Commands = append(cmds.Commands, apis.Command{CommandName: apis.SCAN, Wlid: wlid})
+	cmds.Commands = append(cmds.Commands, apis.Command{CommandName: apis.TypeScanImages, Wlid: wlid})
 
 	notification := notificationserver.Notification{
 		Target: map[string]string{
 			notificationserver.TargetCluster:   os.Getenv(clusterNameEnvironmentVariable),
 			notificationserver.TargetCustomer:  os.Getenv(customerGuidEnvironmentVariable),
 			notificationserver.TargetComponent: notificationserver.TargetComponentTriggerHandler,
-			"dest":                             "trigger",
+			"dest":                             "trigger", // TODO: use const!
 		},
 		Notification: cmds,
 	}
@@ -47,10 +47,10 @@ func executeTriggeredNotification(body *bytes.Buffer) error {
 	url, exist := os.LookupEnv(notificationServerRestEnvironmentVariable)
 	if !exist {
 		glog.Warningf("%s env var is missing, vulnerability scan on new pod will not work", notificationServerRestEnvironmentVariable)
+		return nil
 	}
 	inClusterTriggerURL = "http://" + url + notificationserver.PathRESTV1
 
-	glog.Info("post in cluster trigger notification")
 	req, err := http.NewRequest(http.MethodPost, inClusterTriggerURL, body)
 	if err != nil {
 		return err
@@ -63,13 +63,12 @@ func executeTriggeredNotification(body *bytes.Buffer) error {
 	}
 	defer resp.Body.Close()
 
-	glog.Info("post in cluster trigger notification successfully")
 	return nil
 }
 
-func NotifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error {
+func notifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error {
 	trigger := os.Getenv(activateScanOnNewImageFeatureEnvironmentVariable)
-	if trigger != "enable" && !boolutils.StringToBool(trigger) {
+	if !boolutils.StringToBool(trigger) {
 		return nil
 	}
 

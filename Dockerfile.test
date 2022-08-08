@@ -1,6 +1,0 @@
-FROM quay.io/armosec/k8s-armo-collector-ubi:latest
-RUN echo $(date -u) > /build_number.txt
-
-COPY ./k8s-armo-collector . 
-
-ENTRYPOINT ["./k8s-armo-collector"]

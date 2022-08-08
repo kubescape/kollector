@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/armosec/k8s-interface/k8sinterface"
@@ -114,7 +113,9 @@ type WatchHandler struct {
 	aggregateFirstDataFlag bool
 	// newStateReportChans is calling in a loop whenever new connection to BE is initialized
 	newStateReportChans []chan bool
-	IncludeNamespaces   []string
+	includeNamespaces   []string
+
+	config *armometadata.ClusterConfig
 }
 
 // GetAggregateFirstDataFlag return pointer
@@ -125,30 +126,24 @@ func (wh *WatchHandler) GetAggregateFirstDataFlag() *bool {
 func CreateWatchHandler() (*WatchHandler, error) {
 
 	confFilePath := os.Getenv(configEnvironmentVariable)
-	if _, err := armometadata.LoadConfig(confFilePath, true); err != nil {
-		glog.Warning(err.Error())
+	config, err := armometadata.LoadConfig(confFilePath, true)
+	if err != nil {
+		return nil, fmt.Errorf("missing config file: %s", err)
+	}
+	componentNamespace := os.Getenv(namespaceEnvironmentVariable)
+
+	if err := parseArgument(); err != nil {
+		return nil, fmt.Errorf("failed to parse args: %s", err.Error())
 	}
 
-	namespacesStr := flag.String("include-namespaces", "", "comma separated namespaces list to watch on. Empty list or omit to watch them all")
-	err := parseArgument()
 	// create the clientset
 	k8sAPiObj := k8sinterface.NewKubernetesApi()
 
-	if err != nil {
-		return nil, fmt.Errorf("k8sinterface.NewKubernetesApi failed: %s", err.Error())
-	}
 	restclient.SetDefaultWarningHandler(restclient.NoWarnings{})
-
 	extensionsClientSet, err := apixv1beta1client.NewForConfig(k8sinterface.GetK8sConfig())
 	if err != nil {
 		return nil, fmt.Errorf("apiV1beta1client.NewForConfig failed: %s", err.Error())
 	}
-
-	var clusterName string
-	if clusterName = os.Getenv(clusterNameEnvironmentVariable); clusterName == "" {
-		return nil, fmt.Errorf("there is no cluster name environment variable, envKey:%s", clusterNameEnvironmentVariable)
-	}
-
 	var reportURL string
 	if reportURL = os.Getenv(k8sReportUrlEnvironmentVariable); reportURL == "" {
 		return nil, fmt.Errorf("there is no report url environment variable, envKey:%s", k8sReportUrlEnvironmentVariable)
@@ -159,14 +154,19 @@ func CreateWatchHandler() (*WatchHandler, error) {
 		return nil, fmt.Errorf("there is no customer guid environment variable, envKey:%s", customerGuidEnvironmentVariable)
 	}
 
+	var clusterName string
+	if clusterName = os.Getenv(clusterNameEnvironmentVariable); clusterName == "" {
+		return nil, fmt.Errorf("there is no cluster name environment variable, envKey:%s", clusterNameEnvironmentVariable)
+	}
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
-		WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, customerGUID),
+		// WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, customerGUID), // TODO: move from here
 		extensionsClient: extensionsClientSet,
 		K8sApi:           k8sinterface.NewKubernetesApi(),
 		pdm:              make(map[int]*list.List),
 		ndm:              make(map[int]*list.List),
 		sdm:              make(map[int]*list.List),
 		cjm:              make(map[int]*list.List),
+		config:           config,
 		secretdm:         NewResourceMap(),
 		namespacedm:      NewResourceMap(),
 		jsonReport: jsonFormat{
@@ -174,7 +174,7 @@ func CreateWatchHandler() (*WatchHandler, error) {
 		},
 		informNewDataChannel:   make(chan int),
 		aggregateFirstDataFlag: true,
-		IncludeNamespaces:      strings.Split(*namespacesStr, ","),
+		includeNamespaces:      []string{componentNamespace},
 	}
 	return &result, nil
 }
@@ -271,13 +271,10 @@ func GetResourceVersion(workload k8sinterface.IWorkload) string {
 }
 
 func (wh *WatchHandler) isNamespaceWatched(namespace string) bool {
-	for nsIdx := range wh.IncludeNamespaces {
-		if wh.IncludeNamespaces[nsIdx] == "" || wh.IncludeNamespaces[nsIdx] == namespace {
+	for nsIdx := range wh.includeNamespaces {
+		if wh.includeNamespaces[nsIdx] == "" || wh.includeNamespaces[nsIdx] == namespace {
 			return true
 		}
 	}
-
-	glog.Infof("Namespace '%s' isn't tracked", namespace)
 	return false
-
 }

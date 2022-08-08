@@ -1,13 +1,11 @@
 package watch
 
 import (
-	"crypto/tls"
 	"fmt"
 	"math/rand"
 	"net/url"
 	"os"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,11 +14,6 @@ import (
 )
 
 type ReqType int
-
-const (
-	customerGuidQueryParamKey = "customerGUID"
-	clusterNameQueryParamKey  = "clusterName"
-)
 
 const (
 	PING    ReqType = 0
@@ -34,22 +27,10 @@ type DataSocket struct {
 }
 
 type WebSocketHandler struct {
-	data             chan DataSocket
-	u                url.URL
-	mutex            *sync.Mutex
-	SignalChan       chan os.Signal
-	keepAliveCounter int
-}
-
-func createWebSocketHandler(urlWS, path, clusterName, customerGUID string) *WebSocketHandler {
-	scheme := strings.Split(urlWS, "://")[0]
-	host := strings.Split(urlWS, "://")[1]
-	wsh := WebSocketHandler{data: make(chan DataSocket), keepAliveCounter: 0, u: url.URL{Scheme: scheme, Host: host, Path: path, ForceQuery: true}, mutex: &sync.Mutex{}, SignalChan: make(chan os.Signal)}
-	q := wsh.u.Query()
-	q.Add(customerGuidQueryParamKey, customerGUID)
-	q.Add(clusterNameQueryParamKey, clusterName)
-	wsh.u.RawQuery = q.Encode()
-	return &wsh
+	data       chan DataSocket
+	u          url.URL
+	mutex      *sync.Mutex
+	SignalChan chan os.Signal
 }
 
 func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Duration) (*websocket.Conn, error) {
@@ -57,9 +38,6 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 	var err error
 	var conn *websocket.Conn
 
-	if v, ok := os.LookupEnv(skipVerifyEnvironmentVariable); ok && v != "" {
-		websocket.DefaultDialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
 	tries := 5
 	for reconnectionCounter := 0; reconnectionCounter < tries; reconnectionCounter++ {
 		randomDelay := rand.Int63n(int64(reconnectionCounter+1)*int64(sleepBeforeConnection)) / int64(time.Second)
