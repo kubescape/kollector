@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +15,11 @@ import (
 )
 
 type ReqType int
+
+const (
+	customerGuidQueryParamKey = "customerGUID"
+	clusterNameQueryParamKey  = "clusterName"
+)
 
 const (
 	PING    ReqType = 0
@@ -31,6 +37,17 @@ type WebSocketHandler struct {
 	u          url.URL
 	mutex      *sync.Mutex
 	SignalChan chan os.Signal
+}
+
+func createWebSocketHandler(urlWS, path, clusterName, customerGUID string) *WebSocketHandler {
+	scheme := strings.Split(urlWS, "://")[0]
+	host := strings.Split(urlWS, "://")[1]
+	wsh := WebSocketHandler{data: make(chan DataSocket), u: url.URL{Scheme: scheme, Host: host, Path: path, ForceQuery: true}, mutex: &sync.Mutex{}, SignalChan: make(chan os.Signal)}
+	q := wsh.u.Query()
+	q.Add(customerGuidQueryParamKey, customerGUID)
+	q.Add(clusterNameQueryParamKey, clusterName)
+	wsh.u.RawQuery = q.Encode()
+	return &wsh
 }
 
 func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Duration) (*websocket.Conn, error) {
@@ -147,14 +164,14 @@ func (wh *WatchHandler) ListenerAndSender() {
 	time.Sleep(waitingDelay)
 	wh.SetFirstReportFlag(true)
 	for {
-		jsonData := PrepareDataToSend(wh)
+		jsonData := prepareDataToSend(wh)
 		if jsonData != nil {
-			if os.Getenv(printReportEnvironmentVariable) == "true" {
+			if os.Getenv(printReportEnvironmentVariable) == "true" { // TODO: use logger levels instead
 				glog.Infof("%s", string(jsonData))
 			}
 			wh.SendMessageToWebSocket(jsonData)
 		}
-		if wh.GetFirstReportFlag() {
+		if wh.getFirstReportFlag() {
 			wh.SetFirstReportFlag(false)
 		}
 		if WaitTillNewDataArrived(wh) {

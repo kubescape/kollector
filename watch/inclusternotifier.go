@@ -5,29 +5,71 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/armosec/armoapi-go/apis"
 	"github.com/armosec/cluster-notifier-api-go/notificationserver"
 	"github.com/armosec/utils-go/boolutils"
+	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/golang/glog"
 )
 
-var inClusterTriggerURL string
 var defaultClientInClusterTrigger = http.DefaultClient
 
-func createNotificationPostJson(namespace string, k8sType string, name string) (*bytes.Buffer, error) {
-	glog.Info("creating new in cluster trigger notification")
+func newInClusterNotifier(config *armometadata.ClusterConfig) iClusterNotifier {
+	trigger := os.Getenv(activateScanOnNewImageFeatureEnvironmentVariable)
+	if !boolutils.StringToBool(trigger) {
+		return newSkipInClusterNotifier("", "", "")
+	}
+	return newClusterNotifierImpl(config.CustomerGUID, config.ClusterName, config.NotificationRestURL)
+}
+
+type iClusterNotifier interface {
+	notifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error
+}
+
+type clusterNotifierImpl struct {
+	clusterName  string
+	customerGuid string
+	notifierURL  *url.URL
+}
+
+func newClusterNotifierImpl(customerGuid, clusterName, notifierHost string) *clusterNotifierImpl {
+	glog.Info("setting up cluster trigger notification")
+	return &clusterNotifierImpl{
+		customerGuid: customerGuid,
+		clusterName:  clusterName,
+		notifierURL:  generateNotifierURL(notifierHost),
+	}
+}
+
+func (notifier *clusterNotifierImpl) notifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error {
+
+	var body *bytes.Buffer
+	var err error
+
+	if body, err = notifier.createNotificationPostJson(namespace, k8sType, name); err != nil {
+		return fmt.Errorf("createNotificationPostJson: fail to create notification post json with err %v", err)
+	}
+
+	if err := notifier.executeTriggeredNotification(body); err != nil {
+		return fmt.Errorf("executeTriggeredNotification: fail to execute with err %v", err)
+	}
+
+	return nil
+}
+
+func (notifier *clusterNotifierImpl) createNotificationPostJson(namespace string, k8sType string, name string) (*bytes.Buffer, error) {
 
 	cmds := apis.Commands{}
-	clusterName := os.Getenv(clusterNameEnvironmentVariable)
-	wlid := "wlid://cluster-" + clusterName + "/namespace-" + namespace + "/" + k8sType + "-" + name
+	wlid := "wlid://cluster-" + notifier.clusterName + "/namespace-" + namespace + "/" + k8sType + "-" + name // TODO: Use a wlid generator function
 	cmds.Commands = append(cmds.Commands, apis.Command{CommandName: apis.TypeScanImages, Wlid: wlid})
 
 	notification := notificationserver.Notification{
 		Target: map[string]string{
-			notificationserver.TargetCluster:   os.Getenv(clusterNameEnvironmentVariable),
-			notificationserver.TargetCustomer:  os.Getenv(customerGuidEnvironmentVariable),
+			notificationserver.TargetCustomer:  notifier.customerGuid,
+			notificationserver.TargetCluster:   notifier.clusterName,
 			notificationserver.TargetComponent: notificationserver.TargetComponentTriggerHandler,
 			"dest":                             "trigger", // TODO: use const!
 		},
@@ -42,21 +84,14 @@ func createNotificationPostJson(namespace string, k8sType string, name string) (
 	return bytes.NewBuffer(body), nil
 }
 
-func executeTriggeredNotification(body *bytes.Buffer) error {
+func (notifier *clusterNotifierImpl) executeTriggeredNotification(body *bytes.Buffer) error {
 
-	url, exist := os.LookupEnv(notificationServerRestEnvironmentVariable)
-	if !exist {
-		glog.Warningf("%s env var is missing, vulnerability scan on new pod will not work", notificationServerRestEnvironmentVariable)
-		return nil
-	}
-	inClusterTriggerURL = "http://" + url + notificationserver.PathRESTV1
-
-	req, err := http.NewRequest(http.MethodPost, inClusterTriggerURL, body)
+	req, err := http.NewRequest(http.MethodPost, notifier.notifierURL.String(), body)
 	if err != nil {
 		return err
 	}
 
-	glog.Infof("send post to %s the json %v", inClusterTriggerURL, body.String())
+	glog.Infof("send post to %s the json %v", notifier.notifierURL.String(), body.String())
 	resp, err := defaultClientInClusterTrigger.Do(req)
 	if err != nil {
 		return err
@@ -66,22 +101,24 @@ func executeTriggeredNotification(body *bytes.Buffer) error {
 	return nil
 }
 
-func notifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error {
-	trigger := os.Getenv(activateScanOnNewImageFeatureEnvironmentVariable)
-	if !boolutils.StringToBool(trigger) {
-		return nil
-	}
+// generate notifier URL
+func generateNotifierURL(host string) *url.URL {
+	u := url.URL{}
+	u.Scheme = "http"
+	u.Host = host
+	u.Path = notificationserver.PathRESTV1
 
-	var body *bytes.Buffer
-	var err error
+	return &u
+}
 
-	if body, err = createNotificationPostJson(namespace, k8sType, name); err != nil {
-		return fmt.Errorf("createNotificationPostJson: fail to create notification post json with err %v", err)
-	}
+type skipInClusterNotifier struct {
+}
 
-	if err := executeTriggeredNotification(body); err != nil {
-		return fmt.Errorf("executeTriggeredNotification: fail to execute with err %v", err)
-	}
+func newSkipInClusterNotifier(customerGuid, clusterName, notifierHost string) *skipInClusterNotifier {
+	glog.Info("skipping cluster trigger notification")
+	return &skipInClusterNotifier{}
+}
 
+func (skip *skipInClusterNotifier) notifyNewMicroServiceCreatedInTheCluster(namespace string, k8sType string, name string) error {
 	return nil
 }

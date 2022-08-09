@@ -262,7 +262,9 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			}
 		case watch.Modified:
 			if checkNotificationCandidateList(pod, &od, podStatus) {
-				notifyNewMicroServiceCreatedInTheCluster(pod.Namespace, od.Kind, od.Name)
+				if err := wh.notifyUpdates.notifyNewMicroServiceCreatedInTheCluster(pod.Namespace, od.Kind, od.Name); err != nil {
+					glog.Errorf("failed to notify updates. reason: %v", err)
+				}
 			}
 			if !wh.isNamespaceWatched(pod.Namespace) {
 				continue

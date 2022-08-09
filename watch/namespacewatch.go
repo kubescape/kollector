@@ -67,8 +67,8 @@ func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, lastWatchEvent
 				return nil
 			}
 			id := CreateID()
-			wh.namespacedm.Init(id)
-			wh.namespacedm.PushBack(id, namespace)
+			wh.namespacedm.init(id)
+			wh.namespacedm.pushBack(id, namespace)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(namespace, NAMESPACES, CREATED)
 		case "MODIFY":
@@ -93,8 +93,8 @@ func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, lastWatchEvent
 
 // UpdateNamespace update websocket when namespace is updated
 func (wh *WatchHandler) UpdateNamespace(namespace *corev1.Namespace) {
-	for _, id := range wh.namespacedm.GetIDs() {
-		front := wh.namespacedm.Front(id)
+	for _, id := range wh.namespacedm.getIDs() {
+		front := wh.namespacedm.front(id)
 		if front == nil || front.Value == nil {
 			continue
 		}
@@ -111,9 +111,9 @@ func (wh *WatchHandler) UpdateNamespace(namespace *corev1.Namespace) {
 
 // RemoveNamespace update websocket when namespace is removed
 func (wh *WatchHandler) RemoveNamespace(namespace *corev1.Namespace) string {
-	ids := wh.namespacedm.GetIDs()
+	ids := wh.namespacedm.getIDs()
 	for _, id := range ids {
-		front := wh.namespacedm.Front(id)
+		front := wh.namespacedm.front(id)
 		for front != nil && front.Value == nil {
 			front = front.Next()
 		}
@@ -127,7 +127,7 @@ func (wh *WatchHandler) RemoveNamespace(namespace *corev1.Namespace) string {
 
 		if strings.Compare(namespaceData.ObjectMeta.Name, namespace.Name) == 0 {
 			name := namespaceData.ObjectMeta.Name
-			wh.namespacedm.Remove(id)
+			wh.namespacedm.remove(id)
 			glog.Infof("namespace %s removed", name)
 			return name
 		}

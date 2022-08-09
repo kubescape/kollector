@@ -24,5 +24,5 @@ func TestJson(test *testing.T) {
 	if !bytes.Equal(wh.jsonReport.Pods.Updated[0].([]byte), []byte("12343589thfgnvdfklbnvklbnmdfk'lbgfbhs")) {
 		test.Errorf("PODS")
 	}
-	fmt.Printf("json %s\n", string(PrepareDataToSend(&wh)))
+	fmt.Printf("json %s\n", string(prepareDataToSend(&wh)))
 }

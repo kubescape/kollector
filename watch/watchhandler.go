@@ -9,7 +9,6 @@ import (
 
 	"github.com/armosec/k8s-interface/k8sinterface"
 	"github.com/armosec/utils-k8s-go/armometadata"
-	"github.com/golang/glog"
 	restclient "k8s.io/client-go/rest"
 
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
@@ -17,30 +16,30 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type ResourceMap struct {
+type resourceMap struct {
 	resourceMap map[int]*list.List
 	mutex       sync.RWMutex
 }
 
-func NewResourceMap() *ResourceMap {
-	return &ResourceMap{
+func newResourceMap() *resourceMap {
+	return &resourceMap{
 		resourceMap: make(map[int]*list.List),
 		mutex:       sync.RWMutex{},
 	}
 }
-func (rm *ResourceMap) Init(index int) {
+func (rm *resourceMap) init(index int) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 	if rm.resourceMap[index] == nil {
 		rm.resourceMap[index] = list.New()
 	}
 }
-func (rm *ResourceMap) Remove(index int) {
+func (rm *resourceMap) remove(index int) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 	delete(rm.resourceMap, index)
 }
-func (rm *ResourceMap) GetIDs() []int {
+func (rm *resourceMap) getIDs() []int {
 	rm.mutex.RLock()
 	defer rm.mutex.RUnlock()
 	ids := []int{}
@@ -49,14 +48,14 @@ func (rm *ResourceMap) GetIDs() []int {
 	}
 	return ids
 }
-func (rm *ResourceMap) PushBack(index int, obj interface{}) {
+func (rm *resourceMap) pushBack(index int, obj interface{}) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 	if mapElem := rm.resourceMap[index]; mapElem != nil {
 		mapElem.PushBack(obj)
 	}
 }
-func (rm *ResourceMap) Front(index int) *list.Element {
+func (rm *resourceMap) front(index int) *list.Element {
 	rm.mutex.RLock()
 	defer rm.mutex.RUnlock()
 	if mapElem := rm.resourceMap[index]; mapElem != nil {
@@ -64,7 +63,7 @@ func (rm *ResourceMap) Front(index int) *list.Element {
 	}
 	return nil
 }
-func (rm *ResourceMap) UpdateFront(index int, obj interface{}) {
+func (rm *resourceMap) updateFront(index int, obj interface{}) {
 	rm.mutex.Lock()
 	defer rm.mutex.Unlock()
 	if mapElem := rm.resourceMap[index]; mapElem != nil {
@@ -72,13 +71,13 @@ func (rm *ResourceMap) UpdateFront(index int, obj interface{}) {
 		rm.resourceMap[index] = mapElem
 	}
 }
-func (rm *ResourceMap) Len() int {
+func (rm *resourceMap) len() int {
 	rm.mutex.RLock()
 	defer rm.mutex.RUnlock()
 	return len(rm.resourceMap)
 }
 
-func (rm *ResourceMap) IndexLen(index int) int {
+func (rm *resourceMap) indexLen(index int) int {
 	rm.mutex.RLock()
 	defer rm.mutex.RUnlock()
 	if rm.resourceMap[index] == nil {
@@ -104,9 +103,9 @@ type WatchHandler struct {
 	// pods list
 	cjm map[int]*list.List
 	// secrets list
-	secretdm *ResourceMap
+	secretdm *resourceMap
 	// namespaces list
-	namespacedm *ResourceMap
+	namespacedm *resourceMap
 
 	jsonReport             jsonFormat
 	informNewDataChannel   chan int
@@ -116,11 +115,8 @@ type WatchHandler struct {
 	includeNamespaces   []string
 
 	config *armometadata.ClusterConfig
-}
 
-// GetAggregateFirstDataFlag return pointer
-func (wh *WatchHandler) GetAggregateFirstDataFlag() *bool {
-	return &wh.aggregateFirstDataFlag
+	notifyUpdates iClusterNotifier // notify other (in-cluster) components about new data
 }
 
 func CreateWatchHandler() (*WatchHandler, error) {
@@ -144,22 +140,9 @@ func CreateWatchHandler() (*WatchHandler, error) {
 	if err != nil {
 		return nil, fmt.Errorf("apiV1beta1client.NewForConfig failed: %s", err.Error())
 	}
-	var reportURL string
-	if reportURL = os.Getenv(k8sReportUrlEnvironmentVariable); reportURL == "" {
-		return nil, fmt.Errorf("there is no report url environment variable, envKey:%s", k8sReportUrlEnvironmentVariable)
-	}
 
-	var customerGUID string
-	if customerGUID = os.Getenv(customerGuidEnvironmentVariable); customerGUID == "" {
-		return nil, fmt.Errorf("there is no customer guid environment variable, envKey:%s", customerGuidEnvironmentVariable)
-	}
-
-	var clusterName string
-	if clusterName = os.Getenv(clusterNameEnvironmentVariable); clusterName == "" {
-		return nil, fmt.Errorf("there is no cluster name environment variable, envKey:%s", clusterNameEnvironmentVariable)
-	}
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
-		// WebSocketHandle:  createWebSocketHandler(reportURL, "k8s/cluster-reports", clusterName, customerGUID), // TODO: move from here
+		WebSocketHandle:  createWebSocketHandler(config.EventReceiverWS, "k8s/cluster-reports", config.ClusterName, config.CustomerGUID), // TODO: move from here
 		extensionsClient: extensionsClientSet,
 		K8sApi:           k8sinterface.NewKubernetesApi(),
 		pdm:              make(map[int]*list.List),
@@ -167,14 +150,15 @@ func CreateWatchHandler() (*WatchHandler, error) {
 		sdm:              make(map[int]*list.List),
 		cjm:              make(map[int]*list.List),
 		config:           config,
-		secretdm:         NewResourceMap(),
-		namespacedm:      NewResourceMap(),
+		secretdm:         newResourceMap(),
+		namespacedm:      newResourceMap(),
 		jsonReport: jsonFormat{
 			FirstReport: true,
 		},
 		informNewDataChannel:   make(chan int),
 		aggregateFirstDataFlag: true,
-		includeNamespaces:      []string{componentNamespace},
+		includeNamespaces:      []string{componentNamespace}, // ignore only the component namespace
+		notifyUpdates:          newInClusterNotifier(config),
 	}
 	return &result, nil
 }
@@ -200,74 +184,17 @@ func (wh *WatchHandler) SetFirstReportFlag(first bool) {
 		wh.pdm = make(map[int]*list.List)
 		wh.sdm = make(map[int]*list.List)
 		wh.cjm = make(map[int]*list.List)
-		wh.secretdm = NewResourceMap()
-		wh.namespacedm = NewResourceMap()
+		wh.secretdm = newResourceMap()
+		wh.namespacedm = newResourceMap()
 		for chanIdx := range wh.newStateReportChans {
 			wh.newStateReportChans[chanIdx] <- true
 		}
 	}
 }
 
-// GetFirstReportFlag get first report flag
-func (wh *WatchHandler) GetFirstReportFlag() bool {
+// getFirstReportFlag get first report flag
+func (wh *WatchHandler) getFirstReportFlag() bool {
 	return wh.jsonReport.FirstReport
-}
-
-func (wh *WatchHandler) HandleDataMismatch(resource string, resourceMap map[string]string) error {
-	// ignore if map is empty / nil
-	if len(resourceMap) == 0 {
-		return nil
-	}
-
-	mismatch, err := wh.isDataMismatch(resource, resourceMap)
-	if err != nil || mismatch {
-		glog.Infof("mismatch found in resource: %s, exiting...", resource)
-		os.Exit(4)
-	}
-	return nil
-}
-func (wh *WatchHandler) isDataMismatch(resource string, resourceMap map[string]string) (bool, error) {
-	r, _ := k8sinterface.GetGroupVersionResource(resource)
-	workloadList, err := wh.K8sApi.ListWorkloads(&r, "", nil, nil)
-	if err != nil {
-		return false, err
-	}
-
-	if len(workloadList) != len(resourceMap) {
-		glog.Infof("found 'resource len' mismatch, resource: '%s', current kubeAPI content len: %d, cached len: %d", resource, len(workloadList), len(resourceMap))
-		return true, nil
-	}
-	for i := range workloadList {
-		resourceID := GetResourceID(workloadList[i])
-		if r, ok := resourceMap[resourceID]; ok {
-			if r != GetResourceVersion(workloadList[i]) {
-				glog.Infof("resource version mismatch, resource: '%s', name: %s, id: %s not found in current resource map", resource, resourceID, GetResourceVersion(workloadList[i]))
-				return true, nil
-			}
-		} else {
-			glog.Infof("resource ID mismatch, resource: '%s', name: '%s', id: %s not found in current resource map", resource, resourceID, GetResourceVersion(workloadList[i]))
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func GetResourceID(workload k8sinterface.IWorkload) string {
-	switch workload.GetKind() {
-	case "Node":
-		return workload.GetName()
-	default:
-		return workload.GetUID()
-	}
-}
-
-func GetResourceVersion(workload k8sinterface.IWorkload) string {
-	switch workload.GetKind() {
-	case "Node":
-		return workload.GetName()
-	default:
-		return workload.GetResourceVersion()
-	}
 }
 
 func (wh *WatchHandler) isNamespaceWatched(namespace string) bool {
@@ -277,4 +204,9 @@ func (wh *WatchHandler) isNamespaceWatched(namespace string) bool {
 		}
 	}
 	return false
+}
+
+// getAggregateFirstDataFlag return pointer
+func (wh *WatchHandler) getAggregateFirstDataFlag() *bool {
+	return &wh.aggregateFirstDataFlag
 }

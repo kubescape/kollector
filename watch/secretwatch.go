@@ -77,8 +77,8 @@ func (wh *WatchHandler) secretEventHandler(event *watch.Event, lastWatchEventCre
 			}
 			secretdm := secretData{Secret: secret}
 			id := CreateID()
-			wh.secretdm.Init(id)
-			wh.secretdm.PushBack(id, secretdm)
+			wh.secretdm.init(id)
+			wh.secretdm.pushBack(id, secretdm)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, CREATED)
 		case "MODIFY":
@@ -103,8 +103,8 @@ func (wh *WatchHandler) secretEventHandler(event *watch.Event, lastWatchEventCre
 
 // UpdateSecret update websocket when secret is updated
 func (wh *WatchHandler) updateSecret(secret *corev1.Secret) {
-	for _, id := range wh.secretdm.GetIDs() {
-		front := wh.secretdm.Front(id)
+	for _, id := range wh.secretdm.getIDs() {
+		front := wh.secretdm.front(id)
 		if front == nil || front.Value == nil {
 			continue
 		}
@@ -130,8 +130,8 @@ func (wh *WatchHandler) updateSecret(secret *corev1.Secret) {
 
 // RemoveSecret update websocket when secret is removed
 func (wh *WatchHandler) removeSecret(secret *corev1.Secret) string {
-	for _, id := range wh.secretdm.GetIDs() {
-		front := wh.secretdm.Front(id)
+	for _, id := range wh.secretdm.getIDs() {
+		front := wh.secretdm.front(id)
 		if front == nil || front.Value == nil {
 			continue
 		}
@@ -144,13 +144,13 @@ func (wh *WatchHandler) removeSecret(secret *corev1.Secret) string {
 		}
 		if strings.Compare(secretData.Secret.ObjectMeta.Name, secret.ObjectMeta.Name) == 0 {
 			name := secretData.Secret.ObjectMeta.Name
-			wh.secretdm.Remove(id)
+			wh.secretdm.remove(id)
 			glog.Infof("secret %s removed", name)
 			return name
 		}
 		if strings.Compare(secretData.Secret.ObjectMeta.GenerateName, secret.ObjectMeta.Name) == 0 {
 			gName := secretData.Secret.ObjectMeta.Name
-			wh.secretdm.Remove(id)
+			wh.secretdm.remove(id)
 			glog.Infof("secret %s removed", gName)
 			return gName
 		}
