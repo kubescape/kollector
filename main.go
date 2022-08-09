@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"k8s-armo-collector/watch"
 	"log"
 	"os"
@@ -64,5 +65,6 @@ func main() {
 }
 
 func displayBuildTag() {
+	flag.Parse()
 	glog.Infof("Image version: %s", os.Getenv("RELEASE"))
 }
