@@ -12,7 +12,7 @@ ADD . .
 RUN apk add git
 
 WORKDIR /work
-RUN go build -o build/collector
+RUN go build -o build/kollector
 
 FROM alpine
 
@@ -20,7 +20,7 @@ RUN addgroup -S ks && adduser -S ks -G ks
 USER ks
 WORKDIR /home/ks/
 
-COPY --from=builder /work/build/collector /usr/bin/collector
-COPY ./collector-entrypoint.sh /home/ks/
+COPY --from=builder /work/build/kollector /usr/bin/kollector
+COPY ./kollector-entrypoint.sh /home/ks/
 
-ENTRYPOINT ["./collector-entrypoint.sh"]
+ENTRYPOINT ["./kollector-entrypoint.sh"]

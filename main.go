@@ -2,9 +2,10 @@ package main
 
 import (
 	"flag"
-	"k8s-armo-collector/watch"
 	"log"
 	"os"
+
+	"github.com/kubescape/kollector/watch"
 
 	"github.com/armosec/utils-k8s-go/probes"
 	"github.com/golang/glog"

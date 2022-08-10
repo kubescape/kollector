@@ -1,1 +1,1 @@
-# ARMO Collector
+# In-cluster Kollector

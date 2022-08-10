@@ -7,7 +7,7 @@ if test -f "$1"; then
     echo "$1 exists."
 else
     echo "$1 not exists."
-    EXEC_COMMAND_ARGS="/usr/bin/collector "$@
+    EXEC_COMMAND_ARGS="/usr/bin/kollector "$@
 fi
 
 # exit code 2 means we have watch timeout just need to reconnect

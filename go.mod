@@ -1,4 +1,4 @@
-module k8s-armo-collector
+module github.com/kubescape/kollector
 
 go 1.18
 
