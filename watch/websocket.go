@@ -6,10 +6,10 @@ import (
 	"net/url"
 	"os"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/golang/glog"
 	"github.com/gorilla/websocket"
 )
@@ -17,8 +17,9 @@ import (
 type ReqType int
 
 const (
-	customerGuidQueryParamKey = "customerGUID"
-	clusterNameQueryParamKey  = "clusterName"
+	customerGuidQueryParamKey  = "customerGUID"
+	clusterNameQueryParamKey   = "clusterName"
+	EventReceiverWebsocketPath = "/k8s/cluster-reports"
 )
 
 const (
@@ -39,14 +40,28 @@ type WebSocketHandler struct {
 	SignalChan chan os.Signal
 }
 
-func createWebSocketHandler(urlWS, path, clusterName, customerGUID string) *WebSocketHandler {
-	scheme := strings.Split(urlWS, "://")[0]
-	host := strings.Split(urlWS, "://")[1]
-	wsh := WebSocketHandler{data: make(chan DataSocket), u: url.URL{Scheme: scheme, Host: host, Path: path, ForceQuery: true}, mutex: &sync.Mutex{}, SignalChan: make(chan os.Signal)}
-	q := wsh.u.Query()
-	q.Add(customerGuidQueryParamKey, customerGUID)
-	q.Add(clusterNameQueryParamKey, clusterName)
-	wsh.u.RawQuery = q.Encode()
+func setWebSocketURL(config *armometadata.ClusterConfig) (*url.URL, error) {
+	u, err := url.Parse(config.EventReceiverWebsocketURL)
+	if err != nil {
+		return nil, err
+	}
+	u.Path = EventReceiverWebsocketPath
+	q := u.Query()
+	q.Add(customerGuidQueryParamKey, config.AccountID)
+	q.Add(clusterNameQueryParamKey, config.ClusterName)
+	u.RawQuery = q.Encode()
+	u.ForceQuery = true
+
+	return u, nil
+}
+func createWebSocketHandler(u *url.URL) *WebSocketHandler {
+	glog.Infof("websocket URL: %s", u.String())
+	wsh := WebSocketHandler{
+		u:          *u,
+		data:       make(chan DataSocket),
+		mutex:      &sync.Mutex{},
+		SignalChan: make(chan os.Signal),
+	}
 	return &wsh
 }
 

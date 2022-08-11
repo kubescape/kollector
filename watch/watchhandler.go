@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/armosec/utils-k8s-go/armometadata"
+	"github.com/golang/glog"
 	"github.com/kubescape/k8s-interface/k8sinterface"
 	restclient "k8s.io/client-go/rest"
 
@@ -141,8 +142,13 @@ func CreateWatchHandler() (*WatchHandler, error) {
 		return nil, fmt.Errorf("apiV1beta1client.NewForConfig failed: %s", err.Error())
 	}
 
+	erURL, err := setWebSocketURL(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set event receiver url: %s", err.Error())
+	}
+
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
-		WebSocketHandle:  createWebSocketHandler(config.EventReceiverRestURL, "k8s/cluster-reports", config.ClusterName, config.AccountID), // TODO: move from here
+		WebSocketHandle:  createWebSocketHandler(erURL),
 		extensionsClient: extensionsClientSet,
 		K8sApi:           k8sinterface.NewKubernetesApi(),
 		pdm:              make(map[int]*list.List),
@@ -168,7 +174,7 @@ func parseArgument() error {
 	threFlag := flag.Lookup("stderrthreshold")
 	threFlag.DefValue = "WARNING"
 	flag.Parse()
-	fmt.Printf("Log level: %s, set -stderrthreshold=INFO for detailed logs", threFlag.Value)
+	glog.Infof("Log level: %s, set -stderrthreshold=INFO for detailed logs", threFlag.Value)
 
 	return nil
 }
