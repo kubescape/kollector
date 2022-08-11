@@ -22,7 +22,7 @@ func newInClusterNotifier(config *armometadata.ClusterConfig) iClusterNotifier {
 	if !boolutils.StringToBool(trigger) {
 		return newSkipInClusterNotifier("", "", "")
 	}
-	return newClusterNotifierImpl(config.CustomerGUID, config.ClusterName, config.NotificationRestURL)
+	return newClusterNotifierImpl(config.AccountID, config.ClusterName, config.GatewayRestURL)
 }
 
 type iClusterNotifier interface {

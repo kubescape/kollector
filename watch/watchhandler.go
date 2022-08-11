@@ -7,8 +7,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/armosec/k8s-interface/k8sinterface"
 	"github.com/armosec/utils-k8s-go/armometadata"
+	"github.com/kubescape/k8s-interface/k8sinterface"
 	restclient "k8s.io/client-go/rest"
 
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
@@ -122,7 +122,7 @@ type WatchHandler struct {
 func CreateWatchHandler() (*WatchHandler, error) {
 
 	confFilePath := os.Getenv(configEnvironmentVariable)
-	config, err := armometadata.LoadConfig(confFilePath, true)
+	config, err := armometadata.LoadConfig(confFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("missing config file: %s", err)
 	}
@@ -142,7 +142,7 @@ func CreateWatchHandler() (*WatchHandler, error) {
 	}
 
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
-		WebSocketHandle:  createWebSocketHandler(config.EventReceiverWS, "k8s/cluster-reports", config.ClusterName, config.CustomerGUID), // TODO: move from here
+		WebSocketHandle:  createWebSocketHandler(config.EventReceiverRestURL, "k8s/cluster-reports", config.ClusterName, config.AccountID), // TODO: move from here
 		extensionsClient: extensionsClientSet,
 		K8sApi:           k8sinterface.NewKubernetesApi(),
 		pdm:              make(map[int]*list.List),

@@ -3,16 +3,16 @@ module github.com/kubescape/kollector
 go 1.18
 
 require (
-	github.com/armosec/armoapi-go v0.0.111
+	github.com/armosec/armoapi-go v0.0.112
 	github.com/armosec/cluster-notifier-api-go v0.0.3
-	github.com/armosec/k8s-interface v0.0.79
-	github.com/armosec/utils-k8s-go v0.0.7
+	github.com/armosec/utils-k8s-go v0.0.12
 	github.com/golang/glog v1.0.0
 	github.com/gorilla/websocket v1.5.0
-	k8s.io/api v0.24.2
+	github.com/kubescape/k8s-interface v0.0.82
+	k8s.io/api v0.24.3
 	k8s.io/apiextensions-apiserver v0.24.2
-	k8s.io/apimachinery v0.24.2
-	k8s.io/client-go v0.24.2
+	k8s.io/apimachinery v0.24.3
+	k8s.io/client-go v0.24.3
 )
 
 require (
@@ -74,7 +74,7 @@ require (
 )
 
 require (
-	github.com/armosec/utils-go v0.0.7
+	github.com/armosec/utils-go v0.0.12
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/oauth2 v0.0.0-20220630143837-2104d58473e0 // indirect

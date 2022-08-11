@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/golang/glog"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -212,7 +211,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 				continue
 			}
 			first := true
-			id, runningPodNum := IsPodSpecAlreadyExist(&od, pod.Namespace, pod.Labels[armometadata.CAAttachLabel], pod.Labels[armometadata.ArmoAttach], wh.pdm)
+			id, runningPodNum := isPodSpecAlreadyExist(&od, pod.Namespace, wh.pdm)
 			if runningPodNum <= 1 {
 				// when a new pod microservice (a new pod that is running first in the cluster) is found
 				// we want to scan its vulnerabilities so we will use the trigger mechanism to do it
@@ -406,7 +405,7 @@ func extractPodSpecFromOwner(ownerData interface{}) interface{} {
 	return ownerData
 }
 
-func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus, newArmoAttached string, pdm map[int]*list.List) (int, int) {
+func isPodSpecAlreadyExist(podOwner *OwnerDet, namespace string, pdm map[int]*list.List) (int, int) {
 	newSpec := extractPodSpecFromOwner(podOwner.OwnerData)
 	for _, v := range pdm {
 		if v == nil || v.Len() <= 1 {
@@ -414,11 +413,9 @@ func IsPodSpecAlreadyExist(podOwner *OwnerDet, namespace, armoStatus, newArmoAtt
 		}
 		p := v.Front().Value.(MicroServiceData)
 		existsSpec := extractPodSpecFromOwner(p.Owner.OwnerData)
-		armoAttached := p.Labels[armometadata.ArmoAttach]
-		// NOTICE: the armoStatus / armoAttached  is a shortcut so we can save the DeepEqual of the pod spec which is very heavy.
 		// In addition, in case we didn't change the podspec of the OwnerReference of the pod, we cant count on the owner labels changes
 		//  but on the labels / volumes of the actual pod we got to identify the changes
-		if p.ObjectMeta.Namespace == namespace && armoAttached == newArmoAttached && armoStatus == p.Labels[armometadata.CAAttachLabel] && reflect.DeepEqual(newSpec, existsSpec) {
+		if p.ObjectMeta.Namespace == namespace && reflect.DeepEqual(newSpec, existsSpec) {
 			return v.Front().Value.(MicroServiceData).PodSpecId, v.Len()
 		}
 	}
