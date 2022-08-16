@@ -1,7 +1,7 @@
 # Kollector
 The Kollector component is an in-cluster component of the Kubescape security platform.  
-It communicates with the Kubernetes API server to collect cluster information and watches for changes in the cluster.  
-The information sent to the EventReceiver.  
+It communicates with the Kubernetes API server to collect cluster information and watches for changes in the cluster.
+The information sent to the Kubescape SaaS platform.
 
 ## Building Kollector
 To build the kollector run: `go build .`  
