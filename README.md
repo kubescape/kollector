@@ -49,7 +49,7 @@ You can use the sample file below to setup your VS code environment for building
             "mode": "auto",
             "program":  "${workspaceRoot}",
                  "env": {
-                     "NAMESPACE": "armo-system",
+                     "NAMESPACE": "kubescape",
                      "CONFIG": "${workspaceRoot}/.vscode/clusterData.json",
             },
             "args": [
