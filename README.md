@@ -32,6 +32,8 @@ Load config file using the `CONFIG` environment variable
 
 Check out `watch/environmentvariables.go`
 
+* `WAIT_BEFORE_REPORT`: Wait before sending the report to the gateway. Default: 60 seconds. This value is in seconds.
+
 ## VS code configuration samples
 
 You can use the sample file below to setup your VS code environment for building and debugging purposes.

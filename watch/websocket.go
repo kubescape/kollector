@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"sync"
 	"time"
 
@@ -26,6 +27,10 @@ const (
 	PING    ReqType = 0
 	MESSAGE ReqType = 1
 	EXIT    ReqType = 2
+)
+
+const (
+	WaitBeforeReportEnv = "WAIT_BEFORE_REPORT"
 )
 
 type DataSocket struct {
@@ -97,7 +102,8 @@ func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool, reconnectCal
 		}
 	}()
 	for {
-		conn, err := wsh.connectToWebSocket(30 * time.Second)
+		t := getNumericValueFromEnvVar(WaitBeforeReportEnv, 30)
+		conn, err := wsh.connectToWebSocket(time.Duration(t) * time.Second)
 		if err != nil {
 			glog.Error(err)
 			return err
@@ -130,7 +136,8 @@ ReconnectLoop:
 				if reconnectCallback != nil {
 					reconnectCallback(true)
 				}
-				if conn, err = wsh.connectToWebSocket(1 * time.Minute); err != nil {
+				t := getNumericValueFromEnvVar(WaitBeforeReportEnv, 60)
+				if conn, err = wsh.connectToWebSocket(time.Duration(t) * time.Second); err != nil {
 					// TODO: handle retries
 					glog.Errorf("sendReportRoutine. %s", err.Error())
 					wsh.mutex.Unlock()
@@ -260,4 +267,13 @@ func (wsh *WebSocketHandler) closeConnection(conn *websocket.Conn, message strin
 	wsh.mutex.Unlock()
 	glog.Infof("connection closed: %s", message)
 	wsh.data <- DataSocket{RType: EXIT, message: message}
+}
+
+func getNumericValueFromEnvVar(envVar string, defaultValue int) int {
+	if value := os.Getenv(envVar); value != "" {
+		if value, err := strconv.Atoi(value); err == nil {
+			return value
+		}
+	}
+	return defaultValue
 }
