@@ -31,5 +31,4 @@ func DeepCopyObj(src, dst interface{}) error {
 		return err
 	}
 	return json.Unmarshal(buff, &dst)
-	
 }
