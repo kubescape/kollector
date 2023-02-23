@@ -2,20 +2,16 @@ name: pull_request_created
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
-    branches:
-      - 'master'
-      - 'main'
+    branches: 
+    - 'master'
+    - 'main'
     paths-ignore:
       - '**/README.md' ### Ignore running when README.MD changed.
       - '.github/workflows/*' ### Ignore running when files under path: .github/workflows/* changed.
-  # push:
-  #   tags:
-  #     - 'v*'
-  
+
 concurrency:
   group: ${{ github.head_ref }}
   cancel-in-progress: true
-
 
 jobs:
   pr-created:
