@@ -12,7 +12,8 @@ import (
 	"github.com/armosec/cluster-notifier-api-go/notificationserver"
 	"github.com/armosec/utils-go/boolutils"
 	"github.com/armosec/utils-k8s-go/armometadata"
-	"github.com/golang/glog"
+	logger "github.com/kubescape/go-logger"
+	"github.com/kubescape/go-logger/helpers"
 )
 
 var defaultClientInClusterTrigger = http.DefaultClient
@@ -36,7 +37,7 @@ type clusterNotifierImpl struct {
 }
 
 func newClusterNotifierImpl(customerGuid, clusterName, notifierHost string) *clusterNotifierImpl {
-	glog.Info("setting up cluster trigger notification")
+	logger.L().Info("setting up cluster trigger notification")
 	return &clusterNotifierImpl{
 		customerGuid: customerGuid,
 		clusterName:  clusterName,
@@ -91,7 +92,7 @@ func (notifier *clusterNotifierImpl) executeTriggeredNotification(body *bytes.Bu
 		return err
 	}
 
-	glog.Infof("send post to %s the json %v", notifier.notifierURL.String(), body.String())
+	logger.L().Info("send", helpers.String("url", notifier.notifierURL.String()))
 	resp, err := defaultClientInClusterTrigger.Do(req)
 	if err != nil {
 		return err
@@ -115,7 +116,7 @@ type skipInClusterNotifier struct {
 }
 
 func newSkipInClusterNotifier(customerGuid, clusterName, notifierHost string) *skipInClusterNotifier {
-	glog.Info("skipping cluster trigger notification")
+	logger.L().Info("skipping cluster trigger notification")
 	return &skipInClusterNotifier{}
 }
 

@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
-	"log"
 	"os"
 
+	logger "github.com/kubescape/go-logger"
+	"github.com/kubescape/go-logger/helpers"
 	"github.com/kubescape/kollector/watch"
 
 	"github.com/armosec/utils-k8s-go/probes"
-	"github.com/golang/glog"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 
 	wh, err := watch.CreateWatchHandler()
 	if err != nil {
-		log.Fatalf("failed to initialize the WatchHandler, reason: %s", err.Error())
+		logger.L().Fatal("failed to initialize the WatchHandler", helpers.Error(err))
 	}
 
 	go func() {
@@ -61,11 +61,11 @@ func main() {
 			wh.CronJobWatch()
 		}
 	}()
-	glog.Error(wh.WebSocketHandle.SendReportRoutine(&isServerReady, wh.SetFirstReportFlag))
+	logger.L().Fatal(wh.WebSocketHandle.SendReportRoutine(&isServerReady, wh.SetFirstReportFlag).Error())
 
 }
 
 func displayBuildTag() {
 	flag.Parse()
-	glog.Infof("Image version: %s", os.Getenv("RELEASE"))
+	logger.L().Info("Image version", helpers.String("reease", os.Getenv("RELEASE")))
 }
