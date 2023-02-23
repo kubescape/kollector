@@ -2,7 +2,6 @@ package watch
 
 import (
 	"fmt"
-	"math/rand"
 	"net/url"
 	"os"
 	"runtime/debug"
@@ -75,11 +74,9 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 	var err error
 	var conn *websocket.Conn
 
-	tries := 5
+	tries := 60
 	for reconnectionCounter := 0; reconnectionCounter < tries; reconnectionCounter++ {
-		randomDelay := rand.Int63n(int64(reconnectionCounter+1)*int64(sleepBeforeConnection)) / int64(time.Second)
-		glog.Infof("connect try: %d, waiting for %d seconds", reconnectionCounter, randomDelay)
-		time.Sleep(time.Second * time.Duration(randomDelay))
+		time.Sleep(time.Second * 1)
 		if conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
 			glog.Infof("connected successfully to: '%s", wsh.u.String())
 			wsh.setPingPongHandler(conn)
@@ -179,11 +176,6 @@ func (wh *WatchHandler) ListenerAndSender() {
 			glog.Errorf("RECOVER ListenerAndSender. %v, stack: %s", err, debug.Stack())
 		}
 	}()
-	waitingDuration := time.Duration(5)
-	waitingDelay := waitingDuration * time.Second
-	// in the first time we wait until all the data will arrive from the cluster and the we will inform on every change
-	glog.Infof("wait %d seconds for aggregate the first data from the cluster\n", waitingDuration)
-	time.Sleep(waitingDelay)
 	wh.SetFirstReportFlag(true)
 	for {
 		jsonData := prepareDataToSend(wh)
