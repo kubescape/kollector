@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
+	logger "github.com/kubescape/go-logger"
+	"github.com/kubescape/go-logger/helpers"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -20,24 +21,21 @@ type serviceData struct {
 func (wh *WatchHandler) ServiceWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			glog.Errorf("RECOVER ServiceWatch. error: %v, stack: %s", err, debug.Stack())
+			logger.L().Error("RECOVER ServiceWatch", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
 		}
 	}()
 	var lastWatchEventCreationTime time.Time
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
-		glog.Info("Watching over services starting")
+		logger.L().Info("Watching over services starting")
 		serviceWatcher, err := wh.RestAPIClient.CoreV1().Services("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			glog.Errorf("Cannot watch over services. %v", err)
-			time.Sleep(3 * time.Second)
+			time.Sleep(1 * time.Second)
 			lastWatchEventCreationTime = time.Now()
 			continue
 		}
 		wh.handleServiceWatch(serviceWatcher, newStateChan, &lastWatchEventCreationTime)
-
-		glog.Infof("Watching over services ended - since we got timeout")
 	}
 }
 func updateService(service *core.Service, sdm map[int]*list.List) string {
@@ -47,12 +45,10 @@ func updateService(service *core.Service, sdm map[int]*list.List) string {
 		}
 		if strings.Compare(v.Front().Value.(serviceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
 			*v.Front().Value.(serviceData).Service = *service
-			glog.Infof("service %s updated", v.Front().Value.(serviceData).Service.ObjectMeta.Name)
 			return v.Front().Value.(serviceData).Service.ObjectMeta.Name
 		}
 		if strings.Compare(v.Front().Value.(serviceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
 			*v.Front().Value.(serviceData).Service = *service
-			glog.Infof("service %s updated", v.Front().Value.(serviceData).Service.ObjectMeta.Name)
 			return v.Front().Value.(serviceData).Service.ObjectMeta.Name
 		}
 	}
@@ -68,13 +64,11 @@ func removeService(service *core.Service, sdm map[int]*list.List) string {
 		if strings.Compare(v.Front().Value.(serviceData).Service.ObjectMeta.Name, service.ObjectMeta.Name) == 0 {
 			name := v.Front().Value.(serviceData).Service.ObjectMeta.Name
 			v.Remove(v.Front())
-			glog.Infof("service %s removed", name)
 			return name
 		}
 		if strings.Compare(v.Front().Value.(serviceData).Service.ObjectMeta.GenerateName, service.ObjectMeta.Name) == 0 {
 			gName := v.Front().Value.(serviceData).Service.ObjectMeta.Name
 			v.Remove(v.Front())
-			glog.Infof("service %s removed", gName)
 			return gName
 		}
 	}
@@ -83,19 +77,17 @@ func removeService(service *core.Service, sdm map[int]*list.List) string {
 
 func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
 	serviceChan := serviceWatcher.ResultChan()
-	glog.Infof("Watching over services started")
+	logger.L().Info("Watching over services started")
 	for {
 		var event watch.Event
 		select {
 		case event = <-serviceChan:
 		case <-newStateChan:
 			serviceWatcher.Stop()
-			glog.Errorf("Service watch - newStateChan signal")
 			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if event.Type == watch.Error {
-			glog.Errorf("Service watch chan loop error: %v", event.Object)
 			*lastWatchEventCreationTime = time.Now()
 			return
 		}
@@ -107,7 +99,6 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 			switch event.Type {
 			case "ADDED":
 				if service.CreationTimestamp.Time.Before(*lastWatchEventCreationTime) {
-					glog.Infof("service %s already exist, will not be reported", service.Name)
 					continue
 				}
 				id := CreateID()
@@ -129,7 +120,6 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 			case "BOOKMARK": //only the resource version is changed but it's the same workload
 				continue
 			case "ERROR":
-				glog.Errorf("while watching over services we got an error: %v", event)
 				*lastWatchEventCreationTime = time.Now()
 				return
 			}

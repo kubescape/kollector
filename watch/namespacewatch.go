@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
+	logger "github.com/kubescape/go-logger"
+	"github.com/kubescape/go-logger/helpers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -16,7 +17,7 @@ import (
 func (wh *WatchHandler) NamespaceWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			glog.Errorf("RECOVER NamespaceWatch. error: %v\n %s", err, string(debug.Stack()))
+			logger.L().Error("RECOVER NamespaceWatch", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
 		}
 	}()
 	var lastWatchEventCreationTime time.Time
@@ -24,15 +25,15 @@ func (wh *WatchHandler) NamespaceWatch() {
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 WatchLoop:
 	for {
-		glog.Infof("Watching over namespaces starting")
+		logger.L().Info("Watching over namespaces starting")
 		namespacesWatcher, err := wh.RestAPIClient.CoreV1().Namespaces().Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			glog.Errorf("Failed watching over namespaces. %s", err.Error())
-			time.Sleep(3 * time.Second)
+			logger.L().Error("Failed watching over namespaces", helpers.Error(err))
+			time.Sleep(1 * time.Second)
 			continue
 		}
 		namespacesChan := namespacesWatcher.ResultChan()
-		glog.Infof("Watching over namespaces started")
+		logger.L().Info("Watching over namespaces started")
 	ChanLoop:
 		for {
 			var event watch.Event
@@ -40,12 +41,11 @@ WatchLoop:
 			case event = <-namespacesChan:
 			case <-newStateChan:
 				namespacesWatcher.Stop()
-				glog.Errorf("namespaces watch - newStateChan signal")
 				continue WatchLoop
 			}
 
 			if event.Type == watch.Error {
-				glog.Errorf("namespaces watch chan loop error: %v", event.Object)
+				logger.L().Warning("namespaces watch chan loop", helpers.Interface("error", event.Object))
 				namespacesWatcher.Stop()
 				break ChanLoop
 			}
@@ -54,7 +54,7 @@ WatchLoop:
 			}
 		}
 		lastWatchEventCreationTime = time.Now()
-		glog.Infof("Watching over namespaces ended - timeout")
+		logger.L().Debug("Watching over namespaces ended - timeout")
 	}
 }
 func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, lastWatchEventCreationTime time.Time) error {
@@ -63,7 +63,7 @@ func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, lastWatchEvent
 		switch event.Type {
 		case "ADDED":
 			if namespace.CreationTimestamp.Time.Before(lastWatchEventCreationTime) {
-				glog.Infof("namespace %s already exist, will not be reported", namespace.ObjectMeta.Name)
+				logger.L().Debug("namespace already exist, will not be reported", helpers.String("name", namespace.ObjectMeta.Name))
 				return nil
 			}
 			id := CreateID()
@@ -82,7 +82,7 @@ func (wh *WatchHandler) NamespaceEventHandler(event *watch.Event, lastWatchEvent
 		case "BOOKMARK": //only the resource version is changed but it's the same object
 			return nil
 		case "ERROR":
-			glog.Errorf("while watching over namespaces we got an error: %v", event)
+			logger.L().Error("while watching over namespaces", helpers.Interface("error", event.Object))
 			return fmt.Errorf("while watching over namespaces we got an error")
 		}
 	} else {
@@ -128,7 +128,6 @@ func (wh *WatchHandler) RemoveNamespace(namespace *corev1.Namespace) string {
 		if strings.Compare(namespaceData.ObjectMeta.Name, namespace.Name) == 0 {
 			name := namespaceData.ObjectMeta.Name
 			wh.namespacedm.remove(id)
-			glog.Infof("namespace %s removed", name)
 			return name
 		}
 	}

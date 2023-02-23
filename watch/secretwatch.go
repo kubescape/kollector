@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
+	logger "github.com/kubescape/go-logger"
+	"github.com/kubescape/go-logger/helpers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -21,7 +22,7 @@ type secretData struct {
 func (wh *WatchHandler) SecretWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			glog.Errorf("RECOVER SecretWatch. error: %v\n %s", err, string(debug.Stack()))
+			logger.L().Error("RECOVER SecretWatch", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
 		}
 	}()
 	var lastWatchEventCreationTime time.Time
@@ -29,15 +30,14 @@ func (wh *WatchHandler) SecretWatch() {
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 WatchLoop:
 	for {
-		glog.Infof("Watching over secrets starting")
+		logger.L().Info("Watching over secrets starting")
 		secretsWatcher, err := wh.RestAPIClient.CoreV1().Secrets("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			glog.Errorf("Failed watching over secrets. %s", err.Error())
-			time.Sleep(3 * time.Second)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 		secretsChan := secretsWatcher.ResultChan()
-		glog.Infof("Watching over secrets started")
+		logger.L().Info("Watching over secrets started")
 	ChanLoop:
 		for {
 			var event watch.Event
@@ -45,12 +45,10 @@ WatchLoop:
 			case event = <-secretsChan:
 			case <-newStateChan:
 				secretsWatcher.Stop()
-				glog.Errorf("Secrets watch - newStateChan signal")
 				continue WatchLoop
 			}
 
 			if event.Type == watch.Error {
-				glog.Errorf("Secrets watch chan loop error: %v", event.Object)
 				secretsWatcher.Stop()
 				break ChanLoop
 			}
@@ -59,7 +57,6 @@ WatchLoop:
 			}
 		}
 		lastWatchEventCreationTime = time.Now()
-		glog.Infof("Watching over secrets ended - timeout")
 	}
 }
 func (wh *WatchHandler) secretEventHandler(event *watch.Event, lastWatchEventCreationTime time.Time) error {
@@ -72,7 +69,6 @@ func (wh *WatchHandler) secretEventHandler(event *watch.Event, lastWatchEventCre
 		switch event.Type {
 		case "ADDED":
 			if secret.CreationTimestamp.Time.Before(lastWatchEventCreationTime) {
-				glog.Infof("secret %s already exist, will not be reported", secret.ObjectMeta.Name)
 				return nil
 			}
 			secretdm := secretData{Secret: secret}
@@ -92,7 +88,6 @@ func (wh *WatchHandler) secretEventHandler(event *watch.Event, lastWatchEventCre
 		case "BOOKMARK": //only the resource version is changed but it's the same workload
 			return nil
 		case "ERROR":
-			glog.Errorf("while watching over secrets we got an error: %v", event)
 			return fmt.Errorf("while watching over secrets we got an error")
 		}
 	} else {
@@ -117,12 +112,10 @@ func (wh *WatchHandler) updateSecret(secret *corev1.Secret) {
 		}
 		if strings.Compare(secretData.Secret.ObjectMeta.Name, secret.ObjectMeta.Name) == 0 {
 			*secretData.Secret = *secret
-			glog.Infof("secret %s updated", secretData.Secret.ObjectMeta.Name)
 			break
 		}
 		if strings.Compare(secretData.Secret.ObjectMeta.GenerateName, secret.ObjectMeta.Name) == 0 {
 			*secretData.Secret = *secret
-			glog.Infof("secret %s updated", secretData.Secret.ObjectMeta.Name)
 			break
 		}
 	}
@@ -145,13 +138,11 @@ func (wh *WatchHandler) removeSecret(secret *corev1.Secret) string {
 		if strings.Compare(secretData.Secret.ObjectMeta.Name, secret.ObjectMeta.Name) == 0 {
 			name := secretData.Secret.ObjectMeta.Name
 			wh.secretdm.remove(id)
-			glog.Infof("secret %s removed", name)
 			return name
 		}
 		if strings.Compare(secretData.Secret.ObjectMeta.GenerateName, secret.ObjectMeta.Name) == 0 {
 			gName := secretData.Secret.ObjectMeta.Name
 			wh.secretdm.remove(id)
-			glog.Infof("secret %s removed", gName)
 			return gName
 		}
 	}

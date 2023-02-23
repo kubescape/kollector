@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/armosec/utils-k8s-go/armometadata"
-	"github.com/golang/glog"
 	"github.com/kubescape/k8s-interface/k8sinterface"
 	restclient "k8s.io/client-go/rest"
 
@@ -174,7 +173,6 @@ func parseArgument() error {
 	threFlag := flag.Lookup("stderrthreshold")
 	threFlag.DefValue = "WARNING"
 	flag.Parse()
-	glog.Infof("Log level: %s, set -stderrthreshold=INFO for detailed logs", threFlag.Value)
 
 	return nil
 }

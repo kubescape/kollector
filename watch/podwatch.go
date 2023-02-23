@@ -5,13 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"reflect"
 	"runtime/debug"
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
+	logger "github.com/kubescape/go-logger"
+	"github.com/kubescape/go-logger/helpers"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
@@ -65,7 +65,7 @@ var scanNotificationCandidateList []*ScanNewImageData
 func (wh *WatchHandler) PodWatch() {
 	defer func() {
 		if err := recover(); err != nil {
-			glog.Errorf("RECOVER ListenerAndSender. %v, stack: %s", err, debug.Stack())
+			logger.L().Error("RECOVER ListenerAndSender", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
 		}
 	}()
 	var lastWatchEventCreationTime time.Time
@@ -73,11 +73,10 @@ func (wh *WatchHandler) PodWatch() {
 	newStateChan := make(chan bool)
 	wh.newStateReportChans = append(wh.newStateReportChans, newStateChan)
 	for {
-		glog.Infof("Watching over pods starting")
+		logger.L().Info("Watching over pods starting")
 		podsWatcher, err := wh.RestAPIClient.CoreV1().Pods("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			glog.Errorf("Watch error: %s", err.Error())
-			time.Sleep(3 * time.Second)
+			time.Sleep(1 * time.Second)
 			continue
 		}
 		wh.handlePodWatch(podsWatcher, newStateChan, &lastWatchEventCreationTime)
@@ -86,7 +85,7 @@ func (wh *WatchHandler) PodWatch() {
 func isPodAlreadyExistInScanCandidateList(od *OwnerDet, pod *core.Pod) (bool, int) {
 	for i, data := range scanNotificationCandidateList {
 		if pod.GetNamespace() == data.Pod.GetNamespace() && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
-			glog.Infof("addPodScanNotificationCandidateList: pod %s already exist", pod.Name)
+			logger.L().Debug("pod already exist", helpers.String("name", pod.Name))
 			return true, i
 		}
 	}
@@ -95,7 +94,7 @@ func isPodAlreadyExistInScanCandidateList(od *OwnerDet, pod *core.Pod) (bool, in
 
 func addPodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
 	if exist, index := isPodAlreadyExistInScanCandidateList(od, pod); !exist {
-		glog.Infof("addPodScanNotificationCandidateList: pod %s is added to scan list candidate", pod.Name)
+		logger.L().Debug("pod added to scan list candidate", helpers.String("name", pod.Name))
 		nms := &ScanNewImageData{Pod: pod, Owner: od, PodsNumber: 1}
 		scanNotificationCandidateList = append(scanNotificationCandidateList, nms)
 	} else {
@@ -109,7 +108,7 @@ func removePodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
 		if pod.GetNamespace() == data.Pod.GetNamespace() && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
 			scanNotificationCandidateList[i].PodsNumber--
 			if scanNotificationCandidateList[i].PodsNumber == 0 {
-				glog.Infof("pod %s is removed to scan list candidate", pod.Name)
+				logger.L().Debug("pod removed from scan list candidate", helpers.String("name", pod.Name))
 				scanNotificationCandidateList = append(scanNotificationCandidateList[:i], scanNotificationCandidateList[i+1:]...)
 				return
 			}
@@ -119,19 +118,15 @@ func removePodScanNotificationCandidateList(od *OwnerDet, pod *core.Pod) {
 
 func isContainersIDSChanged(podWithNewState []core.ContainerStatus, oldPod []core.ContainerStatus) bool {
 	if len(podWithNewState) > len(oldPod) {
-		glog.Infof("isContainersIDSChanged: len(podWithNewState) %d len(oldPod) %d, return true", len(podWithNewState), len(oldPod))
 		return true
 	}
 
 	length := len(podWithNewState)
 	for i := 0; i < length; i++ {
-		glog.Infof("isContainersIDSChanged: newPod %s oldPod %s", podWithNewState[i].ImageID, oldPod[i].ImageID)
 		if podWithNewState[i].ImageID != oldPod[i].ImageID {
-			glog.Infof("isContainersIDSChanged: return true")
 			return true
 		}
 	}
-	glog.Infof("isContainersIDSChanged: return false")
 	return false
 }
 
@@ -147,15 +142,12 @@ func checkNotificationCandidateList(pod *core.Pod, od *OwnerDet, podStatus strin
 		if pod.GetNamespace() == data.Pod.GetNamespace() && data.Owner.Name == od.Name && data.Owner.Kind == od.Kind {
 			if isPodIsTheNewOne(data.Pod) && isContainersIDSChanged(pod.Status.ContainerStatuses, data.Pod.Status.ContainerStatuses) {
 				scanNotificationCandidateList[i].Pod = pod
-				glog.Infof("checkNotificationCandidateList: pod %s return true", pod.Name)
 				return true
 			} else {
-				glog.Infof("checkNotificationCandidateList: pod %s return false", pod.Name)
 				return false
 			}
 		}
 	}
-	glog.Infof("checkNotificationCandidateList: pod %s return false", pod.Name)
 	return false
 }
 
@@ -166,26 +158,24 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		select {
 		case event, chanActive = <-podsWatcher.ResultChan():
 			if !chanActive {
-				glog.Error("Pod watch chan loop error inactive channel")
 				podsWatcher.Stop()
 				*lastWatchEventCreationTime = time.Now()
 				return
 			}
 		case <-newStateChan:
 			podsWatcher.Stop()
-			glog.Errorf("pod watch - newStateChan signal")
 			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		if event.Type == watch.Error {
-			glog.Errorf("Pod watch chan loop error: %v", event.Object)
+			logger.L().Error("Pod watch chan loop", helpers.Interface("error", event.Object))
 			podsWatcher.Stop()
 			*lastWatchEventCreationTime = time.Now()
 			return
 		}
 		pod, ok := event.Object.(*core.Pod)
 		if !ok {
-			glog.Errorf("Watch error: cannot convert to core.Pod: %v", event)
+			logger.L().Error("Watch error: cannot convert to core.Pod", helpers.Interface("error", event))
 			continue
 		}
 		if !wh.isNamespaceWatched(pod.Namespace) {
@@ -197,17 +187,15 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			podName = pod.ObjectMeta.GenerateName
 		}
 		podStatus := getPodStatus(pod)
-		glog.Infof("event.Type %s. name: %s, status: %s", event.Type, podName, podStatus)
+		logger.L().Debug("pod", helpers.String("name", podName), helpers.String("status", podStatus), helpers.String("namespace", pod.Namespace), helpers.String("node", pod.Spec.NodeName))
 		od, err := GetAncestorOfPod(pod, wh)
 		if err != nil {
-			glog.Errorf("%s, ignoring pod report", err.Error())
 			*lastWatchEventCreationTime = time.Now()
 			break
 		}
 		switch event.Type {
 		case watch.Added:
 			if pod.CreationTimestamp.Time.Before(*lastWatchEventCreationTime) {
-				glog.Infof("pod %s already exist, will not be reported", podName)
 				continue
 			}
 			first := true
@@ -262,7 +250,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 		case watch.Modified:
 			if checkNotificationCandidateList(pod, &od, podStatus) {
 				if err := wh.notifyUpdates.notifyNewMicroServiceCreatedInTheCluster(pod.Namespace, od.Kind, od.Name); err != nil {
-					glog.Errorf("failed to notify updates. reason: %v", err)
+					logger.L().Error("failed to notify updates", helpers.Error(err))
 				}
 			}
 			if !wh.isNamespaceWatched(pod.Namespace) {
@@ -274,7 +262,7 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			}
 			podSpecID, newPodData := wh.updatePod(pod, wh.pdm, podStatus)
 			if podSpecID > -2 {
-				glog.Infof("Modified. name: %s, status: %s, uid: %s", podName, podStatus, pod.GetUID())
+				logger.L().Debug("Pod Modified", helpers.String("name", podName), helpers.String("status", podStatus), helpers.String("namespace", pod.Namespace), helpers.String("node", pod.Spec.NodeName))
 				if strings.Contains(strings.ToLower(podStatus), "crashloop") {
 					wh.printPodLogs(pod)
 				}
@@ -293,10 +281,10 @@ func (wh *WatchHandler) handlePodWatch(podsWatcher watch.Interface, newStateChan
 			}
 			wh.DeletePod(pod, podName)
 		case watch.Bookmark:
-			glog.Infof("Bookmark. name: %s, status: %s", podName, podStatus)
+			logger.L().Debug("Pod Bookmark", helpers.String("name", podName), helpers.String("status", podStatus), helpers.String("namespace", pod.Namespace), helpers.String("node", pod.Spec.NodeName))
 		case watch.Error:
 			removePodScanNotificationCandidateList(&od, pod)
-			glog.Infof("Error. name: %s, status: %s", podName, podStatus)
+			logger.L().Debug("Pod Error", helpers.String("name", podName), helpers.String("status", podStatus), helpers.String("namespace", pod.Namespace), helpers.String("node", pod.Spec.NodeName))
 			*lastWatchEventCreationTime = time.Now()
 			return
 		}
@@ -309,39 +297,14 @@ func (wh *WatchHandler) printPodLogs(pod *core.Pod) {
 	containerSlice = append(containerSlice, pod.Status.ContainerStatuses...)
 	containerSlice = append(containerSlice, pod.Status.InitContainerStatuses...)
 	for contIdx := range containerSlice {
-		contName := containerSlice[contIdx].Name
 		if containerSlice[contIdx].RestartCount > 2 {
-			glog.Warningf("Crashed pod container '%s' restart count: %d", contName, containerSlice[contIdx].RestartCount)
 			continue
 		}
 	}
-	glog.Warningf("Crashed pod: %+v", pod)
 	for contIdx := range containerSlice {
 		contName := containerSlice[contIdx].Name
 		podLogOpts := core.PodLogOptions{Previous: true, Timestamps: true, Container: contName}
-		logsObj := wh.K8sApi.KubernetesClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
-		readerObj, err := logsObj.Stream(wh.K8sApi.Context)
-		if err != nil {
-			glog.Warningf("Crashed pod container '%s'. Failed to get previous logs stream: %v", contName, err)
-		} else {
-			if logs, err := io.ReadAll(readerObj); err != nil {
-				glog.Warningf("Crashed pod container '%s'. Failed to read previous logs stream: %v", contName, err)
-			} else {
-				glog.Warningf("Crashed pod container '%s' previous logs:\n %s", contName, string(logs))
-			}
-		}
 		podLogOpts.Previous = false
-		logsObj = wh.K8sApi.KubernetesClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
-		readerObj, err = logsObj.Stream(wh.K8sApi.Context)
-		if err != nil {
-			glog.Warningf("Crashed pod container '%s'. Failed to get logs stream: %v", contName, err)
-		} else {
-			if logs, err := io.ReadAll(readerObj); err != nil {
-				glog.Warningf("Crashed pod container '%s'. Failed to read logs stream: %v", contName, err)
-			} else {
-				glog.Warningf("Crashed pod container '%s' logs:\n %s", contName, string(logs))
-			}
-		}
 	}
 }
 
@@ -352,14 +315,13 @@ func (wh *WatchHandler) DeletePod(pod *core.Pod, podName string) {
 	if podSpecID == -1 {
 		return
 	}
-	glog.Infof("Deleted. name: %s, status: %s, uid: %s", podName, podStatus, pod.GetUID())
+	logger.L().Debug("Pod Deleted", helpers.String("name", podName), helpers.String("status", podStatus), helpers.String("namespace", pod.Namespace), helpers.String("node", pod.Spec.NodeName))
 	np := PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, Owner: OwnerDetNameAndKindOnly{Name: owner.Name, Kind: owner.Kind}, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
 	if pod.DeletionTimestamp != nil {
 		np.DeletionTimestamp = pod.DeletionTimestamp.Time.UTC().Format(time.RFC3339)
 	}
 	wh.jsonReport.AddToJsonFormat(np, PODS, DELETED)
 	if removeMicroServiceAsWell {
-		glog.Infof("remove %s.%s", owner.Kind, owner.Name)
 		nms := MicroServiceData{Pod: pod, Owner: owner, PodSpecId: podSpecID}
 		wh.jsonReport.AddToJsonFormat(nms, MICROSERVICES, DELETED)
 	}
@@ -429,18 +391,18 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		options := metav1.GetOptions{}
 		depDet, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
-			glog.Errorf("GetOwnerData Deployments: %s", err.Error())
+			logger.L().Error("GetOwnerData Deployments", helpers.Error(err))
 			return nil
 		}
 		depDet.TypeMeta.Kind = kind
 		depDet.TypeMeta.APIVersion = apiVersion
 		depDet.ManagedFields = []metav1.ManagedFieldsEntry{}
 		return depDet
-	case "DeamonSet", "DaemonSet":
+	case "DaemonSet":
 		options := metav1.GetOptions{}
 		daemSetDet, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
-			glog.Errorf("GetOwnerData DaemonSets: %s", err.Error())
+			logger.L().Error("GetOwnerData DaemonSet", helpers.Error(err))
 			return nil
 		}
 		daemSetDet.TypeMeta.Kind = kind
@@ -451,7 +413,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		options := metav1.GetOptions{}
 		statSetDet, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
-			glog.Errorf("GetOwnerData StatefulSets: %s", err.Error())
+			logger.L().Error("GetOwnerData StatefulSet", helpers.Error(err))
 			return nil
 		}
 		statSetDet.TypeMeta.Kind = kind
@@ -462,7 +424,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		options := metav1.GetOptions{}
 		jobDet, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
-			glog.Errorf("GetOwnerData Jobs: %s", err.Error())
+			logger.L().Error("GetOwnerData Job", helpers.Error(err))
 			return nil
 		}
 		jobDet.TypeMeta.Kind = kind
@@ -473,7 +435,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		options := metav1.GetOptions{}
 		cronJobDet, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
-			glog.Errorf("GetOwnerData CronJobs: %s", err.Error())
+			logger.L().Error("GetOwnerData CronJob", helpers.Error(err))
 			return nil
 		}
 		cronJobDet.TypeMeta.Kind = kind
@@ -484,7 +446,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		options := metav1.GetOptions{}
 		podDet, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
-			glog.Errorf("GetOwnerData Pods: %s", err.Error())
+			logger.L().Error("GetOwnerData Pod", helpers.Error(err))
 			return nil
 		}
 		podDet.TypeMeta.Kind = kind
@@ -499,7 +461,7 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 		options := metav1.ListOptions{}
 		crds, err := wh.extensionsClient.CustomResourceDefinitions().List(context.Background(), options)
 		if err != nil {
-			glog.Errorf("GetOwnerData CustomResourceDefinitions: %s", err.Error())
+			logger.L().Error("GetOwnerData CustomResourceDefinitions", helpers.Error(err))
 			return nil
 		}
 		for crdIdx := range crds.Items {
@@ -518,7 +480,6 @@ func GetOwnerData(name string, kind string, apiVersion string, namespace string,
 func GetAncestorFromLocalPodsList(pod *core.Pod, wh *WatchHandler) (*OwnerDet, error) {
 	for _, v := range wh.pdm {
 		if v == nil || v.Front() == nil {
-			glog.Infof("found nil element in list of pods. pod name: %s, generateName: %s, namespace: %s", pod.GetName(), pod.GetGenerateName(), pod.GetNamespace())
 			continue
 		}
 		element := v.Front().Next()
@@ -588,7 +549,7 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 				if localOD, inner_err := GetAncestorFromLocalPodsList(pod, wh); inner_err == nil {
 					return *localOD, nil
 				}
-				glog.Error(err)
+				logger.L().Error(err.Error())
 				return od, err
 			}
 			if jobItem.OwnerReferences != nil {
@@ -602,7 +563,6 @@ func GetAncestorOfPod(pod *core.Pod, wh *WatchHandler) (OwnerDet, error) {
 			depList, _ := wh.RestAPIClient.BatchV1beta1().CronJobs(pod.ObjectMeta.Namespace).List(globalHTTPContext, metav1.ListOptions{})
 			selector, err := metav1.LabelSelectorAsSelector(jobItem.Spec.Selector)
 			if err != nil {
-				glog.Errorf("LabelSelectorAsSelector: %s", err.Error())
 				return od, fmt.Errorf("error getting owner reference")
 			}
 
@@ -638,7 +598,6 @@ func (wh *WatchHandler) updatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 	podDataForExistMicroService := PodDataForExistMicroService{}
 	for _, v := range pdm {
 		if v == nil || v.Front() == nil {
-			glog.Infof("found nil element in list of pods. pod name: %s, generateName: %s, namespace: %s", pod.GetName(), pod.GetGenerateName(), pod.GetNamespace())
 			continue
 		}
 		element := v.Front().Next()
@@ -648,7 +607,6 @@ func (wh *WatchHandler) updatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 
 				if reflect.DeepEqual(*v.Front().Value.(MicroServiceData).Pod, *pod) {
 					if err := DeepCopy(*pod, *v.Front().Value.(MicroServiceData).Pod); err != nil {
-						glog.Errorf("error in DeepCopy 'Pod' in UpdatePod")
 						id = -1
 					} else {
 						id = v.Front().Value.(MicroServiceData).PodSpecId
@@ -658,13 +616,8 @@ func (wh *WatchHandler) updatePod(pod *core.Pod, pdm map[int]*list.List, podStat
 				}
 				podDataForExistMicroService = PodDataForExistMicroService{PodName: pod.ObjectMeta.Name, NodeName: pod.Spec.NodeName, PodIP: pod.Status.PodIP, Namespace: pod.ObjectMeta.Namespace, PodStatus: podStatus, CreationTimestamp: pod.CreationTimestamp.Time.UTC().Format(time.RFC3339)}
 
-				if err := DeepCopy(element.Value.(PodDataForExistMicroService).Owner, &podDataForExistMicroService.Owner); err != nil {
-					glog.Errorf("error in DeepCopy 'Owner' in UpdatePod")
-				}
-
-				if err := DeepCopyObj(podDataForExistMicroService, element.Value.(PodDataForExistMicroService)); err != nil {
-					glog.Errorf("error in DeepCopy 'PodDataForExistMicroService' in UpdatePod")
-				}
+				DeepCopy(element.Value.(PodDataForExistMicroService).Owner, &podDataForExistMicroService.Owner)
+				DeepCopyObj(podDataForExistMicroService, element.Value.(PodDataForExistMicroService))
 				break
 			}
 			element = element.Next()
@@ -678,63 +631,50 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 	case "Deployment":
 		options := metav1.GetOptions{}
 		name := ownerData.(*appsv1.Deployment).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(globalHTTPContext, name, options)
+		_, err := wh.RestAPIClient.AppsV1().Deployments(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
-		v, _ := json.Marshal(mic)
-		glog.Infof("Removing pod but not Deployment: %s", string(v))
 
 	case "DeamonSet", "DaemonSet":
 		options := metav1.GetOptions{}
 		name := ownerData.(*appsv1.DaemonSet).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(globalHTTPContext, name, options)
+		_, err := wh.RestAPIClient.AppsV1().DaemonSets(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
-		v, _ := json.Marshal(mic)
-		glog.Infof("Removing pod but not DaemonSet: %s", string(v))
 
 	case "StatefulSets":
 		options := metav1.GetOptions{}
 		name := ownerData.(*appsv1.StatefulSet).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(globalHTTPContext, name, options)
+		_, err := wh.RestAPIClient.AppsV1().StatefulSets(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
-		v, _ := json.Marshal(mic)
-		glog.Infof("Removing pod but not StatefulSet: %s", string(v))
 	case "Job":
 		options := metav1.GetOptions{}
 		name := ownerData.(*batchv1.Job).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(globalHTTPContext, name, options)
+		_, err := wh.RestAPIClient.BatchV1().Jobs(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
-		v, _ := json.Marshal(mic)
-		glog.Infof("Removing pod but not Job: %s", string(v))
 	case "CronJob":
 		options := metav1.GetOptions{}
 		cronJob, ok := ownerData.(*v1beta1.CronJob)
 		if !ok {
-			glog.Errorf("cant convert to v1beta1.CronJob")
 			return true
 		}
-		mic, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, cronJob.ObjectMeta.Name, options)
+		_, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, cronJob.ObjectMeta.Name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
-		v, _ := json.Marshal(mic)
-		glog.Infof("Removing pod but not CronJob: %s", string(v))
 	case "Pod":
 		options := metav1.GetOptions{}
 		name := ownerData.(*core.Pod).ObjectMeta.Name
-		mic, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(globalHTTPContext, name, options)
+		_, err := wh.RestAPIClient.CoreV1().Pods(namespace).Get(globalHTTPContext, name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}
-		v, _ := json.Marshal(mic)
-		glog.Infof("Removing pod but not Pod: %s", string(v))
 	}
 
 	return false

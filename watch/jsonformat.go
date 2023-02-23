@@ -3,7 +3,8 @@ package watch
 import (
 	"encoding/json"
 
-	"github.com/golang/glog"
+	logger "github.com/kubescape/go-logger"
+	"github.com/kubescape/go-logger/helpers"
 	"k8s.io/apimachinery/pkg/version"
 )
 
@@ -136,7 +137,7 @@ func prepareDataToSend(wh *WatchHandler) []byte {
 	}
 	jsonReportToSend, err := json.Marshal(jsonReport)
 	if nil != err {
-		glog.Errorf("In PrepareDataToSend json.Marshal %v", err)
+		logger.L().Error("In PrepareDataToSend json.Marshal", helpers.Error(err))
 		return nil
 	}
 	deleteJsonData(wh)
@@ -144,7 +145,7 @@ func prepareDataToSend(wh *WatchHandler) []byte {
 	return jsonReportToSend
 }
 
-//WaitTillNewDataArrived -
+// WaitTillNewDataArrived -
 func WaitTillNewDataArrived(wh *WatchHandler) bool {
 	<-wh.informNewDataChannel
 	return true
