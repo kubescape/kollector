@@ -7,6 +7,7 @@ import (
 
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
+	"golang.org/x/net/context"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,10 +15,10 @@ import (
 )
 
 // CronJobWatch watch over services
-func (wh *WatchHandler) CronJobWatch() {
+func (wh *WatchHandler) CronJobWatch(ctx context.Context) {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.L().Error("RECOVER CronJobWatch", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
+			logger.L().Ctx(ctx).Error("RECOVER CronJobWatch", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
 		}
 	}()
 	var lastWatchEventCreationTime time.Time
@@ -27,17 +28,17 @@ func (wh *WatchHandler) CronJobWatch() {
 		logger.L().Info("Watching over cronjobs starting")
 		cronjobWatcher, err := wh.RestAPIClient.BatchV1().CronJobs("").Watch(globalHTTPContext, metav1.ListOptions{Watch: true})
 		if err != nil {
-			logger.L().Error("Cannot watch over cronjobs", helpers.Error(err))
+			logger.L().Ctx(ctx).Error("Cannot watch over cronjobs", helpers.Error(err))
 			time.Sleep(3 * time.Second)
 			continue
 		}
-		wh.handleCronJobWatch(cronjobWatcher, newStateChan, &lastWatchEventCreationTime)
+		wh.handleCronJobWatch(ctx, cronjobWatcher, newStateChan, &lastWatchEventCreationTime)
 
 		logger.L().Info("Watching over cronjobs ended - since we got timeout")
 	}
 }
 
-func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
+func (wh *WatchHandler) handleCronJobWatch(ctx context.Context, cronjobWatcher watch.Interface, newStateChan <-chan bool, lastWatchEventCreationTime *time.Time) {
 	cronjobChan := cronjobWatcher.ResultChan()
 	cronJobIDs := make(map[string]int)
 	logger.L().Info("Watching over cronjobs started")
@@ -51,7 +52,7 @@ func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newSt
 			return
 		}
 		if event.Type == watch.Error {
-			logger.L().Error("CronJob watch chan loop", helpers.Interface("error", event.Object))
+			logger.L().Ctx(ctx).Error("CronJob watch chan loop", helpers.Interface("error", event.Object))
 			*lastWatchEventCreationTime = time.Now()
 			return
 		}
@@ -107,7 +108,7 @@ func (wh *WatchHandler) handleCronJobWatch(cronjobWatcher watch.Interface, newSt
 			case watch.Bookmark: //only the resource version is changed but it's the same workload
 				continue
 			case watch.Error:
-				logger.L().Error("while watching over cronjobs we got an error", helpers.Interface("error", event))
+				logger.L().Ctx(ctx).Error("while watching over cronjobs we got an error", helpers.Interface("error", event))
 				*lastWatchEventCreationTime = time.Now()
 				return
 			}

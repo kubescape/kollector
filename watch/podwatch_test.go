@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"context"
 	_ "embed"
 
 	"encoding/json"
@@ -33,9 +34,9 @@ func TestAddPodScanNotificationCandidateList(t *testing.T) {
 
 	err = json.Unmarshal([]byte(podOD), &od)
 	assert.NoErrorf(t, err, "failed convert od to json: %v", err)
-
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ := isPodAlreadyExistInScanCandidateList(&od, &pod)
+	ctx := context.Background()
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ := isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 }
 
@@ -51,12 +52,13 @@ func TestRemovePodScanNotificationCandidateList(t *testing.T) {
 	err = json.Unmarshal([]byte(podOD), &od)
 	assert.NoErrorf(t, err, "failed convert od to json: %v", err)
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ := isPodAlreadyExistInScanCandidateList(&od, &pod)
+	ctx := context.Background()
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ := isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 
 	removePodScanNotificationCandidateList(&od, &pod)
-	exist, _ = isPodAlreadyExistInScanCandidateList(&od, &pod)
+	exist, _ = isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.False(t, exist, "pod should not exist")
 }
 
@@ -71,8 +73,9 @@ func TestCheckNotificationCandidateList(t *testing.T) {
 	err = json.Unmarshal([]byte(podOD), &od)
 	assert.NoErrorf(t, err, "failed convert od to json: %v", err)
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ := isPodAlreadyExistInScanCandidateList(&od, &pod)
+	ctx := context.Background()
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ := isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 
 	runningOd := OwnerDet{}
@@ -89,6 +92,7 @@ func TestCheckNotificationCandidateList(t *testing.T) {
 
 /*
 use case:
+
 	use case:	              will add to list:	will reported:   will remove to list:  supported:
 	new microservice created	  yes	            yes	            no                    yes
 */
@@ -104,8 +108,9 @@ func TestNewMicroserviceCreated(t *testing.T) {
 	err = json.Unmarshal([]byte(podOD), &od)
 	assert.NoErrorf(t, err, "failed convert od to json: %v", err)
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ := isPodAlreadyExistInScanCandidateList(&od, &pod)
+	ctx := context.Background()
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ := isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 
 	runningOd := OwnerDet{}
@@ -122,6 +127,7 @@ func TestNewMicroserviceCreated(t *testing.T) {
 
 /*
 use case:
+
 	use case:	                                              will add to list:	will reported:   will remove to list:  supported:
 	new microservice created with bad configuration or error	  yes	            no	            yes                   yes
 */
@@ -137,8 +143,9 @@ func TestNewMicroserviceCreatedWithBadConfiguration(t *testing.T) {
 	err = json.Unmarshal([]byte(podOD), &od)
 	assert.NoErrorf(t, err, "failed convert od to json: %v", err)
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ := isPodAlreadyExistInScanCandidateList(&od, &pod)
+	ctx := context.Background()
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ := isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 
 	runningOd := OwnerDet{}
@@ -153,12 +160,13 @@ func TestNewMicroserviceCreatedWithBadConfiguration(t *testing.T) {
 	assert.False(t, checkNotificationCandidateList(&runningPod, &runningOd, "Failed"), "pod should not be reported")
 
 	removePodScanNotificationCandidateList(&runningOd, &runningPod)
-	exist, _ = isPodAlreadyExistInScanCandidateList(&od, &pod)
+	exist, _ = isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.False(t, exist, "pod should not exist")
 }
 
 /*
 use case:
+
 	use case:	                     will add to list:	               wil reported:   will remove to list:                supported:
 	microservice changed it's image  no(the pod counter will increase) yes	           no(the pod counter will decrease)   yes
 */
@@ -174,8 +182,9 @@ func TestMicroserviceChangedItsImage(t *testing.T) {
 	err = json.Unmarshal([]byte(podOD), &od)
 	assert.NoErrorf(t, err, "failed convert od to json: %v", err)
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	if exist, _ := isPodAlreadyExistInScanCandidateList(&od, &pod); !exist {
+	ctx := context.Background()
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	if exist, _ := isPodAlreadyExistInScanCandidateList(ctx, &od, &pod); !exist {
 		t.Fatalf("pod should exist")
 	}
 
@@ -190,8 +199,8 @@ func TestMicroserviceChangedItsImage(t *testing.T) {
 
 	assert.True(t, checkNotificationCandidateList(&runningPod, &runningOd, "Running"), "pod should be reported")
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ := isPodAlreadyExistInScanCandidateList(&od, &pod)
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ := isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 
 	runningNewOd := OwnerDet{}
@@ -208,12 +217,13 @@ func TestMicroserviceChangedItsImage(t *testing.T) {
 	assert.True(t, checkNotificationCandidateList(&runningNewPod, &runningNewOd, "Running"), "pod should be reported")
 
 	removePodScanNotificationCandidateList(&od, &pod)
-	exist, _ = isPodAlreadyExistInScanCandidateList(&od, &pod)
+	exist, _ = isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 }
 
 /*
 use case:
+
 	use case:	                                              will add to list:	                will reported:   will remove to list:                supported:
 	microservice changed it's image with bad config or error  no(the pod counter will increase) no               no(the pod counter will decrease)   yes
 */
@@ -229,8 +239,9 @@ func TestMicroserviceChangedItsImageWithBadConfig(t *testing.T) {
 	err = json.Unmarshal([]byte(podOD), &od)
 	assert.NoErrorf(t, err, "failed convert od to json: %v", err)
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ := isPodAlreadyExistInScanCandidateList(&od, &pod)
+	ctx := context.Background()
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ := isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 
 	runningOd := OwnerDet{}
@@ -244,8 +255,8 @@ func TestMicroserviceChangedItsImageWithBadConfig(t *testing.T) {
 
 	assert.True(t, checkNotificationCandidateList(&runningPod, &runningOd, "Running"), "pod should be reported")
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ = isPodAlreadyExistInScanCandidateList(&od, &pod)
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ = isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 
 	runningNewOd := OwnerDet{}
@@ -262,12 +273,13 @@ func TestMicroserviceChangedItsImageWithBadConfig(t *testing.T) {
 	assert.False(t, checkNotificationCandidateList(&runningNewPod, &runningNewOd, "Failed"), "pod should not be reported")
 
 	removePodScanNotificationCandidateList(&od, &pod)
-	exist, _ = isPodAlreadyExistInScanCandidateList(&od, &pod)
+	exist, _ = isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 }
 
 /*
 use case:
+
 	use case:	                                              will add to list:	                will reported:   will remove to list:                supported:
 	microservice changed it's something but the image tag     no(the pod counter will increase) no               no(the pod counter will decrease)   yes
 */
@@ -283,8 +295,9 @@ func TestMicroserviceChangedSomethingButItsImage(t *testing.T) {
 	err = json.Unmarshal([]byte(podOD), &od)
 	assert.NoErrorf(t, err, "failed convert od to json: %v", err)
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ := isPodAlreadyExistInScanCandidateList(&od, &pod)
+	ctx := context.Background()
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ := isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 
 	runningOd := OwnerDet{}
@@ -298,8 +311,8 @@ func TestMicroserviceChangedSomethingButItsImage(t *testing.T) {
 
 	assert.True(t, checkNotificationCandidateList(&runningPod, &runningOd, "Running"), "pod should be reported")
 
-	addPodScanNotificationCandidateList(&od, &pod)
-	exist, _ = isPodAlreadyExistInScanCandidateList(&od, &pod)
+	addPodScanNotificationCandidateList(ctx, &od, &pod)
+	exist, _ = isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 
 	runningNewOd := OwnerDet{}
@@ -315,6 +328,6 @@ func TestMicroserviceChangedSomethingButItsImage(t *testing.T) {
 	assert.False(t, checkNotificationCandidateList(&runningNewPod, &runningNewOd, "Running"), "pod should not be reported")
 
 	removePodScanNotificationCandidateList(&od, &pod)
-	exist, _ = isPodAlreadyExistInScanCandidateList(&od, &pod)
+	exist, _ = isPodAlreadyExistInScanCandidateList(ctx, &od, &pod)
 	assert.True(t, exist, "pod should exist")
 }

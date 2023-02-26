@@ -8,6 +8,7 @@ import (
 
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
+	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -19,10 +20,10 @@ type secretData struct {
 }
 
 // SecretWatch watch over secrets
-func (wh *WatchHandler) SecretWatch() {
+func (wh *WatchHandler) SecretWatch(ctx context.Context) {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.L().Error("RECOVER SecretWatch", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
+			logger.L().Ctx(ctx).Error("RECOVER SecretWatch", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
 		}
 	}()
 	var lastWatchEventCreationTime time.Time
