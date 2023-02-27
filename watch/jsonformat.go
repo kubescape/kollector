@@ -27,6 +27,11 @@ const (
 	UPDATED StateType = 3
 )
 
+var (
+	FirstReportEmptyBytes  = []byte("{\"firstReport\":true}")
+	FirstReportEmptyLength = len(FirstReportEmptyBytes)
+)
+
 type ObjectData struct {
 	Created []interface{} `json:"create,omitempty"`
 	Deleted []interface{} `json:"delete,omitempty"`
@@ -149,8 +154,8 @@ func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 }
 
 func isEmptyFirstReport(jsonReportToSend []byte) bool {
-	// len==0 is for empty json, len==2 is for "{}", len==17 is for "{\"firstReport\":true}"
-	if len(jsonReportToSend) == 0 || len(jsonReportToSend) == 2 || len(jsonReportToSend) == 17 {
+	// len==0 is for empty json, len==2 is for "{}"
+	if len(jsonReportToSend) == 0 || len(jsonReportToSend) == 2 || len(jsonReportToSend) == FirstReportEmptyLength {
 		return true
 	}
 
@@ -164,7 +169,7 @@ func WaitTillNewDataArrived(wh *WatchHandler) bool {
 }
 
 func informNewDataArrive(wh *WatchHandler) {
-	if !wh.aggregateFirstDataFlag {
+	if !wh.aggregateFirstDataFlag || wh.clusterAPIServerVersion != nil {
 		wh.informNewDataChannel <- 1
 	}
 }
