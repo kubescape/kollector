@@ -12,15 +12,20 @@ ADD . .
 RUN apk add git
 
 WORKDIR /work
-RUN go build -o build/kollector
-
-FROM alpine
-
+RUN go build -ldflags "-s" -o build/kollector
 RUN addgroup -S ks && adduser -S ks -G ks
+
+FROM scratch
+
+COPY --from=builder /etc/passwd /etc/passwd
 USER ks
 WORKDIR /home/ks/
 
 COPY --from=builder /work/build/kollector /usr/bin/kollector
-COPY ./kollector-entrypoint.sh /home/ks/
+COPY --from=builder  /etc/ssl/certs  /etc/ssl/certs
+# COPY --from=builder  /bin/busybox /bin/busybox
+# COPY --from=builder  /bin/sh  /bin/sh
+# COPY ./kollector-entrypoint.sh /home/ks/
 
-ENTRYPOINT ["./kollector-entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/kollector"]
+
