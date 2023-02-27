@@ -141,7 +141,9 @@ func prepareDataToSend(wh *WatchHandler) []byte {
 		return nil
 	}
 	deleteJsonData(wh)
-	wh.aggregateFirstDataFlag = false
+	if *wh.getAggregateFirstDataFlag() && jsonReport.ClusterAPIServerVersion != nil {
+		wh.aggregateFirstDataFlag = false
+	}
 	return jsonReportToSend
 }
 
@@ -163,6 +165,7 @@ func deleteObjectData(l *[]interface{}) {
 
 func deleteJsonData(wh *WatchHandler) {
 	jsonReport := &wh.jsonReport
+	// DO NOT DELETE jsonReport.ClusterAPIServerVersion data. it's not a subject to change
 
 	if jsonReport.Nodes != nil {
 		deleteObjectData(&jsonReport.Nodes.Created)

@@ -67,5 +67,5 @@ func main() {
 
 func displayBuildTag() {
 	flag.Parse()
-	logger.L().Info("Image version", helpers.String("reease", os.Getenv("RELEASE")))
+	logger.L().Info("Image version", helpers.String("release", os.Getenv("RELEASE")))
 }
