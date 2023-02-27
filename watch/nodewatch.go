@@ -8,6 +8,7 @@ import (
 
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
+	"golang.org/x/net/context"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
@@ -72,10 +73,10 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 }
 
 // NodeWatch Watching over nodes
-func (wh *WatchHandler) NodeWatch() {
+func (wh *WatchHandler) NodeWatch(ctx context.Context) {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.L().Error("RECOVER NodeWatch", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
+			logger.L().Ctx(ctx).Error("RECOVER NodeWatch", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
 		}
 	}()
 	var lastWatchEventCreationTime time.Time

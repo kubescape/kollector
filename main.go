@@ -1,71 +1,93 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
+	"net/url"
 	"os"
 
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
+
+	"github.com/kubescape/kollector/consts"
 	"github.com/kubescape/kollector/watch"
 
+	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/armosec/utils-k8s-go/probes"
 )
 
 func main() {
+	ctx := context.Background()
 
 	isServerReady := false
 	go probes.InitReadinessV1(&isServerReady)
 	displayBuildTag()
 
-	wh, err := watch.CreateWatchHandler()
+	config, err := armometadata.LoadConfig(os.Getenv(consts.ConfigEnvironmentVariable))
 	if err != nil {
-		logger.L().Fatal("failed to initialize the WatchHandler", helpers.Error(err))
+		logger.L().Ctx(ctx).Fatal("failed to load config", helpers.Error(err))
+	}
+
+	// to enable otel, set OTEL_COLLECTOR_SVC=otel-collector:4317
+	if otelHost, present := os.LookupEnv(consts.OtelCollectorSvcEnvironmentVariable); present {
+		ctx = logger.InitOtel("kollector",
+			os.Getenv(consts.ReleaseBuildTagEnvironmentVariable),
+			config.AccountID,
+			config.ClusterName,
+			url.URL{Host: otelHost})
+		defer logger.ShutdownOtel(ctx)
+	}
+
+	wh, err := watch.CreateWatchHandler(config)
+	if err != nil {
+		logger.L().Ctx(ctx).Fatal("failed to initialize the WatchHandler", helpers.Error(err))
 	}
 
 	go func() {
 		for {
-			wh.ListenerAndSender()
+			wh.ListenerAndSender(ctx)
 		}
 	}()
 
 	go func() {
 		for {
-			wh.PodWatch()
+			wh.PodWatch(ctx)
 		}
 	}()
 
 	go func() {
 		for {
-			wh.NodeWatch()
+			wh.NodeWatch(ctx)
 		}
 	}()
 
 	go func() {
 		for {
-			wh.ServiceWatch()
+			wh.ServiceWatch(ctx)
 		}
 	}()
 
 	go func() {
 		for {
-			wh.SecretWatch()
+			wh.SecretWatch(ctx)
 		}
 	}()
 	go func() {
 		for {
-			wh.NamespaceWatch()
+			wh.NamespaceWatch(ctx)
 		}
 	}()
 	go func() {
 		for {
-			wh.CronJobWatch()
+			wh.CronJobWatch(ctx)
 		}
 	}()
-	logger.L().Fatal(wh.WebSocketHandle.SendReportRoutine(&isServerReady, wh.SetFirstReportFlag).Error())
+	logger.L().Ctx(ctx).Fatal(wh.WebSocketHandle.SendReportRoutine(ctx, &isServerReady, wh.SetFirstReportFlag).Error())
 
 }
 
 func displayBuildTag() {
 	flag.Parse()
-	logger.L().Info("Image version", helpers.String("release", os.Getenv("RELEASE")))
+	logger.L().Info(fmt.Sprintf("Image version: %s", os.Getenv(consts.ReleaseBuildTagEnvironmentVariable)))
 }

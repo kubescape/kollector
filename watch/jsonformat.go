@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"context"
 	"encoding/json"
 
 	logger "github.com/kubescape/go-logger"
@@ -108,7 +109,7 @@ func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, 
 
 }
 
-func prepareDataToSend(wh *WatchHandler) []byte {
+func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 	jsonReport := wh.jsonReport
 	if *wh.getAggregateFirstDataFlag() {
 		jsonReport.ClusterAPIServerVersion = wh.clusterAPIServerVersion
@@ -137,7 +138,7 @@ func prepareDataToSend(wh *WatchHandler) []byte {
 	}
 	jsonReportToSend, err := json.Marshal(jsonReport)
 	if nil != err {
-		logger.L().Error("In PrepareDataToSend json.Marshal", helpers.Error(err))
+		logger.L().Ctx(ctx).Error("In PrepareDataToSend json.Marshal", helpers.Error(err))
 		return nil
 	}
 	deleteJsonData(wh)
