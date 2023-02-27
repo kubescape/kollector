@@ -141,10 +141,24 @@ func prepareDataToSend(wh *WatchHandler) []byte {
 		return nil
 	}
 	deleteJsonData(wh)
-	if *wh.getAggregateFirstDataFlag() && jsonReport.ClusterAPIServerVersion != nil {
+	if *wh.getAggregateFirstDataFlag() && !isEmptyFirstReport(jsonReportToSend) {
 		wh.aggregateFirstDataFlag = false
 	}
 	return jsonReportToSend
+}
+
+func isEmptyFirstReport(jsonReportToSend []byte) bool {
+	// if string(jsonReportToSend) == "{}" { //len = 2
+	// 	return true
+	// }
+	// if string(jsonReportToSend) == "{\"firstReport\":true}" { // len = 17
+	// 	return true
+	// }
+	if len(jsonReportToSend) == 0 || len(jsonReportToSend) == 2 || len(jsonReportToSend) == 17 {
+		return true
+	}
+
+	return false
 }
 
 // WaitTillNewDataArrived -
