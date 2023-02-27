@@ -3,7 +3,6 @@ package watch
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
@@ -32,10 +31,6 @@ var (
 	FirstReportEmptyBytes  = []byte("{\"firstReport\":true}")
 	FirstReportEmptyLength = len(FirstReportEmptyBytes)
 )
-
-func init() {
-	fmt.Printf("\n\n%v\n\n", FirstReportEmptyLength)
-}
 
 type ObjectData struct {
 	Created []interface{} `json:"create,omitempty"`
@@ -174,7 +169,7 @@ func WaitTillNewDataArrived(wh *WatchHandler) bool {
 }
 
 func informNewDataArrive(wh *WatchHandler) {
-	if !wh.aggregateFirstDataFlag {
+	if !wh.aggregateFirstDataFlag || wh.clusterAPIServerVersion != nil {
 		wh.informNewDataChannel <- 1
 	}
 }

@@ -2,6 +2,7 @@ package watch
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 )
 
@@ -22,5 +23,18 @@ func TestJson(test *testing.T) {
 	}
 	if !bytes.Equal(wh.jsonReport.Pods.Updated[0].([]byte), []byte("12343589thfgnvdfklbnvklbnmdfk'lbgfbhs")) {
 		test.Errorf("PODS")
+	}
+}
+
+func TestIsEmptyFirstReport(test *testing.T) {
+	jsonReport := &jsonFormat{FirstReport: true}
+	jsonReportToSend, _ := json.Marshal(jsonReport)
+	if !isEmptyFirstReport(jsonReportToSend) {
+		test.Errorf("First report is empty")
+	}
+	jsonReport.CloudVendor = "aws"
+	jsonReportToSend, _ = json.Marshal(jsonReport)
+	if isEmptyFirstReport(jsonReportToSend) {
+		test.Errorf("First report is not empty")
 	}
 }
