@@ -142,8 +142,19 @@ func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 		return nil
 	}
 	deleteJsonData(wh)
-	wh.aggregateFirstDataFlag = false
+	if *wh.getAggregateFirstDataFlag() && !isEmptyFirstReport(jsonReportToSend) {
+		wh.aggregateFirstDataFlag = false
+	}
 	return jsonReportToSend
+}
+
+func isEmptyFirstReport(jsonReportToSend []byte) bool {
+	// len==0 is for empty json, len==2 is for "{}", len==17 is for "{\"firstReport\":true}"
+	if len(jsonReportToSend) == 0 || len(jsonReportToSend) == 2 || len(jsonReportToSend) == 17 {
+		return true
+	}
+
+	return false
 }
 
 // WaitTillNewDataArrived -
@@ -164,6 +175,7 @@ func deleteObjectData(l *[]interface{}) {
 
 func deleteJsonData(wh *WatchHandler) {
 	jsonReport := &wh.jsonReport
+	// DO NOT DELETE jsonReport.ClusterAPIServerVersion data. it's not a subject to change
 
 	if jsonReport.Nodes != nil {
 		deleteObjectData(&jsonReport.Nodes.Created)
