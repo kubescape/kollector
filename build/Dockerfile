@@ -9,7 +9,7 @@ ENV CGO_ENABLED=0
 WORKDIR /work
 ADD . .
 
-RUN apk add git
+RUN apk add git busybox-static
 
 WORKDIR /work
 RUN go build -ldflags "-s" -o build/kollector
@@ -23,9 +23,8 @@ WORKDIR /home/ks/
 
 COPY --from=builder /work/build/kollector /usr/bin/kollector
 COPY --from=builder  /etc/ssl/certs  /etc/ssl/certs
-# COPY --from=builder  /bin/busybox /bin/busybox
-# COPY --from=builder  /bin/sh  /bin/sh
-# COPY ./kollector-entrypoint.sh /home/ks/
+COPY --from=builder  /bin/busybox.static /bin/busybox
+COPY ./kollector-entrypoint.sh /home/ks/
 
-ENTRYPOINT ["/usr/bin/kollector"]
+ENTRYPOINT ["/bin/busybox","sh","/home/ks/kollector-entrypoint.sh"]
 
