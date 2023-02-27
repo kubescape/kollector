@@ -3,6 +3,7 @@ package watch
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
@@ -26,6 +27,15 @@ const (
 	DELETED StateType = 2
 	UPDATED StateType = 3
 )
+
+var (
+	FirstReportEmptyBytes  = []byte("{\"firstReport\":true}")
+	FirstReportEmptyLength = len(FirstReportEmptyBytes)
+)
+
+func init() {
+	fmt.Printf("\n\n%v\n\n", FirstReportEmptyLength)
+}
 
 type ObjectData struct {
 	Created []interface{} `json:"create,omitempty"`
@@ -149,8 +159,8 @@ func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 }
 
 func isEmptyFirstReport(jsonReportToSend []byte) bool {
-	// len==0 is for empty json, len==2 is for "{}", len==17 is for "{\"firstReport\":true}"
-	if len(jsonReportToSend) == 0 || len(jsonReportToSend) == 2 || len(jsonReportToSend) == 17 {
+	// len==0 is for empty json, len==2 is for "{}"
+	if len(jsonReportToSend) == 0 || len(jsonReportToSend) == 2 || len(jsonReportToSend) == FirstReportEmptyLength {
 		return true
 	}
 
