@@ -14,12 +14,13 @@ import (
 	"github.com/armosec/utils-k8s-go/armometadata"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
+	"github.com/kubescape/kollector/consts"
 )
 
 var defaultClientInClusterTrigger = http.DefaultClient
 
 func newInClusterNotifier(config *armometadata.ClusterConfig) iClusterNotifier {
-	trigger := os.Getenv(activateScanOnNewImageFeatureEnvironmentVariable)
+	trigger := os.Getenv(consts.ActivateScanOnNewImageFeatureEnvironmentVariable)
 	if !boolutils.StringToBool(trigger) {
 		return newSkipInClusterNotifier("", "", "")
 	}

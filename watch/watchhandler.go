@@ -9,6 +9,7 @@ import (
 
 	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/kubescape/k8s-interface/k8sinterface"
+	"github.com/kubescape/kollector/consts"
 	restclient "k8s.io/client-go/rest"
 
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
@@ -119,14 +120,9 @@ type WatchHandler struct {
 	notifyUpdates iClusterNotifier // notify other (in-cluster) components about new data
 }
 
-func CreateWatchHandler() (*WatchHandler, error) {
+func CreateWatchHandler(config *armometadata.ClusterConfig) (*WatchHandler, error) {
 
-	confFilePath := os.Getenv(configEnvironmentVariable)
-	config, err := armometadata.LoadConfig(confFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("missing config file: %s", err)
-	}
-	componentNamespace := os.Getenv(namespaceEnvironmentVariable)
+	componentNamespace := os.Getenv(consts.NamespaceEnvironmentVariable)
 
 	if err := parseArgument(); err != nil {
 		return nil, fmt.Errorf("failed to parse args: %s", err.Error())
