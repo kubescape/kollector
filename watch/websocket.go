@@ -1,6 +1,7 @@
 package watch
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -70,7 +71,7 @@ func createWebSocketHandler(u *url.URL) *WebSocketHandler {
 	return &wsh
 }
 
-func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Duration) (*websocket.Conn, error) {
+func (wsh *WebSocketHandler) connectToWebSocket(ctx context.Context, sleepBeforeConnection time.Duration) (*websocket.Conn, error) {
 
 	var err error
 	var conn *websocket.Conn
@@ -79,8 +80,8 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 	for reconnectionCounter := 0; reconnectionCounter < tries; reconnectionCounter++ {
 		time.Sleep(time.Second * 1)
 		if conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
-			logger.L().Info("connected successfully", helpers.String("URL", wsh.u.String()))
-			wsh.setPingPongHandler(conn)
+			logger.L().Ctx(ctx).Info("connected successfully", helpers.String("URL", wsh.u.String()))
+			wsh.setPingPongHandler(ctx, conn)
 			return conn, nil
 		}
 	}
@@ -90,27 +91,27 @@ func (wsh *WebSocketHandler) connectToWebSocket(sleepBeforeConnection time.Durat
 }
 
 // SendReportRoutine function sending updates
-func (wsh *WebSocketHandler) SendReportRoutine(isServerReady *bool, reconnectCallback func(bool)) error {
+func (wsh *WebSocketHandler) SendReportRoutine(ctx context.Context, isServerReady *bool, reconnectCallback func(bool)) error {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.L().Error("RECOVER sendReportRoutine", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
+			logger.L().Ctx(ctx).Error("RECOVER sendReportRoutine", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
 		}
 	}()
 	for {
 		t := getNumericValueFromEnvVar(WaitBeforeReportEnv, 30)
-		conn, err := wsh.connectToWebSocket(time.Duration(t) * time.Second)
+		conn, err := wsh.connectToWebSocket(ctx, time.Duration(t)*time.Second)
 		if err != nil {
 			return err
 		}
 		*isServerReady = true
 
-		wsh.handleSendReportRoutine(conn, reconnectCallback)
+		wsh.handleSendReportRoutine(ctx, conn, reconnectCallback)
 	}
 
 	// use mutex for writing message that way if write failed only the failed writing will reconnect
 }
 
-func (wsh *WebSocketHandler) handleSendReportRoutine(conn *websocket.Conn, reconnectCallback func(bool)) error {
+func (wsh *WebSocketHandler) handleSendReportRoutine(ctx context.Context, conn *websocket.Conn, reconnectCallback func(bool)) error {
 	for {
 		data := <-wsh.data
 		wsh.mutex.Lock()
@@ -124,10 +125,10 @@ func (wsh *WebSocketHandler) handleSendReportRoutine(conn *websocket.Conn, recon
 				os.Exit(4)
 
 			} else {
-				logger.L().Debug("message sent", helpers.Int("time", int(timeID)))
+				logger.L().Ctx(ctx).Debug("message sent", helpers.Int("time", int(timeID)))
 			}
 		case EXIT:
-			logger.L().Error("websocket received exit code exit", helpers.String("message", data.message))
+			logger.L().Ctx(ctx).Error("websocket received exit code exit", helpers.String("message", data.message))
 			// count on K8s pod lifecycle logic to restart the process again and then reconnect
 			os.Exit(4)
 		}
@@ -142,17 +143,17 @@ func (wh *WatchHandler) SendMessageToWebSocket(jsonData []byte) {
 }
 
 // ListenerAndSender listen for changes in cluster and send reports to websocket
-func (wh *WatchHandler) ListenerAndSender() {
+func (wh *WatchHandler) ListenerAndSender(ctx context.Context) {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.L().Error("RECOVER ListenerAndSender", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
+			logger.L().Ctx(ctx).Error("RECOVER ListenerAndSender", helpers.Interface("error", err), helpers.String("stack", string(debug.Stack())))
 		}
 	}()
 	wh.SetFirstReportFlag(true)
 	for {
-		jsonData := prepareDataToSend(wh)
+		jsonData := prepareDataToSend(ctx, wh)
 		if jsonData != nil {
-			logger.L().Debug("sending report to websocket", helpers.String("report", string(jsonData)))
+			logger.L().Ctx(ctx).Debug("sending report to websocket", helpers.String("report", string(jsonData)))
 			wh.SendMessageToWebSocket(jsonData)
 		}
 		if wh.getFirstReportFlag() {
@@ -164,7 +165,7 @@ func (wh *WatchHandler) ListenerAndSender() {
 	}
 }
 
-func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
+func (wsh *WebSocketHandler) setPingPongHandler(ctx context.Context, conn *websocket.Conn) {
 	end := false
 	timeout := 10 * time.Second
 	go func() {
@@ -188,13 +189,13 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 			}
 			err := conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(timeout))
 			if err != nil {
-				logger.L().Error(err.Error())
+				logger.L().Ctx(ctx).Error(err.Error())
 			}
 			if counter > 2 {
 				if end {
 					return
 				}
-				logger.L().Error("ping closed connection")
+				logger.L().Ctx(ctx).Error("ping closed connection")
 				wsh.closeConnection(conn, "ping error")
 				end = true
 				return
@@ -213,7 +214,7 @@ func (wsh *WebSocketHandler) setPingPongHandler(conn *websocket.Conn) {
 					break
 				}
 				end = true
-				logger.L().Error("read message closed connection", helpers.Error(err))
+				logger.L().Ctx(ctx).Error("read message closed connection", helpers.Error(err))
 				wsh.closeConnection(conn, "read message error")
 				break
 			}
