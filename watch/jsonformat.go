@@ -148,12 +148,7 @@ func prepareDataToSend(wh *WatchHandler) []byte {
 }
 
 func isEmptyFirstReport(jsonReportToSend []byte) bool {
-	// if string(jsonReportToSend) == "{}" { //len = 2
-	// 	return true
-	// }
-	// if string(jsonReportToSend) == "{\"firstReport\":true}" { // len = 17
-	// 	return true
-	// }
+	// len==0 is for empty json, len==2 is for "{}", len==17 is for "{\"firstReport\":true}"
 	if len(jsonReportToSend) == 0 || len(jsonReportToSend) == 2 || len(jsonReportToSend) == 17 {
 		return true
 	}
