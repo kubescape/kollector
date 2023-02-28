@@ -52,13 +52,13 @@ func main() {
 
 	go func() {
 		for {
-			wh.PodWatch(ctx)
+			wh.NodeWatch(ctx)
 		}
 	}()
 
 	go func() {
 		for {
-			wh.NodeWatch(ctx)
+			wh.PodWatch(ctx)
 		}
 	}()
 
