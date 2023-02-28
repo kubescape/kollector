@@ -1,4 +1,6 @@
 # Kollector
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkubescape%2Fkollector.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkubescape%2Fkollector?ref=badge_shield)
+
 The Kollector component is an in-cluster component of the [Kubescape security platform](https://www.armosec.io/blog/kubescape-open-source-kubernetes-security-platform/?utm_source=github&utm_medium=repository).  
 It communicates with the Kubernetes API server to collect cluster information and watches for changes in the cluster.
 The information sent to the Kubescape SaaS platform.
@@ -62,3 +64,7 @@ You can use the sample file below to setup your VS code environment for building
 }
 ```
 </details>
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkubescape%2Fkollector.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkubescape%2Fkollector?ref=badge_large)
