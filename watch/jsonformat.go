@@ -116,6 +116,9 @@ func (jsonReport *jsonFormat) AddToJsonFormat(data interface{}, jtype JsonType, 
 
 func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 	jsonReport := wh.jsonReport
+	if wh.clusterAPIServerVersion == nil {
+		return nil
+	}
 	if *wh.getAggregateFirstDataFlag() {
 		jsonReport.ClusterAPIServerVersion = wh.clusterAPIServerVersion
 		jsonReport.CloudVendor = wh.cloudVendor

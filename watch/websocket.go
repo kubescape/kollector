@@ -152,10 +152,10 @@ func (wh *WatchHandler) ListenerAndSender(ctx context.Context) {
 	wh.SetFirstReportFlag(true)
 	for {
 		jsonData := prepareDataToSend(ctx, wh)
+		if jsonData == nil || isEmptyFirstReport(jsonData) {
+			continue // skip (ususally first) report in case it is empty
+		}
 		if jsonData != nil {
-			if isEmptyFirstReport(jsonData) {
-				continue // skip (ususally first) report in case it is empty
-			}
 			logger.L().Ctx(ctx).Debug("sending report to websocket", helpers.String("report", string(jsonData)))
 			wh.SendMessageToWebSocket(jsonData)
 		}
