@@ -311,10 +311,28 @@ func (wh *WatchHandler) logPodInCrashLoop(ctx context.Context, pod *core.Pod) {
 		contName := containerSlice[contIdx].Name
 
 		if containerSlice[contIdx].RestartCount > 2 {
-			span.AddEvent("skipping container with RestartCount > 2", trace.WithAttributes(attribute.String("containerName", contName)))
+			logger.L().Info(fmt.Sprintf("skipping container %s with RestartCount > 2", contName))
 			continue
 		}
 
+		// container details for logging
+		containerDetails := []helpers.IDetails{
+			helpers.String("containerName", contName),
+			helpers.Int("restartCount", int(containerSlice[contIdx].RestartCount)),
+		}
+		if state, err := containerSlice[contIdx].State.Marshal(); err != nil {
+			logger.L().Ctx(ctx).Error("failed to marshal container State", helpers.String("containerName", contName), helpers.Error(err))
+		} else {
+			containerDetails = append(containerDetails, helpers.String("state", string(state)))
+		}
+
+		if lastState, err := containerSlice[contIdx].LastTerminationState.Marshal(); err != nil {
+			logger.L().Ctx(ctx).Error("failed to marshal container LastTerminationState", helpers.String("containerName", contName), helpers.Error(err))
+		} else {
+			containerDetails = append(containerDetails, helpers.String("lastState", string(lastState)))
+		}
+
+		// previous container logs
 		podLogOpts := core.PodLogOptions{Previous: true, Timestamps: true, Container: contName, TailLines: &maxTailLines}
 		logsObj := wh.K8sApi.KubernetesClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
 		readerObj, err := logsObj.Stream(wh.K8sApi.Context)
@@ -327,10 +345,11 @@ func (wh *WatchHandler) logPodInCrashLoop(ctx context.Context, pod *core.Pod) {
 			if logs, err := io.ReadAll(readerObj); err != nil {
 				logger.L().Ctx(ctx).Error("failed to read previous logs stream of a crashed pod container", helpers.String("containerName", contName), helpers.Error(err))
 			} else {
-				logger.L().Ctx(ctx).Error(fmt.Sprintf("previous logs of a crashed pod container:\n %s", string(logs)), helpers.String("containerName", contName))
+				logger.L().Ctx(ctx).Error(fmt.Sprintf("previous logs of a crashed pod container:\n %s", string(logs)), containerDetails...)
 			}
 		}
 
+		// current container logs
 		span.AddEvent("getting current container logs", trace.WithAttributes(attribute.String("containerName", contName)))
 		podLogOpts.Previous = false
 		logsObj = wh.K8sApi.KubernetesClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
@@ -341,7 +360,7 @@ func (wh *WatchHandler) logPodInCrashLoop(ctx context.Context, pod *core.Pod) {
 			if logs, err := io.ReadAll(readerObj); err != nil {
 				logger.L().Ctx(ctx).Error("failed to read logs stream of a crashed pod container", helpers.String("containerName", contName), helpers.Error(err))
 			} else {
-				logger.L().Ctx(ctx).Error(fmt.Sprintf("logs of a crashed pod container:\n %s", string(logs)), helpers.String("containerName", contName))
+				logger.L().Ctx(ctx).Error(fmt.Sprintf("logs of a crashed pod container:\n %s", string(logs)), containerDetails...)
 			}
 		}
 	}
