@@ -7,7 +7,7 @@ require (
 	github.com/armosec/cluster-notifier-api-go v0.0.3
 	github.com/armosec/utils-k8s-go v0.0.12
 	github.com/gorilla/websocket v1.5.0
-	github.com/kubescape/go-logger v0.0.10
+	github.com/kubescape/go-logger v0.0.11
 	github.com/kubescape/k8s-interface v0.0.82
 	go.opentelemetry.io/otel v1.11.2
 	go.opentelemetry.io/otel/trace v1.11.2
