@@ -98,7 +98,7 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 			}
 			service.ManagedFields = []metav1.ManagedFieldsEntry{}
 			switch event.Type {
-			case "ADDED":
+			case watch.Added:
 				if service.CreationTimestamp.Time.Before(*lastWatchEventCreationTime) {
 					continue
 				}
@@ -110,17 +110,17 @@ func (wh *WatchHandler) handleServiceWatch(serviceWatcher watch.Interface, newSt
 				wh.sdm[id].PushBack(sd)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(service, SERVICES, CREATED)
-			case "MODIFY":
+			case watch.Modified:
 				updateService(service, wh.sdm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(service, SERVICES, UPDATED)
-			case "DELETED":
+			case watch.Deleted:
 				removeService(service, wh.sdm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(service, SERVICES, DELETED)
-			case "BOOKMARK": //only the resource version is changed but it's the same workload
+			case watch.Bookmark: //only the resource version is changed but it's the same workload
 				continue
-			case "ERROR":
+			case watch.Error:
 				*lastWatchEventCreationTime = time.Now()
 				return
 			}

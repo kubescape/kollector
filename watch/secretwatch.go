@@ -68,7 +68,7 @@ func (wh *WatchHandler) secretEventHandler(event *watch.Event, lastWatchEventCre
 		secret.ManagedFields = []metav1.ManagedFieldsEntry{}
 		removeSecretData(secret)
 		switch event.Type {
-		case "ADDED":
+		case watch.Added:
 			if secret.CreationTimestamp.Time.Before(lastWatchEventCreationTime) {
 				return nil
 			}
@@ -78,17 +78,17 @@ func (wh *WatchHandler) secretEventHandler(event *watch.Event, lastWatchEventCre
 			wh.secretdm.pushBack(id, secretdm)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, CREATED)
-		case "MODIFY":
+		case watch.Modified:
 			wh.updateSecret(secret)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, UPDATED)
-		case "DELETED":
+		case watch.Deleted:
 			wh.removeSecret(secret)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(secret, SECRETS, DELETED)
-		case "BOOKMARK": //only the resource version is changed but it's the same workload
+		case watch.Bookmark: //only the resource version is changed but it's the same workload
 			return nil
-		case "ERROR":
+		case watch.Error:
 			return fmt.Errorf("while watching over secrets we got an error")
 		}
 	} else {

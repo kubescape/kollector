@@ -118,7 +118,7 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 		if node, ok := event.Object.(*core.Node); ok {
 			node.ManagedFields = []metav1.ManagedFieldsEntry{}
 			switch event.Type {
-			case "ADDED":
+			case watch.Added:
 				if node.CreationTimestamp.Time.Before(*lastWatchEventCreationTime) {
 					continue
 				}
@@ -132,17 +132,17 @@ func (wh *WatchHandler) handleNodeWatch(nodesWatcher watch.Interface, newStateCh
 				wh.ndm[id].PushBack(nd)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(nd, NODE, CREATED)
-			case "MODIFY":
+			case watch.Modified:
 				updateNode := UpdateNode(node, wh.ndm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(updateNode, NODE, UPDATED)
-			case "DELETED":
+			case watch.Deleted:
 				name := RemoveNode(node, wh.ndm)
 				informNewDataArrive(wh)
 				wh.jsonReport.AddToJsonFormat(name, NODE, DELETED)
-			case "BOOKMARK": //only the resource version is changed but it's the same workload
+			case watch.Bookmark: //only the resource version is changed but it's the same workload
 				continue
-			case "ERROR":
+			case watch.Error:
 				*lastWatchEventCreationTime = time.Now()
 				return
 			}
