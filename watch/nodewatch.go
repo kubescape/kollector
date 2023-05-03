@@ -57,15 +57,15 @@ func RemoveNode(node *core.Node, ndm map[int]*list.List) string {
 			continue
 		}
 		if strings.Compare(v.Front().Value.(*NodeData).Name, node.ObjectMeta.Name) == 0 {
-			v.Remove(v.Front())
 			logger.L().Debug("node removed", helpers.String("name", v.Front().Value.(*NodeData).Name))
 			nodeName = v.Front().Value.(*NodeData).Name
+			v.Remove(v.Front())
 			break
 		}
 		if strings.Compare(v.Front().Value.(*NodeData).Name, node.ObjectMeta.GenerateName) == 0 {
-			v.Remove(v.Front())
 			logger.L().Debug("node removed", helpers.String("name", v.Front().Value.(*NodeData).Name))
 			nodeName = v.Front().Value.(*NodeData).Name
+			v.Remove(v.Front())
 			break
 		}
 	}
