@@ -3,9 +3,12 @@ package watch
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
+	v1core "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 )
 
@@ -27,6 +30,11 @@ const (
 	UPDATED StateType = 3
 )
 
+const (
+	KS_CLOUD_CONFIGMAP = "ks-cloud-config"
+	KS_NAMESPACE       = "kubescape"
+)
+
 var (
 	FirstReportEmptyBytes  = []byte("{\"firstReport\":true}")
 	FirstReportEmptyLength = len(FirstReportEmptyBytes)
@@ -38,16 +46,22 @@ type ObjectData struct {
 	Updated []interface{} `json:"update,omitempty"`
 }
 
+type InstallationData struct {
+	StorageEnabled   bool `json:"storageEnabled"`
+	NodeAgentEnabled bool `json:"nodeAgentEnabled"`
+}
+
 type jsonFormat struct {
-	FirstReport             bool          `json:"firstReport"`
-	ClusterAPIServerVersion *version.Info `json:"clusterAPIServerVersion,omitempty"`
-	CloudVendor             string        `json:"cloudVendor,omitempty"`
-	Nodes                   *ObjectData   `json:"node,omitempty"`
-	Services                *ObjectData   `json:"service,omitempty"`
-	MicroServices           *ObjectData   `json:"microservice,omitempty"`
-	Pods                    *ObjectData   `json:"pod,omitempty"`
-	Secret                  *ObjectData   `json:"secret,omitempty"`
-	Namespace               *ObjectData   `json:"namespace,omitempty"`
+	FirstReport             bool             `json:"firstReport"`
+	ClusterAPIServerVersion *version.Info    `json:"clusterAPIServerVersion,omitempty"`
+	CloudVendor             string           `json:"cloudVendor,omitempty"`
+	InstallationData        InstallationData `json:"InstallationData,omitempty"`
+	Nodes                   *ObjectData      `json:"node,omitempty"`
+	Services                *ObjectData      `json:"service,omitempty"`
+	MicroServices           *ObjectData      `json:"microservice,omitempty"`
+	Pods                    *ObjectData      `json:"pod,omitempty"`
+	Secret                  *ObjectData      `json:"secret,omitempty"`
+	Namespace               *ObjectData      `json:"namespace,omitempty"`
 }
 
 func (obj *ObjectData) AddToJsonFormatByState(NewData interface{}, stype StateType) {
@@ -120,6 +134,15 @@ func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 		return nil
 	}
 	if *wh.getAggregateFirstDataFlag() {
+		cfgMap, err := wh.RestAPIClient.CoreV1().ConfigMaps(KS_NAMESPACE).Get(ctx, KS_CLOUD_CONFIGMAP, v1.GetOptions{})
+		if err != nil {
+			logger.L().Ctx(ctx).Error("In PrepareDataToSend, failed to get configMap", helpers.Error(err))
+		} else {
+			err = setInstallationData(cfgMap, &jsonReport)
+			if err != nil {
+				logger.L().Ctx(ctx).Error("In PrepareDataToSend, failed to setInstallationData", helpers.Error(err))
+			}
+		}
 		jsonReport.ClusterAPIServerVersion = wh.clusterAPIServerVersion
 		jsonReport.CloudVendor = wh.cloudVendor
 	} else {
@@ -179,6 +202,22 @@ func informNewDataArrive(wh *WatchHandler) {
 
 func deleteObjectData(l *[]interface{}) {
 	*l = []interface{}{}
+}
+
+func setInstallationData(cfgMap *v1core.ConfigMap, jsonReport *jsonFormat) error {
+	clusterData, ok := cfgMap.Data["clusterData"]
+	if !ok {
+		return fmt.Errorf("failed to get clusterData from configmap")
+	} else {
+		var clusterDataJson map[string]interface{}
+		err := json.Unmarshal([]byte(clusterData), &clusterDataJson)
+		if err != nil {
+			return err
+		}
+		jsonReport.InstallationData.StorageEnabled = clusterDataJson["storage"] == "true"
+		jsonReport.InstallationData.NodeAgentEnabled = clusterDataJson["nodeAgent"] == "true"
+	}
+	return nil
 }
 
 func deleteJsonData(wh *WatchHandler) {
