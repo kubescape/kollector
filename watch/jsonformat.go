@@ -41,10 +41,10 @@ type ObjectData struct {
 type InstallationData struct {
 	ClusterName                         string `json:"clusterName"`                         // cluster name defined manually or from the cluster context
 	StorageEnabled                      bool   `json:"storage"`                             // storage configuration (enabled/disabled)
-	RelevantImageVulnerabilitiesEnabled bool   `json:"relevantImageVulnerabilitiesEnabled"` // node agent configuration (enabled/disabled)
+	RelevantImageVulnerabilitiesEnabled bool   `json:"relevantImageVulnerabilitiesEnabled"` // relevancy configuration (enabled/disabled)
 	Namespace                           string `json:"namespace"`                           // namespace to deploy the components
-	ImageVulnerabilitiesScanningEnabled bool   `json:"imageVulnerabilitiesScanningEnabled"` // kubevuln configuration (enabled/disabled)
-	PostureScanEnabled                  bool   `json:"postureScanEnabled"`                  // kubescape configuration (enabled/disabled)
+	ImageVulnerabilitiesScanningEnabled bool   `json:"imageVulnerabilitiesScanningEnabled"` // image scanning configuration (enabled/disabled)
+	PostureScanEnabled                  bool   `json:"postureScanEnabled"`                  // posture configuration (enabled/disabled)
 	OtelCollectorEnabled                bool   `json:"otelCollector"`                       // otel collector configuration (enabled/disabled)
 }
 
