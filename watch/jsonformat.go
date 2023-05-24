@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/armosec/utils-k8s-go/armometadata"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
 	"k8s.io/apimachinery/pkg/version"
@@ -131,12 +132,7 @@ func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 		return nil
 	}
 	if *wh.getAggregateFirstDataFlag() {
-		jsonReport.InstallationData.Namespace = wh.config.Namespace
-		jsonReport.InstallationData.RelevantImageVulnerabilitiesEnabled = wh.config.RelevantImageVulnerabilitiesEnabled
-		jsonReport.InstallationData.StorageEnabled = wh.config.StorageEnabled
-		jsonReport.InstallationData.ImageVulnerabilitiesScanningEnabled = wh.config.ImageVulnerabilitiesScanningEnabled
-		jsonReport.InstallationData.PostureScanEnabled = wh.config.PostureScanEnabled
-		jsonReport.InstallationData.OtelCollectorEnabled = wh.config.OtelCollectorEnabled
+		setInstallationData(&jsonReport, *wh.config)
 		jsonReport.InstallationData.ClusterName = wh.config.ClusterName
 		jsonReport.ClusterAPIServerVersion = wh.clusterAPIServerVersion
 		jsonReport.CloudVendor = wh.cloudVendor
@@ -238,4 +234,14 @@ func deleteJsonData(wh *WatchHandler) {
 		deleteObjectData(&jsonReport.Namespace.Deleted)
 		deleteObjectData(&jsonReport.Namespace.Updated)
 	}
+}
+
+func setInstallationData(jsonReport *jsonFormat, config armometadata.ClusterConfig) {
+	jsonReport.InstallationData.Namespace = config.Namespace
+	jsonReport.InstallationData.RelevantImageVulnerabilitiesEnabled = config.RelevantImageVulnerabilitiesEnabled
+	jsonReport.InstallationData.StorageEnabled = config.StorageEnabled
+	jsonReport.InstallationData.ImageVulnerabilitiesScanningEnabled = config.ImageVulnerabilitiesScanningEnabled
+	jsonReport.InstallationData.PostureScanEnabled = config.PostureScanEnabled
+	jsonReport.InstallationData.OtelCollectorEnabled = config.OtelCollectorEnabled
+	jsonReport.InstallationData.ClusterName = config.ClusterName
 }
