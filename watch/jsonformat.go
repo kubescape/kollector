@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	FirstReportEmptyBytes  = []byte("{\"firstReport\":true}")
+	FirstReportEmptyBytes  = []byte("{\"firstReport\":true,\"InstallationData\":{}}")
 	FirstReportEmptyLength = len(FirstReportEmptyBytes)
 )
 
@@ -39,13 +39,13 @@ type ObjectData struct {
 }
 
 type InstallationData struct {
-	ClusterName                         string `json:"clusterName"`                         // cluster name defined manually or from the cluster context
-	StorageEnabled                      bool   `json:"storage"`                             // storage configuration (enabled/disabled)
-	RelevantImageVulnerabilitiesEnabled bool   `json:"relevantImageVulnerabilitiesEnabled"` // relevancy configuration (enabled/disabled)
-	Namespace                           string `json:"namespace"`                           // namespace to deploy the components
-	ImageVulnerabilitiesScanningEnabled bool   `json:"imageVulnerabilitiesScanningEnabled"` // image scanning configuration (enabled/disabled)
-	PostureScanEnabled                  bool   `json:"postureScanEnabled"`                  // posture configuration (enabled/disabled)
-	OtelCollectorEnabled                bool   `json:"otelCollector"`                       // otel collector configuration (enabled/disabled)
+	ClusterName                         string `json:"clusterName,omitempty"`                         // cluster name defined manually or from the cluster context
+	StorageEnabled                      bool   `json:"storage,omitempty"`                             // storage configuration (enabled/disabled)
+	RelevantImageVulnerabilitiesEnabled bool   `json:"relevantImageVulnerabilitiesEnabled,omitempty"` // relevancy configuration (enabled/disabled)
+	Namespace                           string `json:"namespace,omitempty"`                           // namespace to deploy the components
+	ImageVulnerabilitiesScanningEnabled bool   `json:"imageVulnerabilitiesScanningEnabled,omitempty"` // image scanning configuration (enabled/disabled)
+	PostureScanEnabled                  bool   `json:"postureScanEnabled,omitempty"`                  // posture configuration (enabled/disabled)
+	OtelCollectorEnabled                bool   `json:"otelCollector,omitempty"`                       // otel collector configuration (enabled/disabled)
 }
 
 type jsonFormat struct {
