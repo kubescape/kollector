@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/armosec/armoapi-go v0.0.112
 	github.com/armosec/cluster-notifier-api-go v0.0.3
-	github.com/armosec/utils-k8s-go v0.0.12
+	github.com/armosec/utils-k8s-go v0.0.15
 	github.com/gorilla/websocket v1.5.0
 	github.com/kubescape/go-logger v0.0.11
 	github.com/kubescape/k8s-interface v0.0.82
