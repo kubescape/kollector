@@ -38,16 +38,27 @@ type ObjectData struct {
 	Updated []interface{} `json:"update,omitempty"`
 }
 
+type InstallationData struct {
+	ClusterName                         string `json:"clusterName"`                         // cluster name defined manually or from the cluster context
+	StorageEnabled                      bool   `json:"storage"`                             // storage configuration (enabled/disabled)
+	RelevantImageVulnerabilitiesEnabled bool   `json:"relevantImageVulnerabilitiesEnabled"` // node agent configuration (enabled/disabled)
+	Namespace                           string `json:"namespace"`                           // namespace to deploy the components
+	ImageVulnerabilitiesScanningEnabled bool   `json:"imageVulnerabilitiesScanningEnabled"` // kubevuln configuration (enabled/disabled)
+	PostureScanEnabled                  bool   `json:"postureScanEnabled"`                  // kubescape configuration (enabled/disabled)
+	OtelCollectorEnabled                bool   `json:"otelCollector"`                       // otel collector configuration (enabled/disabled)
+}
+
 type jsonFormat struct {
-	FirstReport             bool          `json:"firstReport"`
-	ClusterAPIServerVersion *version.Info `json:"clusterAPIServerVersion,omitempty"`
-	CloudVendor             string        `json:"cloudVendor,omitempty"`
-	Nodes                   *ObjectData   `json:"node,omitempty"`
-	Services                *ObjectData   `json:"service,omitempty"`
-	MicroServices           *ObjectData   `json:"microservice,omitempty"`
-	Pods                    *ObjectData   `json:"pod,omitempty"`
-	Secret                  *ObjectData   `json:"secret,omitempty"`
-	Namespace               *ObjectData   `json:"namespace,omitempty"`
+	FirstReport             bool             `json:"firstReport"`
+	ClusterAPIServerVersion *version.Info    `json:"clusterAPIServerVersion,omitempty"`
+	CloudVendor             string           `json:"cloudVendor,omitempty"`
+	Nodes                   *ObjectData      `json:"node,omitempty"`
+	Services                *ObjectData      `json:"service,omitempty"`
+	MicroServices           *ObjectData      `json:"microservice,omitempty"`
+	Pods                    *ObjectData      `json:"pod,omitempty"`
+	Secret                  *ObjectData      `json:"secret,omitempty"`
+	Namespace               *ObjectData      `json:"namespace,omitempty"`
+	InstallationData        InstallationData `json:"InstallationData,omitempty"`
 }
 
 func (obj *ObjectData) AddToJsonFormatByState(NewData interface{}, stype StateType) {
@@ -120,6 +131,13 @@ func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 		return nil
 	}
 	if *wh.getAggregateFirstDataFlag() {
+		jsonReport.InstallationData.Namespace = wh.config.Namespace
+		jsonReport.InstallationData.RelevantImageVulnerabilitiesEnabled = wh.config.RelevantImageVulnerabilitiesEnabled
+		jsonReport.InstallationData.StorageEnabled = wh.config.StorageEnabled
+		jsonReport.InstallationData.ImageVulnerabilitiesScanningEnabled = wh.config.ImageVulnerabilitiesScanningEnabled
+		jsonReport.InstallationData.PostureScanEnabled = wh.config.PostureScanEnabled
+		jsonReport.InstallationData.OtelCollectorEnabled = wh.config.OtelCollectorEnabled
+		jsonReport.InstallationData.ClusterName = wh.config.ClusterName
 		jsonReport.ClusterAPIServerVersion = wh.clusterAPIServerVersion
 		jsonReport.CloudVendor = wh.cloudVendor
 	} else {
