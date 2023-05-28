@@ -491,7 +491,7 @@ func GetOwnerData(ctx context.Context, name string, kind string, apiVersion stri
 		return jobDet
 	case "CronJob":
 		options := metav1.GetOptions{}
-		cronJobDet, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, name, options)
+		cronJobDet, err := wh.RestAPIClient.BatchV1().CronJobs(namespace).Get(globalHTTPContext, name, options)
 		if err != nil {
 			logger.L().Ctx(ctx).Error("GetOwnerData CronJob", helpers.Error(err))
 			return nil
@@ -618,7 +618,7 @@ func GetAncestorOfPod(ctx context.Context, pod *core.Pod, wh *WatchHandler) (Own
 				break
 			}
 
-			depList, _ := wh.RestAPIClient.BatchV1beta1().CronJobs(pod.ObjectMeta.Namespace).List(globalHTTPContext, metav1.ListOptions{})
+			depList, _ := wh.RestAPIClient.BatchV1().CronJobs(pod.ObjectMeta.Namespace).List(globalHTTPContext, metav1.ListOptions{})
 			selector, err := metav1.LabelSelectorAsSelector(jobItem.Spec.Selector)
 			if err != nil {
 				return od, fmt.Errorf("error getting owner reference")
@@ -722,7 +722,7 @@ func (wh *WatchHandler) isMicroServiceNeedToBeRemoved(ownerData interface{}, kin
 		if !ok {
 			return true
 		}
-		_, err := wh.RestAPIClient.BatchV1beta1().CronJobs(namespace).Get(globalHTTPContext, cronJob.ObjectMeta.Name, options)
+		_, err := wh.RestAPIClient.BatchV1().CronJobs(namespace).Get(globalHTTPContext, cronJob.ObjectMeta.Name, options)
 		if errors.IsNotFound(err) {
 			return true
 		}

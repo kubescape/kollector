@@ -62,7 +62,7 @@ func (wh *WatchHandler) NamespaceEventHandler(ctx context.Context, event *watch.
 	if namespace, ok := event.Object.(*corev1.Namespace); ok {
 		namespace.ManagedFields = []metav1.ManagedFieldsEntry{}
 		switch event.Type {
-		case "ADDED":
+		case watch.Added:
 			if namespace.CreationTimestamp.Time.Before(lastWatchEventCreationTime) {
 				logger.L().Debug("namespace already exist, will not be reported", helpers.String("name", namespace.ObjectMeta.Name))
 				return nil
@@ -72,17 +72,17 @@ func (wh *WatchHandler) NamespaceEventHandler(ctx context.Context, event *watch.
 			wh.namespacedm.pushBack(id, namespace)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(namespace, NAMESPACES, CREATED)
-		case "MODIFY":
+		case watch.Modified:
 			wh.UpdateNamespace(namespace)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(namespace, NAMESPACES, UPDATED)
-		case "DELETED":
+		case watch.Deleted:
 			wh.RemoveNamespace(namespace)
 			informNewDataArrive(wh)
 			wh.jsonReport.AddToJsonFormat(namespace, NAMESPACES, DELETED)
-		case "BOOKMARK": //only the resource version is changed but it's the same object
+		case watch.Bookmark: //only the resource version is changed but it's the same object
 			return nil
-		case "ERROR":
+		case watch.Error:
 			logger.L().Ctx(ctx).Error("while watching over namespaces", helpers.Interface("error", event.Object))
 			return fmt.Errorf("while watching over namespaces we got an error")
 		}
