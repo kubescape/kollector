@@ -228,13 +228,12 @@ func deleteJsonData(wh *WatchHandler) {
 }
 
 func setInstallationData(jsonReport *jsonFormat, config armometadata.ClusterConfig) {
-	jsonReport.InstallationData = &armotypes.InstallationData{
-		Namespace:                           config.Namespace,
-		RelevantImageVulnerabilitiesEnabled: config.RelevantImageVulnerabilitiesEnabled,
-		StorageEnabled:                      config.StorageEnabled,
-		ImageVulnerabilitiesScanningEnabled: config.ImageVulnerabilitiesScanningEnabled,
-		PostureScanEnabled:                  config.PostureScanEnabled,
-		OtelCollectorEnabled:                config.OtelCollectorEnabled,
-		ClusterName:                         config.ClusterName,
-	}
+	jsonReport.InstallationData = &armotypes.InstallationData{}
+	jsonReport.InstallationData.Namespace = config.Namespace
+	jsonReport.InstallationData.RelevantImageVulnerabilitiesEnabled = config.RelevantImageVulnerabilitiesEnabled
+	jsonReport.InstallationData.StorageEnabled = config.StorageEnabled
+	jsonReport.InstallationData.ImageVulnerabilitiesScanningEnabled = config.ImageVulnerabilitiesScanningEnabled
+	jsonReport.InstallationData.PostureScanEnabled = config.PostureScanEnabled
+	jsonReport.InstallationData.OtelCollectorEnabled = config.OtelCollectorEnabled
+	jsonReport.InstallationData.ClusterName = config.ClusterName
 }
