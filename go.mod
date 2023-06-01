@@ -3,9 +3,9 @@ module github.com/kubescape/kollector
 go 1.19
 
 require (
-	github.com/armosec/armoapi-go v0.0.114
+	github.com/armosec/armoapi-go v0.0.191
 	github.com/armosec/cluster-notifier-api-go v0.0.5
-	github.com/armosec/utils-k8s-go v0.0.15
+	github.com/armosec/utils-k8s-go v0.0.16
 	github.com/gorilla/websocket v1.5.0
 	github.com/kubescape/go-logger v0.0.11
 	github.com/kubescape/k8s-interface v0.0.82
@@ -54,6 +54,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stripe/stripe-go/v74 v74.8.0 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelutil v0.1.18 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelzap v0.1.18 // indirect
 	github.com/uptrace/uptrace-go v1.11.8 // indirect
