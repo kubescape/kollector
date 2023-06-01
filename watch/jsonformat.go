@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/armosec/armoapi-go/armotypes"
 	"github.com/armosec/utils-k8s-go/armometadata"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
@@ -29,7 +30,7 @@ const (
 )
 
 var (
-	FirstReportEmptyBytes  = []byte("{\"firstReport\":true,\"InstallationData\":{}}")
+	FirstReportEmptyBytes  = []byte("{\"firstReport\":true}")
 	FirstReportEmptyLength = len(FirstReportEmptyBytes)
 )
 
@@ -39,27 +40,17 @@ type ObjectData struct {
 	Updated []interface{} `json:"update,omitempty"`
 }
 
-type InstallationData struct {
-	ClusterName                         string `json:"clusterName,omitempty"`                         // cluster name defined manually or from the cluster context
-	StorageEnabled                      bool   `json:"storage,omitempty"`                             // storage configuration (enabled/disabled)
-	RelevantImageVulnerabilitiesEnabled bool   `json:"relevantImageVulnerabilitiesEnabled,omitempty"` // relevancy configuration (enabled/disabled)
-	Namespace                           string `json:"namespace,omitempty"`                           // namespace to deploy the components
-	ImageVulnerabilitiesScanningEnabled bool   `json:"imageVulnerabilitiesScanningEnabled,omitempty"` // image scanning configuration (enabled/disabled)
-	PostureScanEnabled                  bool   `json:"postureScanEnabled,omitempty"`                  // posture configuration (enabled/disabled)
-	OtelCollectorEnabled                bool   `json:"otelCollector,omitempty"`                       // otel collector configuration (enabled/disabled)
-}
-
 type jsonFormat struct {
-	FirstReport             bool             `json:"firstReport"`
-	ClusterAPIServerVersion *version.Info    `json:"clusterAPIServerVersion,omitempty"`
-	CloudVendor             string           `json:"cloudVendor,omitempty"`
-	Nodes                   *ObjectData      `json:"node,omitempty"`
-	Services                *ObjectData      `json:"service,omitempty"`
-	MicroServices           *ObjectData      `json:"microservice,omitempty"`
-	Pods                    *ObjectData      `json:"pod,omitempty"`
-	Secret                  *ObjectData      `json:"secret,omitempty"`
-	Namespace               *ObjectData      `json:"namespace,omitempty"`
-	InstallationData        InstallationData `json:"InstallationData,omitempty"`
+	FirstReport             bool                        `json:"firstReport"`
+	ClusterAPIServerVersion *version.Info               `json:"clusterAPIServerVersion,omitempty"`
+	CloudVendor             string                      `json:"cloudVendor,omitempty"`
+	Nodes                   *ObjectData                 `json:"node,omitempty"`
+	Services                *ObjectData                 `json:"service,omitempty"`
+	MicroServices           *ObjectData                 `json:"microservice,omitempty"`
+	Pods                    *ObjectData                 `json:"pod,omitempty"`
+	Secret                  *ObjectData                 `json:"secret,omitempty"`
+	Namespace               *ObjectData                 `json:"namespace,omitempty"`
+	InstallationData        *armotypes.InstallationData `json:"installationData,omitempty"`
 }
 
 func (obj *ObjectData) AddToJsonFormatByState(NewData interface{}, stype StateType) {
@@ -133,6 +124,7 @@ func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 	}
 	if *wh.getAggregateFirstDataFlag() {
 		setInstallationData(&jsonReport, *wh.config)
+
 		jsonReport.ClusterAPIServerVersion = wh.clusterAPIServerVersion
 		jsonReport.CloudVendor = wh.cloudVendor
 	} else {
@@ -236,11 +228,13 @@ func deleteJsonData(wh *WatchHandler) {
 }
 
 func setInstallationData(jsonReport *jsonFormat, config armometadata.ClusterConfig) {
-	jsonReport.InstallationData.Namespace = config.Namespace
-	jsonReport.InstallationData.RelevantImageVulnerabilitiesEnabled = config.RelevantImageVulnerabilitiesEnabled
-	jsonReport.InstallationData.StorageEnabled = config.StorageEnabled
-	jsonReport.InstallationData.ImageVulnerabilitiesScanningEnabled = config.ImageVulnerabilitiesScanningEnabled
-	jsonReport.InstallationData.PostureScanEnabled = config.PostureScanEnabled
-	jsonReport.InstallationData.OtelCollectorEnabled = config.OtelCollectorEnabled
-	jsonReport.InstallationData.ClusterName = config.ClusterName
+	jsonReport.InstallationData = &armotypes.InstallationData{
+		Namespace:                           config.Namespace,
+		RelevantImageVulnerabilitiesEnabled: config.RelevantImageVulnerabilitiesEnabled,
+		StorageEnabled:                      config.StorageEnabled,
+		ImageVulnerabilitiesScanningEnabled: config.ImageVulnerabilitiesScanningEnabled,
+		PostureScanEnabled:                  config.PostureScanEnabled,
+		OtelCollectorEnabled:                config.OtelCollectorEnabled,
+		ClusterName:                         config.ClusterName,
+	}
 }

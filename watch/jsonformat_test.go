@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/armosec/armoapi-go/armotypes"
 	"github.com/armosec/utils-k8s-go/armometadata"
 )
 
@@ -42,6 +43,8 @@ func TestIsEmptyFirstReport(test *testing.T) {
 }
 
 func TestSetInstallationData(t *testing.T) {
+	trueBool := true
+	falseBool := false
 	testCases := []struct {
 		name   string
 		config armometadata.ClusterConfig
@@ -50,50 +53,65 @@ func TestSetInstallationData(t *testing.T) {
 		{
 			name: "all true",
 			config: armometadata.ClusterConfig{
-				Namespace:                           "test-namespace",
-				RelevantImageVulnerabilitiesEnabled: true,
-				StorageEnabled:                      true,
-				ImageVulnerabilitiesScanningEnabled: true,
-				PostureScanEnabled:                  true,
-				OtelCollectorEnabled:                true,
-				ClusterName:                         "test-cluster",
+				InstallationData: armotypes.InstallationData{
+					Namespace:                           "test-namespace",
+					RelevantImageVulnerabilitiesEnabled: &trueBool,
+					StorageEnabled:                      &trueBool,
+					ImageVulnerabilitiesScanningEnabled: &trueBool,
+					PostureScanEnabled:                  &trueBool,
+					OtelCollectorEnabled:                &trueBool,
+					ClusterName:                         "test-cluster",
+				},
 			},
 		},
 		{
 			name: "all false",
 			config: armometadata.ClusterConfig{
-				Namespace:                           "test-namespace",
-				RelevantImageVulnerabilitiesEnabled: false,
-				StorageEnabled:                      false,
-				ImageVulnerabilitiesScanningEnabled: false,
-				PostureScanEnabled:                  false,
-				OtelCollectorEnabled:                false,
-				ClusterName:                         "test-cluster",
+				InstallationData: armotypes.InstallationData{
+					Namespace:                           "test-namespace",
+					RelevantImageVulnerabilitiesEnabled: &falseBool,
+					StorageEnabled:                      &falseBool,
+					ImageVulnerabilitiesScanningEnabled: &falseBool,
+					PostureScanEnabled:                  &falseBool,
+					OtelCollectorEnabled:                &falseBool,
+					ClusterName:                         "test-cluster"},
 			},
 		},
 		{
 			name: "half true half false",
 			config: armometadata.ClusterConfig{
-				Namespace:                           "test-namespace",
-				RelevantImageVulnerabilitiesEnabled: false,
-				StorageEnabled:                      true,
-				ImageVulnerabilitiesScanningEnabled: false,
-				PostureScanEnabled:                  true,
-				OtelCollectorEnabled:                false,
-				ClusterName:                         "test-cluster",
+				InstallationData: armotypes.InstallationData{
+					Namespace:                           "test-namespace",
+					RelevantImageVulnerabilitiesEnabled: &falseBool,
+					StorageEnabled:                      &trueBool,
+					ImageVulnerabilitiesScanningEnabled: &falseBool,
+					PostureScanEnabled:                  &trueBool,
+					OtelCollectorEnabled:                &falseBool,
+					ClusterName:                         "test-cluster"},
 			},
 		},
 		{
 			name: "empty",
 			config: armometadata.ClusterConfig{
-				Namespace:   "test-namespace",
-				ClusterName: "test-cluster",
+				InstallationData: armotypes.InstallationData{
+					Namespace:   "test-namespace",
+					ClusterName: "test-cluster"},
+			},
+		},
+		{
+			name: "nil pointer",
+			config: armometadata.ClusterConfig{
+				InstallationData: armotypes.InstallationData{
+					OtelCollectorEnabled: nil,
+				},
 			},
 		},
 	}
+
 	for _, tc := range testCases {
 		jsonReport := &jsonFormat{}
 		setInstallationData(jsonReport, tc.config)
+
 		if jsonReport.InstallationData.Namespace != tc.config.Namespace {
 			t.Errorf("Namespace is not equal")
 		}
