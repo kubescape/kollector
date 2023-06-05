@@ -5,13 +5,11 @@ go 1.19
 require (
 	github.com/armosec/armoapi-go v0.0.191
 	github.com/armosec/cluster-notifier-api-go v0.0.5
-	github.com/armosec/utils-k8s-go v0.0.16
-	github.com/gorilla/websocket v1.5.0
+	github.com/gobwas/ws v1.2.1
 	github.com/kubescape/go-logger v0.0.11
-	github.com/kubescape/k8s-interface v0.0.82
 	go.opentelemetry.io/otel v1.14.0
 	go.opentelemetry.io/otel/trace v1.14.0
-	golang.org/x/net v0.7.0
+	golang.org/x/net v0.8.0
 	k8s.io/api v0.26.3
 	k8s.io/apiextensions-apiserver v0.26.3
 	k8s.io/apimachinery v0.26.3
@@ -32,6 +30,8 @@ require (
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -72,9 +72,9 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
-	golang.org/x/crypto v0.1.0 // indirect
-	golang.org/x/term v0.5.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
+	golang.org/x/crypto v0.7.0 // indirect
+	golang.org/x/term v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230106154932-a12b697841d9 // indirect
@@ -94,10 +94,12 @@ require (
 )
 
 require (
-	github.com/armosec/utils-go v0.0.12
+	github.com/armosec/utils-go v0.0.14
+	github.com/armosec/utils-k8s-go v0.0.16
 	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/kubescape/k8s-interface v0.0.125
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/oauth2 v0.3.0 // indirect
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
