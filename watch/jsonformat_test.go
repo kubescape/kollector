@@ -152,6 +152,7 @@ func TestSetInstallationData(t *testing.T) {
 		if jsonReport.InstallationData.RelevantImageVulnerabilitiesConfiguration != tc.config.RelevantImageVulnerabilitiesConfiguration {
 			t.Errorf("RelevantImageVulnerabilitiesConfiguration is not equal")
 		}
+
 		if jsonReport.InstallationData.ClusterProvider != tc.config.ClusterProvider {
 			t.Errorf("ClusterProvider is not equal")
 		}
