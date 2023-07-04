@@ -236,4 +236,6 @@ func setInstallationData(jsonReport *jsonFormat, config armometadata.ClusterConf
 	jsonReport.InstallationData.PostureScanEnabled = config.PostureScanEnabled
 	jsonReport.InstallationData.OtelCollectorEnabled = config.OtelCollectorEnabled
 	jsonReport.InstallationData.ClusterName = config.ClusterName
+	jsonReport.InstallationData.ClusterProvider = config.ClusterProvider
+	jsonReport.InstallationData.RelevantImageVulnerabilitiesConfiguration = config.RelevantImageVulnerabilitiesConfiguration
 }

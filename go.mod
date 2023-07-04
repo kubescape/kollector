@@ -3,7 +3,7 @@ module github.com/kubescape/kollector
 go 1.19
 
 require (
-	github.com/armosec/armoapi-go v0.0.191
+	github.com/armosec/armoapi-go v0.0.198
 	github.com/armosec/cluster-notifier-api-go v0.0.5
 	github.com/armosec/utils-k8s-go v0.0.16
 	github.com/gorilla/websocket v1.5.0
