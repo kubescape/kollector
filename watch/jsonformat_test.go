@@ -106,6 +106,22 @@ func TestSetInstallationData(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "cluster provider",
+			config: armometadata.ClusterConfig{
+				InstallationData: armotypes.InstallationData{
+					ClusterProvider: "eks",
+				},
+			},
+		},
+		{
+			name: "relevancy configuration",
+			config: armometadata.ClusterConfig{
+				InstallationData: armotypes.InstallationData{
+					RelevantImageVulnerabilitiesConfiguration: "disable",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -132,6 +148,12 @@ func TestSetInstallationData(t *testing.T) {
 		}
 		if jsonReport.InstallationData.ClusterName != tc.config.ClusterName {
 			t.Errorf("ClusterName is not equal")
+		}
+		if jsonReport.InstallationData.RelevantImageVulnerabilitiesConfiguration != tc.config.RelevantImageVulnerabilitiesConfiguration {
+			t.Errorf("RelevantImageVulnerabilitiesConfiguration is not equal")
+		}
+		if jsonReport.InstallationData.ClusterProvider != tc.config.ClusterProvider {
+			t.Errorf("ClusterProvider is not equal")
 		}
 	}
 }

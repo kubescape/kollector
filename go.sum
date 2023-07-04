@@ -43,8 +43,8 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/armosec/armoapi-go v0.0.191 h1:+fC9dnFzOHOAlid34xOi2DI7+1AT+f7mZ03KpVInab4=
-github.com/armosec/armoapi-go v0.0.191/go.mod h1:ANarxE0icSvdufFB1x3JAax7XKrWIKe8b/SvLnuDtGw=
+github.com/armosec/armoapi-go v0.0.198 h1:j40J7LPpq0wJ4rfoD/1b+eVyUBKNQ7v6v4MVBfxtpgk=
+github.com/armosec/armoapi-go v0.0.198/go.mod h1:ANarxE0icSvdufFB1x3JAax7XKrWIKe8b/SvLnuDtGw=
 github.com/armosec/cluster-notifier-api-go v0.0.5 h1:UKY58ehKocKgtqzrawyaIHJa5paG9A4srv+4/6n+Ez4=
 github.com/armosec/cluster-notifier-api-go v0.0.5/go.mod h1:p5w9/zWIWwpi8W8mHGQdE6HuBb3AxXmZM9Rp//JWvx0=
 github.com/armosec/utils-go v0.0.12 h1:NXkG/BhbSVAmTVXr0qqsK02CmxEiXuJyPmdTRcZ4jAo=
