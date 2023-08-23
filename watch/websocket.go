@@ -10,19 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/gorilla/websocket"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
 )
 
 type ReqType int
-
-const (
-	customerGuidQueryParamKey  = "customerGUID"
-	clusterNameQueryParamKey   = "clusterName"
-	EventReceiverWebsocketPath = "/k8s/cluster-reports"
-)
 
 const (
 	PING    ReqType = 0
@@ -46,20 +39,6 @@ type WebSocketHandler struct {
 	SignalChan chan os.Signal
 }
 
-func setWebSocketURL(config *armometadata.ClusterConfig) (*url.URL, error) {
-	u, err := url.Parse(config.EventReceiverWebsocketURL)
-	if err != nil {
-		return nil, err
-	}
-	u.Path = EventReceiverWebsocketPath
-	q := u.Query()
-	q.Add(customerGuidQueryParamKey, config.AccountID)
-	q.Add(clusterNameQueryParamKey, config.ClusterName)
-	u.RawQuery = q.Encode()
-	u.ForceQuery = true
-
-	return u, nil
-}
 func createWebSocketHandler(u *url.URL) *WebSocketHandler {
 	logger.L().Info("connecting websocket", helpers.String("URL", u.String()))
 	wsh := WebSocketHandler{

@@ -12,6 +12,7 @@ import (
 	"github.com/kubescape/kollector/consts"
 	restclient "k8s.io/client-go/rest"
 
+	beClientV1 "github.com/kubescape/backend/pkg/client/v1"
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
@@ -137,7 +138,7 @@ func CreateWatchHandler(config *armometadata.ClusterConfig) (*WatchHandler, erro
 		return nil, fmt.Errorf("apiV1beta1client.NewForConfig failed: %s", err.Error())
 	}
 
-	erURL, err := setWebSocketURL(config)
+	erURL, err := beClientV1.GetReporterClusterReportsWebsocketUrl(config.EventReceiverWebsocketURL, config.AccountID, config.ClusterName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set event receiver url: %s", err.Error())
 	}
