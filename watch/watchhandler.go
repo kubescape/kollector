@@ -12,6 +12,7 @@ import (
 	"github.com/kubescape/kollector/consts"
 	restclient "k8s.io/client-go/rest"
 
+	beClientV1 "github.com/kubescape/backend/pkg/client/v1"
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
@@ -120,7 +121,7 @@ type WatchHandler struct {
 	notifyUpdates iClusterNotifier // notify other (in-cluster) components about new data
 }
 
-func CreateWatchHandler(config *armometadata.ClusterConfig) (*WatchHandler, error) {
+func CreateWatchHandler(config *armometadata.ClusterConfig, eventReceiverWebsocketURL string) (*WatchHandler, error) {
 
 	componentNamespace := os.Getenv(consts.NamespaceEnvironmentVariable)
 
@@ -137,7 +138,7 @@ func CreateWatchHandler(config *armometadata.ClusterConfig) (*WatchHandler, erro
 		return nil, fmt.Errorf("apiV1beta1client.NewForConfig failed: %s", err.Error())
 	}
 
-	erURL, err := setWebSocketURL(config)
+	erURL, err := beClientV1.GetReporterClusterReportsWebsocketUrl(eventReceiverWebsocketURL, config.AccountID, config.ClusterName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set event receiver url: %s", err.Error())
 	}

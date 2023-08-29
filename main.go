@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/kubescape/backend/pkg/servicediscovery"
+	v1 "github.com/kubescape/backend/pkg/servicediscovery/v1"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
 
@@ -29,6 +31,15 @@ func main() {
 		logger.L().Ctx(ctx).Fatal("failed to load config", helpers.Error(err))
 	}
 
+	services, err := servicediscovery.GetServices(
+		v1.NewServiceDiscoveryFileV1("/etc/config/services.json"),
+	)
+	if err != nil {
+		logger.L().Ctx(ctx).Fatal("failed to load services", helpers.Error(err))
+	}
+
+	logger.L().Info("loaded event receiver websocket url (service discovery)", helpers.String("url", services.GetReportReceiverWebsocketUrl()))
+
 	// to enable otel, set OTEL_COLLECTOR_SVC=otel-collector:4317
 	if otelHost, present := os.LookupEnv(consts.OtelCollectorSvcEnvironmentVariable); present {
 		ctx = logger.InitOtel("kollector",
@@ -39,7 +50,7 @@ func main() {
 		defer logger.ShutdownOtel(ctx)
 	}
 
-	wh, err := watch.CreateWatchHandler(config)
+	wh, err := watch.CreateWatchHandler(config, services.GetReportReceiverWebsocketUrl())
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to initialize the WatchHandler", helpers.Error(err))
 	}
