@@ -36,10 +36,9 @@ func main() {
 	)
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to load services", helpers.Error(err))
-	} else {
-		logger.L().Info("loaded event receiver websocket url (service discovery)", helpers.String("url", services.GetReportReceiverWebsocketUrl()))
-		config.EventReceiverWebsocketURL = services.GetReportReceiverWebsocketUrl()
 	}
+
+	logger.L().Info("loaded event receiver websocket url (service discovery)", helpers.String("url", services.GetReportReceiverWebsocketUrl()))
 
 	// to enable otel, set OTEL_COLLECTOR_SVC=otel-collector:4317
 	if otelHost, present := os.LookupEnv(consts.OtelCollectorSvcEnvironmentVariable); present {
@@ -51,7 +50,7 @@ func main() {
 		defer logger.ShutdownOtel(ctx)
 	}
 
-	wh, err := watch.CreateWatchHandler(config)
+	wh, err := watch.CreateWatchHandler(config, services.GetReportReceiverWebsocketUrl())
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to initialize the WatchHandler", helpers.Error(err))
 	}

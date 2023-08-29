@@ -121,7 +121,7 @@ type WatchHandler struct {
 	notifyUpdates iClusterNotifier // notify other (in-cluster) components about new data
 }
 
-func CreateWatchHandler(config *armometadata.ClusterConfig) (*WatchHandler, error) {
+func CreateWatchHandler(config *armometadata.ClusterConfig, eventReceiverWebsocketURL string) (*WatchHandler, error) {
 
 	componentNamespace := os.Getenv(consts.NamespaceEnvironmentVariable)
 
@@ -138,7 +138,7 @@ func CreateWatchHandler(config *armometadata.ClusterConfig) (*WatchHandler, erro
 		return nil, fmt.Errorf("apiV1beta1client.NewForConfig failed: %s", err.Error())
 	}
 
-	erURL, err := beClientV1.GetReporterClusterReportsWebsocketUrl(config.EventReceiverWebsocketURL, config.AccountID, config.ClusterName)
+	erURL, err := beClientV1.GetReporterClusterReportsWebsocketUrl(eventReceiverWebsocketURL, config.AccountID, config.ClusterName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set event receiver url: %s", err.Error())
 	}
