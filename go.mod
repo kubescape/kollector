@@ -3,11 +3,11 @@ module github.com/kubescape/kollector
 go 1.20
 
 require (
-	github.com/armosec/armoapi-go v0.0.220
+	github.com/armosec/armoapi-go v0.0.234
 	github.com/armosec/cluster-notifier-api-go v0.0.5
-	github.com/armosec/utils-k8s-go v0.0.18
+	github.com/armosec/utils-k8s-go v0.0.20
 	github.com/gorilla/websocket v1.5.0
-	github.com/kubescape/backend v0.0.1
+	github.com/kubescape/backend v0.0.2
 	github.com/kubescape/go-logger v0.0.14-0.20230730134225-e59751254525
 	github.com/kubescape/k8s-interface v0.0.135-0.20230730135750-e6e709507847
 	go.opentelemetry.io/otel v1.16.0
