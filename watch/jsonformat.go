@@ -238,4 +238,6 @@ func setInstallationData(jsonReport *jsonFormat, config armometadata.ClusterConf
 	jsonReport.InstallationData.ClusterName = config.ClusterName
 	jsonReport.InstallationData.ClusterProvider = config.ClusterProvider
 	jsonReport.InstallationData.RelevantImageVulnerabilitiesConfiguration = config.RelevantImageVulnerabilitiesConfiguration
+
+	logger.L().Debug("setting installation data", helpers.Interface("installation data", jsonReport.InstallationData))
 }
