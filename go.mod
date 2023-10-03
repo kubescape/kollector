@@ -7,10 +7,9 @@ require (
 	github.com/armosec/cluster-notifier-api-go v0.0.5
 	github.com/armosec/utils-k8s-go v0.0.20
 	github.com/gorilla/websocket v1.5.0
-	github.com/kubescape/backend v0.0.7
+	github.com/kubescape/backend v0.0.8-0.20231003075242-690fc75a1964
 	github.com/kubescape/go-logger v0.0.21
 	github.com/kubescape/k8s-interface v0.0.135-0.20230730135750-e6e709507847
-	github.com/kubescape/kubevuln v0.2.111-0.20230930222654-26a5470dd1c6
 	go.opentelemetry.io/otel v1.18.0
 	go.opentelemetry.io/otel/trace v1.18.0
 	golang.org/x/net v0.15.0
@@ -58,6 +57,7 @@ require (
 	github.com/docker/docker v24.0.5+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect

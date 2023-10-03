@@ -14,7 +14,6 @@ import (
 	"github.com/gorilla/websocket"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
-	secretConfig "github.com/kubescape/kubevuln/config"
 )
 
 type ReqType int
@@ -42,20 +41,20 @@ type WebSocketHandler struct {
 	headers    http.Header
 }
 
-func setHeaders(accessToken string) map[string][]string {
+func getRequestHeaders(accessToken string) map[string][]string {
 	return map[string][]string{
 		"Authorization": []string{"Bearer " + accessToken},
 	}
 }
 
-func createWebSocketHandler(u *url.URL, sd secretConfig.SecretData) *WebSocketHandler {
+func createWebSocketHandler(u *url.URL, requestToken string) *WebSocketHandler {
 	logger.L().Info("connecting websocket", helpers.String("URL", u.String()))
 	wsh := WebSocketHandler{
 		u:          *u,
 		data:       make(chan DataSocket),
 		mutex:      &sync.Mutex{},
 		SignalChan: make(chan os.Signal),
-		headers:    setHeaders(sd.Token),
+		headers:    getRequestHeaders(requestToken),
 	}
 	return &wsh
 }

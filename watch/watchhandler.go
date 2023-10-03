@@ -13,7 +13,6 @@ import (
 	restclient "k8s.io/client-go/rest"
 
 	beClientV1 "github.com/kubescape/backend/pkg/client/v1"
-	secretConfig "github.com/kubescape/kubevuln/config"
 	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
@@ -122,7 +121,7 @@ type WatchHandler struct {
 	notifyUpdates iClusterNotifier // notify other (in-cluster) components about new data
 }
 
-func CreateWatchHandler(config *armometadata.ClusterConfig, eventReceiverWebsocketURL string, sd secretConfig.SecretData) (*WatchHandler, error) {
+func CreateWatchHandler(config *armometadata.ClusterConfig, eventReceiverWebsocketURL string, requestToken string) (*WatchHandler, error) {
 
 	componentNamespace := os.Getenv(consts.NamespaceEnvironmentVariable)
 
@@ -145,7 +144,7 @@ func CreateWatchHandler(config *armometadata.ClusterConfig, eventReceiverWebsock
 	}
 
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
-		WebSocketHandle:  createWebSocketHandler(erURL, sd),
+		WebSocketHandle:  createWebSocketHandler(erURL, requestToken),
 		extensionsClient: extensionsClientSet,
 		K8sApi:           k8sinterface.NewKubernetesApi(),
 		pdm:              make(map[int]*list.List),

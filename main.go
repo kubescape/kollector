@@ -9,6 +9,7 @@ import (
 
 	"github.com/kubescape/backend/pkg/servicediscovery"
 	v1 "github.com/kubescape/backend/pkg/servicediscovery/v1"
+	"github.com/kubescape/backend/pkg/utils"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
 
@@ -17,7 +18,6 @@ import (
 
 	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/armosec/utils-k8s-go/probes"
-	secretConfig "github.com/kubescape/kubevuln/config"
 )
 
 func main() {
@@ -51,12 +51,12 @@ func main() {
 		defer logger.ShutdownOtel(ctx)
 	}
 
-	sd, err := secretConfig.LoadSecret("/etc/access-token-secret")
+	sd, err := utils.LoadTokenFromSecret("/etc/access-token-secret")
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to get secret data", helpers.Error(err))
 	}
 
-	wh, err := watch.CreateWatchHandler(config, services.GetReportReceiverWebsocketUrl(), *sd)
+	wh, err := watch.CreateWatchHandler(config, services.GetReportReceiverWebsocketUrl(), sd.Token)
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to initialize the WatchHandler", helpers.Error(err))
 	}
