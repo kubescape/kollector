@@ -13,6 +13,7 @@ import (
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
 
+	"github.com/kubescape/kollector/config"
 	"github.com/kubescape/kollector/consts"
 	"github.com/kubescape/kollector/watch"
 
@@ -27,7 +28,7 @@ func main() {
 	go probes.InitReadinessV1(&isServerReady)
 	displayBuildTag()
 
-	config, err := armometadata.LoadConfig(os.Getenv(consts.ConfigEnvironmentVariable))
+	clusterConfig, err := armometadata.LoadConfig(os.Getenv(consts.ConfigEnvironmentVariable))
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to load config", helpers.Error(err))
 	}
@@ -41,22 +42,24 @@ func main() {
 
 	logger.L().Info("loaded event receiver websocket url (service discovery)", helpers.String("url", services.GetReportReceiverWebsocketUrl()))
 
-	// to enable otel, set OTEL_COLLECTOR_SVC=otel-collector:4317
-	if otelHost, present := os.LookupEnv(consts.OtelCollectorSvcEnvironmentVariable); present {
-		ctx = logger.InitOtel("kollector",
-			os.Getenv(consts.ReleaseBuildTagEnvironmentVariable),
-			config.AccountID,
-			config.ClusterName,
-			url.URL{Host: otelHost})
-		defer logger.ShutdownOtel(ctx)
-	}
-
 	sd, err := utils.LoadTokenFromSecret("/etc/access-token-secret")
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to get secret data", helpers.Error(err))
 	}
 
-	wh, err := watch.CreateWatchHandler(config, services.GetReportReceiverWebsocketUrl(), sd.Token)
+	kollectorConfig := config.NewKollectorConfig(clusterConfig, *sd, services.GetReportReceiverWebsocketUrl())
+
+	// to enable otel, set OTEL_COLLECTOR_SVC=otel-collector:4317
+	if otelHost, present := os.LookupEnv(consts.OtelCollectorSvcEnvironmentVariable); present {
+		ctx = logger.InitOtel("kollector",
+			os.Getenv(consts.ReleaseBuildTagEnvironmentVariable),
+			kollectorConfig.AccountID(),
+			kollectorConfig.ClusterName(),
+			url.URL{Host: otelHost})
+		defer logger.ShutdownOtel(ctx)
+	}
+
+	wh, err := watch.CreateWatchHandler(kollectorConfig)
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to initialize the WatchHandler", helpers.Error(err))
 	}
