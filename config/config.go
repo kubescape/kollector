@@ -25,7 +25,7 @@ type KollectorConfig struct {
 
 func NewKollectorConfig(clusterConfig *armometadata.ClusterConfig, tokenSecret utils.TokenSecretData, eventReceiverWebsocketURL string) *KollectorConfig {
 	return &KollectorConfig{
-		accountID:                 tokenSecret.AccountId,
+		accountID:                 tokenSecret.Account,
 		token:                     tokenSecret.Token,
 		clusterConfig:             clusterConfig,
 		eventReceiverWebsocketURL: eventReceiverWebsocketURL,

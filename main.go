@@ -42,7 +42,7 @@ func main() {
 
 	logger.L().Info("loaded event receiver websocket url (service discovery)", helpers.String("url", services.GetReportReceiverWebsocketUrl()))
 
-	sd, err := utils.LoadTokenFromSecret("/etc/access-token-secret")
+	sd, err := utils.LoadTokenFromFile("/etc/access-token-secret")
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to get secret data", helpers.Error(err))
 	}
