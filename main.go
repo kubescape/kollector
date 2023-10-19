@@ -42,12 +42,16 @@ func main() {
 
 	logger.L().Info("loaded event receiver websocket url (service discovery)", helpers.String("url", services.GetReportReceiverWebsocketUrl()))
 
-	sd, err := utils.LoadTokenFromFile("/etc/access-token-secret")
+	credentials, err := utils.LoadCredentialsFromFile("/etc/credentials")
 	if err != nil {
-		logger.L().Ctx(ctx).Fatal("failed to get secret data", helpers.Error(err))
+		logger.L().Ctx(ctx).Error("failed to load credentials", helpers.Error(err))
+	} else {
+		logger.L().Info("credentials loaded",
+			helpers.Int("accessKeyLength", len(credentials.AccessKey)),
+			helpers.Int("accountLength", len(credentials.Account)))
 	}
 
-	kollectorConfig := config.NewKollectorConfig(clusterConfig, *sd, services.GetReportReceiverWebsocketUrl())
+	kollectorConfig := config.NewKollectorConfig(clusterConfig, *credentials, services.GetReportReceiverWebsocketUrl())
 
 	// to enable otel, set OTEL_COLLECTOR_SVC=otel-collector:4317
 	if otelHost, present := os.LookupEnv(consts.OtelCollectorSvcEnvironmentVariable); present {

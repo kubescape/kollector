@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	v1 "github.com/kubescape/backend/pkg/server/v1"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
 )
@@ -41,20 +42,20 @@ type WebSocketHandler struct {
 	headers    http.Header
 }
 
-func getRequestHeaders(accessToken string) map[string][]string {
-	return map[string][]string{
-		"Authorization": []string{"Bearer " + accessToken},
-	}
+func getRequestHeaders(accessKey string) http.Header {
+	headers := http.Header{}
+	headers.Add(v1.AccessKeyHeader, accessKey)
+	return headers
 }
 
-func createWebSocketHandler(u *url.URL, requestToken string) *WebSocketHandler {
+func createWebSocketHandler(u *url.URL, accessKey string) *WebSocketHandler {
 	logger.L().Info("connecting websocket", helpers.String("URL", u.String()))
 	wsh := WebSocketHandler{
 		u:          *u,
 		data:       make(chan DataSocket),
 		mutex:      &sync.Mutex{},
 		SignalChan: make(chan os.Signal),
-		headers:    getRequestHeaders(requestToken),
+		headers:    getRequestHeaders(accessKey),
 	}
 	return &wsh
 }

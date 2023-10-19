@@ -9,7 +9,7 @@ import (
 type IConfig interface {
 	ClusterName() string
 	AccountID() string
-	Token() string
+	AccessKey() string
 	GatewayRestURL() string
 	EventReceiverWebsocketURL() string
 	ClusterConfig() *armometadata.ClusterConfig
@@ -18,15 +18,15 @@ type IConfig interface {
 // KollectorConfig implements IConfig
 type KollectorConfig struct {
 	accountID                 string
-	token                     string
+	accessKey                 string
 	clusterConfig             *armometadata.ClusterConfig
 	eventReceiverWebsocketURL string
 }
 
-func NewKollectorConfig(clusterConfig *armometadata.ClusterConfig, tokenSecret utils.TokenSecretData, eventReceiverWebsocketURL string) *KollectorConfig {
+func NewKollectorConfig(clusterConfig *armometadata.ClusterConfig, credentials utils.Credentials, eventReceiverWebsocketURL string) *KollectorConfig {
 	return &KollectorConfig{
-		accountID:                 tokenSecret.Account,
-		token:                     tokenSecret.Token,
+		accountID:                 credentials.Account,
+		accessKey:                 credentials.AccessKey,
 		clusterConfig:             clusterConfig,
 		eventReceiverWebsocketURL: eventReceiverWebsocketURL,
 	}
@@ -44,8 +44,8 @@ func (k *KollectorConfig) AccountID() string {
 	return k.accountID
 }
 
-func (k *KollectorConfig) Token() string {
-	return k.token
+func (k *KollectorConfig) AccessKey() string {
+	return k.accessKey
 }
 
 func (k *KollectorConfig) ClusterConfig() *armometadata.ClusterConfig {

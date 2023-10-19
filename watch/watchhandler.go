@@ -144,7 +144,7 @@ func CreateWatchHandler(config config.IConfig) (*WatchHandler, error) {
 	}
 
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
-		WebSocketHandle:  createWebSocketHandler(erURL, config.Token()),
+		WebSocketHandle:  createWebSocketHandler(erURL, config.AccessKey()),
 		extensionsClient: extensionsClientSet,
 		K8sApi:           k8sinterface.NewKubernetesApi(),
 		pdm:              make(map[int]*list.List),
