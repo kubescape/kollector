@@ -42,9 +42,10 @@ func main() {
 
 	logger.L().Info("loaded event receiver websocket url (service discovery)", helpers.String("url", services.GetReportReceiverWebsocketUrl()))
 
-	credentials, err := utils.LoadCredentialsFromFile("/etc/credentials")
-	if err != nil {
+	var credentials *utils.Credentials
+	if credentials, err = utils.LoadCredentialsFromFile("/etc/credentials"); err != nil {
 		logger.L().Ctx(ctx).Error("failed to load credentials", helpers.Error(err))
+		credentials = &utils.Credentials{}
 	} else {
 		logger.L().Info("credentials loaded",
 			helpers.Int("accessKeyLength", len(credentials.AccessKey)),
