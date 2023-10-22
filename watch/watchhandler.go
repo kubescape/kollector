@@ -7,8 +7,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/armosec/utils-k8s-go/armometadata"
 	"github.com/kubescape/k8s-interface/k8sinterface"
+	"github.com/kubescape/kollector/config"
 	"github.com/kubescape/kollector/consts"
 	restclient "k8s.io/client-go/rest"
 
@@ -116,12 +116,12 @@ type WatchHandler struct {
 	newStateReportChans []chan bool
 	includeNamespaces   []string
 
-	config *armometadata.ClusterConfig
+	config config.IConfig
 
 	notifyUpdates iClusterNotifier // notify other (in-cluster) components about new data
 }
 
-func CreateWatchHandler(config *armometadata.ClusterConfig, eventReceiverWebsocketURL string) (*WatchHandler, error) {
+func CreateWatchHandler(config config.IConfig) (*WatchHandler, error) {
 
 	componentNamespace := os.Getenv(consts.NamespaceEnvironmentVariable)
 
@@ -138,13 +138,13 @@ func CreateWatchHandler(config *armometadata.ClusterConfig, eventReceiverWebsock
 		return nil, fmt.Errorf("apiV1beta1client.NewForConfig failed: %s", err.Error())
 	}
 
-	erURL, err := beClientV1.GetReporterClusterReportsWebsocketUrl(eventReceiverWebsocketURL, config.AccountID, config.ClusterName)
+	erURL, err := beClientV1.GetReporterClusterReportsWebsocketUrl(config.EventReceiverWebsocketURL(), config.AccountID(), config.ClusterName())
 	if err != nil {
 		return nil, fmt.Errorf("failed to set event receiver url: %s", err.Error())
 	}
 
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,
-		WebSocketHandle:  createWebSocketHandler(erURL),
+		WebSocketHandle:  createWebSocketHandler(erURL, config.AccessKey()),
 		extensionsClient: extensionsClientSet,
 		K8sApi:           k8sinterface.NewKubernetesApi(),
 		pdm:              make(map[int]*list.List),

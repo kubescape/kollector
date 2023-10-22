@@ -11,20 +11,20 @@ import (
 	"github.com/armosec/armoapi-go/apis"
 	"github.com/armosec/cluster-notifier-api-go/notificationserver"
 	"github.com/armosec/utils-go/boolutils"
-	"github.com/armosec/utils-k8s-go/armometadata"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
+	"github.com/kubescape/kollector/config"
 	"github.com/kubescape/kollector/consts"
 )
 
 var defaultClientInClusterTrigger = http.DefaultClient
 
-func newInClusterNotifier(config *armometadata.ClusterConfig) iClusterNotifier {
+func newInClusterNotifier(config config.IConfig) iClusterNotifier {
 	trigger := os.Getenv(consts.ActivateScanOnNewImageFeatureEnvironmentVariable)
 	if !boolutils.StringToBool(trigger) {
 		return newSkipInClusterNotifier("", "", "")
 	}
-	return newClusterNotifierImpl(config.AccountID, config.ClusterName, config.GatewayRestURL)
+	return newClusterNotifierImpl(config.AccountID(), config.ClusterName(), config.GatewayRestURL())
 }
 
 type iClusterNotifier interface {

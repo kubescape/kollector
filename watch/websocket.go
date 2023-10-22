@@ -3,6 +3,7 @@ package watch
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"runtime/debug"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	v1 "github.com/kubescape/backend/pkg/server/v1"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
 )
@@ -37,15 +39,23 @@ type WebSocketHandler struct {
 	u          url.URL
 	mutex      *sync.Mutex
 	SignalChan chan os.Signal
+	headers    http.Header
 }
 
-func createWebSocketHandler(u *url.URL) *WebSocketHandler {
+func getRequestHeaders(accessKey string) http.Header {
+	headers := http.Header{}
+	headers.Add(v1.AccessKeyHeader, accessKey)
+	return headers
+}
+
+func createWebSocketHandler(u *url.URL, accessKey string) *WebSocketHandler {
 	logger.L().Info("connecting websocket", helpers.String("URL", u.String()))
 	wsh := WebSocketHandler{
 		u:          *u,
 		data:       make(chan DataSocket),
 		mutex:      &sync.Mutex{},
 		SignalChan: make(chan os.Signal),
+		headers:    getRequestHeaders(accessKey),
 	}
 	return &wsh
 }
@@ -58,7 +68,7 @@ func (wsh *WebSocketHandler) connectToWebSocket(ctx context.Context, sleepBefore
 	tries := 60
 	for reconnectionCounter := 0; reconnectionCounter < tries; reconnectionCounter++ {
 		time.Sleep(time.Second * 1)
-		if conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), nil); err == nil {
+		if conn, _, err = websocket.DefaultDialer.Dial(wsh.u.String(), wsh.headers); err == nil {
 			logger.L().Ctx(ctx).Info("connected successfully", helpers.String("URL", wsh.u.String()))
 			wsh.setPingPongHandler(ctx, conn)
 			return conn, nil

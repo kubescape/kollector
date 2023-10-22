@@ -123,7 +123,7 @@ func prepareDataToSend(ctx context.Context, wh *WatchHandler) []byte {
 		return nil
 	}
 	if *wh.getAggregateFirstDataFlag() {
-		setInstallationData(&jsonReport, *wh.config)
+		setInstallationData(&jsonReport, *wh.config.ClusterConfig())
 
 		jsonReport.ClusterAPIServerVersion = wh.clusterAPIServerVersion
 		jsonReport.CloudVendor = wh.cloudVendor
