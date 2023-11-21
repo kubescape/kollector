@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/kubescape/backend/pkg/servicediscovery"
-	v1 "github.com/kubescape/backend/pkg/servicediscovery/v1"
+	v2 "github.com/kubescape/backend/pkg/servicediscovery/v2"
 	"github.com/kubescape/backend/pkg/utils"
 	logger "github.com/kubescape/go-logger"
 	"github.com/kubescape/go-logger/helpers"
@@ -34,7 +34,7 @@ func main() {
 	}
 
 	services, err := servicediscovery.GetServices(
-		v1.NewServiceDiscoveryFileV1("/etc/config/services.json"),
+		v2.NewServiceDiscoveryFileV2("/etc/config/services.json"),
 	)
 	if err != nil {
 		logger.L().Ctx(ctx).Fatal("failed to load services", helpers.Error(err))
