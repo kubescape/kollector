@@ -7,6 +7,8 @@ import (
 	"os"
 	"sync"
 
+	logger "github.com/kubescape/go-logger"
+	"github.com/kubescape/go-logger/helpers"
 	"github.com/kubescape/k8s-interface/k8sinterface"
 	"github.com/kubescape/kollector/config"
 	"github.com/kubescape/kollector/consts"
@@ -141,6 +143,12 @@ func CreateWatchHandler(config config.IConfig) (*WatchHandler, error) {
 	erURL, err := beClientV1.GetReporterClusterReportsWebsocketUrl(config.EventReceiverWebsocketURL(), config.AccountID(), config.ClusterName())
 	if err != nil {
 		return nil, fmt.Errorf("failed to set event receiver url: %s", err.Error())
+	}
+
+	if err = setCloudProvider(k8sAPiObj); err != nil {
+		logger.L().Error("failed to set cloud provider", helpers.Error(err))
+	} else {
+		logger.L().Info("setting cloud provider", helpers.String("cloudProvider", cloudProvider))
 	}
 
 	result := WatchHandler{RestAPIClient: k8sAPiObj.KubernetesClient,

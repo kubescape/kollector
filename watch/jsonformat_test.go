@@ -43,6 +43,9 @@ func TestIsEmptyFirstReport(test *testing.T) {
 }
 
 func TestSetInstallationData(t *testing.T) {
+	// setting global provider value since it is taken from global variable instead of config
+	cloudProvider = "test"
+
 	trueBool := true
 	falseBool := false
 	testCases := []struct {
@@ -153,7 +156,7 @@ func TestSetInstallationData(t *testing.T) {
 			t.Errorf("RelevantImageVulnerabilitiesConfiguration is not equal")
 		}
 
-		if jsonReport.InstallationData.ClusterProvider != tc.config.ClusterProvider {
+		if jsonReport.InstallationData.ClusterProvider != cloudProvider {
 			t.Errorf("ClusterProvider is not equal")
 		}
 	}

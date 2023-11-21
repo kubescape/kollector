@@ -6,4 +6,5 @@ import (
 
 var (
 	globalHTTPContext = context.Background()
+	cloudProvider     = ""
 )
