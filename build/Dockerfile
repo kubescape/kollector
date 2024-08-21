@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine as builder
+FROM golang:1.23-alpine AS builder
 
 ENV RELEASE=$image_version
 
@@ -28,4 +28,3 @@ COPY --from=builder  /bin/busybox.static /bin/busybox
 COPY ./kollector-entrypoint.sh /home/ks/
 
 ENTRYPOINT ["/bin/busybox","sh","/home/ks/kollector-entrypoint.sh"]
-
