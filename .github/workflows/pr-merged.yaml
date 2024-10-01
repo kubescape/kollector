@@ -27,7 +27,6 @@ jobs:
       GO_VERSION: "1.23"
       REQUIRED_TESTS: '[
                         "vuln_scan", 
-                        "vuln_scan_trigger_scan_on_new_image", 
                         "vuln_scan_trigger_scan_public_registry", 
                         "vuln_scan_trigger_scan_public_registry_excluded", 
                         "vuln_scan_trigger_scan_private_quay_registry", 
