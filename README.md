@@ -1,3 +1,8 @@
+# Archived 
+
+This repository has been archived and is no longer in active use or maintained, as part of the Kollector component [deprecation](https://github.com/kubescape/helm-charts/pull/559).
+
+
 # Kollector
 The Kollector component is an in-cluster component of the [Kubescape security platform](https://www.armosec.io/blog/kubescape-open-source-kubernetes-security-platform/?utm_source=github&utm_medium=repository).  
 It communicates with the Kubernetes API server to collect cluster information and watches for changes in the cluster.
